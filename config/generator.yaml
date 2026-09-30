@@ -1,0 +1,56 @@
+seed: 42
+scale: 0.05
+time:
+  history_start: 2015-01-01
+  history_end: 2026-06-30
+  sim_start: 2026-07-01
+population:
+  n_patients_base: 1500000
+  female_share: 0.515
+  migration_rate_adults: 0.04
+  chunk_size: 25000
+facilities:
+  go_live_start: 2015-01-01
+  go_live_end: 2019-12-31
+  hp_testing_tier_shares: {low: 0.45, medium: 0.35, high: 0.20}
+  n_health_centres: 200
+gi:
+  target_cohort_size: 50000
+  dyspepsia_incidence_adult: 0.06
+gastric_cancer:
+  # h0 calibrated so national ASR ~12/100k (world std) by 2024
+  h0_anchor_per_100k: {30: 0.5, 45: 5.0, 60: 25.0, 75: 60.0}
+  h0_multiplier: 1.0
+  rr: {male: 1.9, hp: 3.0, hp_eradicated_floor: 1.6, atrophy_im: 3.5,
+       smoker_current: 1.6, smoker_former: 1.2, alcohol_heavy: 1.3,
+       high_salt: 1.5, smoked_food: 1.4, family_hx: 2.5, hiv: 1.0}
+  sojourn_mean_months: 18
+  prodrome_months: [6, 24]
+  pct_clinical_only: 0.12
+  pct_never_diagnosed: 0.06
+  targets: {confirmed_cases: [2000, 3000], stage_iv_pct: [45, 55], national_asr_2024: 12}
+insights:
+  ins1: {enabled: true, districts: [WES-NYB, NOR-MUS, WES-RUT], hp_prev: 0.78,
+         smoked_food_prev: 0.55, high_salt_prev: 0.55, residual_rr: 1.4,
+         micro_cluster: {district: NOR-MUS, sector: auto, rr: 2.5}}
+  ins1b: {enabled: true, district: SOU-NYG, age60plus_multiplier: 2.2}
+  ins2: {enabled: true, age_lt: 50, start_year: 2019, annual_multiplier: 1.08,
+         older_annual_multiplier: 1.01}
+  ins3: {enabled: true}
+  ins4: {enabled: true}
+  ins5: {enabled: true, district: WES-RUS, endoscopy_from: 2021-07-01}
+  ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.45}
+  ins7: {enabled: true}
+  ins8: {enabled: true, factor: hiv}
+quality_noise:
+  birthdate_estimated: 0.20
+  hb_gL_units: {rate: 0.02, n_facilities: 5}
+  duplicate_patients: 0.005
+  voided_obs: 0.01
+  amended_labs: 0.003
+  c16_miscode: 0.03
+  future_dated: 0.0005
+simulator:
+  tick_seconds: 300
+  sim_days_per_tick: 1
+  demo: {tick_seconds: 30, sim_days_per_tick: 7}

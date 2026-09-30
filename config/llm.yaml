@@ -1,0 +1,14 @@
+# Provider is chosen by env LLM_PROVIDER (overrides `provider` below).
+provider: template            # ollama | anthropic | template
+timeouts: {sql_seconds: 12, summary_seconds: 20}
+ollama:
+  base_url: http://localhost:11434
+  sql_model: qwen2.5-coder:7b
+  text_model: llama3.1:8b
+anthropic:
+  model: claude-sonnet-5-5
+  api_key_env: ANTHROPIC_API_KEY
+limits:
+  max_rows: 1000
+  query_timeout_seconds: 5
+  summary_refresh_min_seconds: 600
