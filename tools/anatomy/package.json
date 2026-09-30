@@ -1,0 +1,12 @@
+{
+  "name": "anatomy-build-tools",
+  "private": true,
+  "type": "module",
+  "description": "Post-processing + verification for frontend/public/models/body.glb",
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.1.0",
+    "@gltf-transform/core": "^4.1.0",
+    "@gltf-transform/extensions": "^4.1.0",
+    "three": "^0.169.0"
+  }
+}
