@@ -1,0 +1,249 @@
+# Early Signals concept dictionary (SPEC §7). Own IDs, CIEL-inspired names.
+# fields: id, name, datatype (Coded|Numeric|Text|N/A|Datetime), class, [icd10], [units], [low_normal], [hi_normal], [answers], [is_set]
+questions:
+  - {id: 1000, name: DIAGNOSIS, datatype: Coded, class: Question}
+  - {id: 1001, name: DIAGNOSIS CERTAINTY, datatype: Coded, class: Question, answers: [7010, 7011]}
+  - {id: 1002, name: DIAGNOSIS ORDER, datatype: Coded, class: Question, answers: [7012, 7013]}
+  - {id: 1003, name: CHIEF COMPLAINT, datatype: Coded, class: Question}
+  - {id: 1004, name: SYMPTOM DURATION (WEEKS), datatype: Numeric, class: Question, units: weeks}
+  - {id: 1005, name: CLINICAL NOTE, datatype: Text, class: Question}
+  - {id: 1006, name: REFERRAL REASON, datatype: Text, class: Question}
+  - {id: 1007, name: VISIT OUTCOME, datatype: Coded, class: Question, answers: [7020, 7021, 7022, 7023]}
+  - {id: 1008, name: CAUSE OF DEATH, datatype: Coded, class: Question}
+diagnoses:
+  - {id: 2000, name: "Malignant neoplasm of stomach, unspecified", icd10: C16.9}
+  - {id: 2001, name: "Malignant neoplasm of cardia", icd10: C16.0}
+  - {id: 2002, name: "Malignant neoplasm of body of stomach", icd10: C16.2}
+  - {id: 2003, name: "Malignant neoplasm of pyloric antrum", icd10: C16.3}
+  - {id: 2004, name: "Malignant neoplasm of lesser curvature", icd10: C16.5}
+  - {id: 2005, name: "Suspected gastric malignancy (clinical)", icd10: R19.8}
+  - {id: 2010, name: "Gastritis, unspecified", icd10: K29.7}
+  - {id: 2011, name: "Chronic atrophic gastritis", icd10: K29.4}
+  - {id: 2012, name: "Gastric ulcer", icd10: K25.9}
+  - {id: 2013, name: "Duodenal ulcer", icd10: K26.9}
+  - {id: 2014, name: "Dyspepsia", icd10: K30}
+  - {id: 2015, name: "Gastro-oesophageal reflux disease", icd10: K21.9}
+  - {id: 2016, name: "Gastrointestinal haemorrhage, unspecified", icd10: K92.2}
+  - {id: 2017, name: "Haematemesis", icd10: K92.0}
+  - {id: 2018, name: "Melaena", icd10: K92.1}
+  - {id: 2019, name: "Helicobacter pylori infection", icd10: B96.81}
+  - {id: 2020, name: "Intestinal metaplasia of stomach", icd10: K31.89}
+  - {id: 2021, name: "Gastric outlet obstruction", icd10: K31.1}
+  - {id: 2022, name: "Iron deficiency anaemia", icd10: D50.9}
+  - {id: 2023, name: "Anaemia, unspecified", icd10: D64.9}
+  - {id: 2024, name: "Intestinal helminthiasis", icd10: B82.0}
+  - {id: 2100, name: "Malaria, unspecified", icd10: B54}
+  - {id: 2101, name: "HIV disease", icd10: B24}
+  - {id: 2102, name: "Essential hypertension", icd10: I10}
+  - {id: 2103, name: "Type 2 diabetes mellitus", icd10: E11.9}
+  - {id: 2104, name: "Pulmonary tuberculosis", icd10: A15.0}
+  - {id: 2105, name: "Acute upper respiratory infection", icd10: J06.9}
+  - {id: 2106, name: "Pneumonia, unspecified", icd10: J18.9}
+  - {id: 2107, name: "Diarrhoea and gastroenteritis", icd10: A09}
+  - {id: 2108, name: "Urinary tract infection", icd10: N39.0}
+  - {id: 2109, name: "Normal pregnancy supervision", icd10: Z34.9}
+  - {id: 2110, name: "Asthma", icd10: J45.9}
+  - {id: 2111, name: "Chronic kidney disease", icd10: N18.9}
+  - {id: 2112, name: "Heart failure", icd10: I50.9}
+  - {id: 2113, name: "Injury, unspecified", icd10: T14.9}
+  - {id: 2114, name: "Malnutrition", icd10: E46}
+  - {id: 2115, name: "Hepatitis B, chronic", icd10: B18.1}
+  - {id: 2116, name: "Malignant neoplasm of breast", icd10: C50.9}
+  - {id: 2117, name: "Malignant neoplasm of cervix", icd10: C53.9}
+  - {id: 2118, name: "Malignant neoplasm of oesophagus", icd10: C15.9}
+  - {id: 2119, name: "Malignant neoplasm of liver", icd10: C22.0}
+  - {id: 2120, name: "Malignant neoplasm of colon", icd10: C18.9}
+  - {id: 2121, name: "Malignant neoplasm of prostate", icd10: C61}
+symptoms:
+  - {id: 2200, name: "Epigastric pain", icd10: R10.1}
+  - {id: 2201, name: "Abdominal pain, unspecified", icd10: R10.4}
+  - {id: 2202, name: "Nausea and vomiting", icd10: R11}
+  - {id: 2203, name: "Dysphagia", icd10: R13}
+  - {id: 2204, name: "Early satiety", icd10: R68.81}
+  - {id: 2205, name: "Abnormal weight loss", icd10: R63.4}
+  - {id: 2206, name: "Anorexia (loss of appetite)", icd10: R63.0}
+  - {id: 2207, name: "Fatigue", icd10: R53}
+  - {id: 2208, name: "Fever", icd10: R50.9}
+  - {id: 2209, name: "Cough", icd10: R05}
+  - {id: 2210, name: "Headache", icd10: R51}
+  - {id: 2211, name: "Heartburn", icd10: R12}
+  - {id: 2212, name: "Bloating", icd10: R14}
+  - {id: 2213, name: "Palpable abdominal mass", icd10: R19.0}
+vitals:
+  - {id: 3000, name: Weight, units: kg}
+  - {id: 3001, name: Height, units: cm}
+  - {id: 3002, name: BMI, units: kg/m2, low_normal: 18.5, hi_normal: 24.9}
+  - {id: 3003, name: Systolic BP, units: mmHg, low_normal: 90, hi_normal: 139}
+  - {id: 3004, name: Diastolic BP, units: mmHg, low_normal: 60, hi_normal: 89}
+  - {id: 3005, name: Pulse, units: bpm, low_normal: 60, hi_normal: 100}
+  - {id: 3006, name: Temperature, units: °C, low_normal: 36.1, hi_normal: 37.5}
+  - {id: 3007, name: Respiratory rate, units: /min, low_normal: 12, hi_normal: 20}
+  - {id: 3008, name: MUAC, units: cm}
+labs:
+  - {id: 3100, name: Haemoglobin, datatype: Numeric, units: g/dL, low_normal: 12.0, hi_normal: 17.0}
+  - {id: 3101, name: MCV, datatype: Numeric, units: fL, low_normal: 80, hi_normal: 100}
+  - {id: 3102, name: Ferritin, datatype: Numeric, units: ng/mL, low_normal: 30, hi_normal: 300}
+  - {id: 3103, name: WBC, datatype: Numeric, units: 10^9/L, low_normal: 4.0, hi_normal: 11.0}
+  - {id: 3104, name: Platelets, datatype: Numeric, units: 10^9/L, low_normal: 150, hi_normal: 400}
+  - {id: 3105, name: ALT, datatype: Numeric, units: U/L, low_normal: 7, hi_normal: 56}
+  - {id: 3106, name: AST, datatype: Numeric, units: U/L, low_normal: 10, hi_normal: 40}
+  - {id: 3107, name: Albumin, datatype: Numeric, units: g/dL, low_normal: 3.5, hi_normal: 5.0}
+  - {id: 3108, name: CEA, datatype: Numeric, units: ng/mL, low_normal: 0, hi_normal: 5.0}
+  - {id: 3109, name: Creatinine, datatype: Numeric, units: mg/dL, low_normal: 0.6, hi_normal: 1.3}
+  - {id: 3110, name: Random blood glucose, datatype: Numeric, units: mg/dL, low_normal: 70, hi_normal: 140}
+  - {id: 3111, name: HbA1c, datatype: Numeric, units: "%", low_normal: 4.0, hi_normal: 6.5}
+  - {id: 3112, name: Malaria RDT, datatype: Coded, answers: [7001, 7002]}
+  - {id: 3113, name: Malaria blood smear, datatype: Coded, answers: [7001, 7002]}
+  - {id: 3114, name: HIV rapid test, datatype: Coded, answers: [7001, 7002]}
+  - {id: 3115, name: CD4 count, datatype: Numeric, units: cells/uL, low_normal: 500, hi_normal: 1500}
+  - {id: 3116, name: Viral load, datatype: Numeric, units: copies/mL}
+  - {id: 3120, name: H. pylori stool antigen, datatype: Coded, answers: [7001, 7002, 7003]}
+  - {id: 3121, name: H. pylori serology (IgG), datatype: Coded, answers: [7001, 7002]}
+  - {id: 3122, name: H. pylori urea breath test, datatype: Coded, answers: [7001, 7002]}
+  - {id: 3123, name: Faecal occult blood, datatype: Coded, answers: [7001, 7002]}
+  - {id: 3124, name: Stool microscopy (ova/parasites), datatype: Coded, answers: [7001, 7002]}
+lifestyle:
+  - {id: 4000, name: Tobacco use, datatype: Coded, answers: [7030, 7031, 7032]}
+  - {id: 4001, name: Cigarettes per day, datatype: Numeric}
+  - {id: 4002, name: Alcohol use, datatype: Coded, answers: [7030, 7031, 7032]}
+  - {id: 4003, name: Alcohol type, datatype: Coded, answers: [7040, 7041, 7042, 7043]}
+  - {id: 4004, name: Family history of gastric cancer, datatype: Coded, answers: [7000, 7005, 7006]}
+  - {id: 4005, name: High salt intake, datatype: Coded, answers: [7000, 7005, 7006]}
+  - {id: 4006, name: Frequent smoked/preserved food, datatype: Coded, answers: [7000, 7005, 7006]}
+  - {id: 4007, name: Fruit & vegetable intake (days/week), datatype: Numeric}
+  - {id: 4008, name: Main cooking fuel, datatype: Coded, answers: [7050, 7051, 7052]}
+  - {id: 4009, name: Water source, datatype: Coded, answers: [7060, 7061, 7062]}
+  - {id: 4010, name: Occupation, datatype: Coded, answers: [7070, 7071, 7072, 7073, 7074]}
+  - {id: 4011, name: NSAID use (regular), datatype: Coded, answers: [7000, 7005, 7006]}
+oncology:
+  - {id: 5000, name: ENDOSCOPY FINDINGS, datatype: N/A, class: ConvSet, is_set: 1}
+  - {id: 5001, name: Endoscopy indication, datatype: Coded, answers: [7100, 7101, 7102, 7103, 7104]}
+  - {id: 5002, name: Endoscopic impression, datatype: Coded, answers: [7110, 7111, 7112, 7113, 7114]}
+  - {id: 5003, name: Lesion location, datatype: Coded, answers: [7120, 7121, 7122, 7123]}
+  - {id: 5004, name: Lesion size (mm), datatype: Numeric, units: mm}
+  - {id: 5005, name: Biopsy taken, datatype: Coded, answers: [7000, 7005]}
+  - {id: 5006, name: Rapid urease test (CLO), datatype: Coded, answers: [7001, 7002]}
+  - {id: 5020, name: HISTOPATHOLOGY, datatype: N/A, class: ConvSet, is_set: 1}
+  - {id: 5021, name: Histology result, datatype: Coded, answers: [7130, 7131, 7132, 7133, 7134, 7135, 7136, 7137]}
+  - {id: 5022, name: Lauren classification, datatype: Coded, answers: [7140, 7141, 7142]}
+  - {id: 5023, name: Tumour grade, datatype: Coded, answers: [7150, 7151, 7152]}
+  - {id: 5024, name: H. pylori on histology, datatype: Coded, answers: [7001, 7002]}
+  - {id: 5040, name: CANCER STAGING, datatype: N/A, class: ConvSet, is_set: 1}
+  - {id: 5041, name: T stage, datatype: Coded, answers: [7160, 7161, 7162, 7163, 7164]}
+  - {id: 5042, name: N stage, datatype: Coded, answers: [7170, 7171, 7172, 7173]}
+  - {id: 5043, name: M stage, datatype: Coded, answers: [7180, 7181]}
+  - {id: 5044, name: Overall stage group, datatype: Coded, answers: [7190, 7191, 7192, 7193, 7194]}
+  - {id: 5045, name: ECOG performance status, datatype: Numeric}
+  - {id: 5060, name: Treatment intent, datatype: Coded, answers: [7200, 7201, 7202]}
+  - {id: 5061, name: Gastrectomy performed, datatype: Coded, answers: [7000, 7005]}
+  - {id: 5062, name: Chemotherapy regimen, datatype: Coded, answers: [7210, 7211, 7212, 7213]}
+drugs:
+  - {id: 6000, drug_id: 1, name: Omeprazole 20 mg, strength: 20 mg}
+  - {id: 6001, drug_id: 2, name: Amoxicillin 1 g, strength: 1 g}
+  - {id: 6002, drug_id: 3, name: Clarithromycin 500 mg, strength: 500 mg}
+  - {id: 6003, drug_id: 4, name: Metronidazole 500 mg, strength: 500 mg}
+  - {id: 6004, drug_id: 5, name: Bismuth subcitrate, strength: 120 mg}
+  - {id: 6005, drug_id: 6, name: Ferrous sulphate 200 mg, strength: 200 mg}
+  - {id: 6006, drug_id: 7, name: Magnesium trisilicate (antacid), strength: 250 mg}
+  - {id: 6007, drug_id: 8, name: Artemether-lumefantrine, strength: 20/120 mg}
+  - {id: 6008, drug_id: 9, name: Albendazole 400 mg, strength: 400 mg}
+  - {id: 6009, drug_id: 10, name: Ibuprofen 400 mg, strength: 400 mg}
+  - {id: 6010, drug_id: 11, name: Paracetamol 500 mg, strength: 500 mg}
+  - {id: 6011, drug_id: 12, name: Metformin 500 mg, strength: 500 mg}
+  - {id: 6012, drug_id: 13, name: Amlodipine 5 mg, strength: 5 mg}
+  - {id: 6013, drug_id: 14, name: TDF/3TC/DTG (ART), strength: 300/300/50 mg}
+  - {id: 6014, drug_id: 15, name: Capecitabine 500 mg, strength: 500 mg}
+  - {id: 6015, drug_id: 16, name: Oxaliplatin 100 mg, strength: 100 mg}
+  - {id: 6016, drug_id: 17, name: Morphine oral solution, strength: 10 mg/5 mL}
+answers:
+  - {id: 7000, name: "Yes"}
+  - {id: 7001, name: Positive}
+  - {id: 7002, name: Negative}
+  - {id: 7003, name: Indeterminate}
+  - {id: 7005, name: "No"}
+  - {id: 7006, name: Unknown}
+  - {id: 7010, name: Presumed}
+  - {id: 7011, name: Confirmed}
+  - {id: 7012, name: Primary}
+  - {id: 7013, name: Secondary}
+  - {id: 7020, name: Discharged home}
+  - {id: 7021, name: Referred}
+  - {id: 7022, name: Admitted}
+  - {id: 7023, name: Died}
+  - {id: 7030, name: Never}
+  - {id: 7031, name: Former}
+  - {id: 7032, name: Current}
+  - {id: 7040, name: Banana beer (urwagwa)}
+  - {id: 7041, name: Sorghum beer (ikigage)}
+  - {id: 7042, name: Commercial beer}
+  - {id: 7043, name: Spirits}
+  - {id: 7050, name: Firewood}
+  - {id: 7051, name: Charcoal}
+  - {id: 7052, name: Gas/Electric}
+  - {id: 7060, name: Piped}
+  - {id: 7061, name: Protected well/spring}
+  - {id: 7062, name: Unprotected}
+  - {id: 7070, name: Farmer}
+  - {id: 7071, name: Trader}
+  - {id: 7072, name: Salaried}
+  - {id: 7073, name: Student}
+  - {id: 7074, name: Other occupation}
+  - {id: 7100, name: Dyspepsia (indication)}
+  - {id: 7101, name: Alarm features}
+  - {id: 7102, name: GI bleed}
+  - {id: 7103, name: Anaemia work-up}
+  - {id: 7104, name: Surveillance}
+  - {id: 7110, name: Normal}
+  - {id: 7111, name: Gastritis (endoscopic)}
+  - {id: 7112, name: Ulcer}
+  - {id: 7113, name: Mass/suspicious lesion}
+  - {id: 7114, name: Atrophy/IM}
+  - {id: 7120, name: Cardia}
+  - {id: 7121, name: Body}
+  - {id: 7122, name: Antrum}
+  - {id: 7123, name: Diffuse}
+  - {id: 7130, name: Adenocarcinoma}
+  - {id: 7131, name: Chronic gastritis (histology)}
+  - {id: 7132, name: Intestinal metaplasia (histology)}
+  - {id: 7133, name: Dysplasia}
+  - {id: 7134, name: Lymphoma}
+  - {id: 7135, name: GIST}
+  - {id: 7136, name: Benign ulcer}
+  - {id: 7137, name: Normal (histology)}
+  - {id: 7140, name: Intestinal}
+  - {id: 7141, name: Diffuse (Lauren)}
+  - {id: 7142, name: Mixed}
+  - {id: 7150, name: Well differentiated}
+  - {id: 7151, name: Moderately differentiated}
+  - {id: 7152, name: Poorly differentiated}
+  - {id: 7160, name: T1}
+  - {id: 7161, name: T2}
+  - {id: 7162, name: T3}
+  - {id: 7163, name: T4a}
+  - {id: 7164, name: T4b}
+  - {id: 7170, name: N0}
+  - {id: 7171, name: N1}
+  - {id: 7172, name: N2}
+  - {id: 7173, name: N3}
+  - {id: 7180, name: M0}
+  - {id: 7181, name: M1}
+  - {id: 7190, name: Stage I}
+  - {id: 7191, name: Stage II}
+  - {id: 7192, name: Stage III}
+  - {id: 7193, name: Stage IV}
+  - {id: 7194, name: Stage unknown}
+  - {id: 7200, name: Curative}
+  - {id: 7201, name: Palliative}
+  - {id: 7202, name: Best supportive care}
+  - {id: 7210, name: FLOT}
+  - {id: 7211, name: CAPOX}
+  - {id: 7212, name: FOLFOX}
+  - {id: 7213, name: Other regimen}
+orders:
+  - {id: 8000, name: Upper GI endoscopy request, order_type: 2}
+  - {id: 8001, name: H. pylori test request, order_type: 2}
+  - {id: 8002, name: Full blood count request, order_type: 2}
+  - {id: 8003, name: Referral to referral hospital, order_type: 3}
+  - {id: 8004, name: Referral to oncology, order_type: 3}
+  - {id: 8005, name: Abdominal ultrasound request, order_type: 2}
+  - {id: 8006, name: CT abdomen request, order_type: 2}

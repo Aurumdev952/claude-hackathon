@@ -1,0 +1,151 @@
+# Maps EMR concepts -> 3D organ ids used by the Case Analysis view (SPEC v1.1 §16.3 V7b).
+# Organ ids MUST match node names in frontend/public/models/body.glb.
+organs:
+  skin:            {label: "Skin / whole body", system: integument}
+  muscles:         {label: "Muscles", system: musculoskeletal}
+  skeleton:        {label: "Skeleton", system: musculoskeletal}
+  brain:           {label: "Brain", system: nervous}
+  oesophagus:      {label: "Oesophagus", system: digestive}
+  stomach:         {label: "Stomach", system: digestive}
+  duodenum:        {label: "Duodenum", system: digestive}
+  small_intestine: {label: "Small intestine", system: digestive}
+  large_intestine: {label: "Large intestine", system: digestive}
+  liver:           {label: "Liver", system: digestive}
+  gallbladder:     {label: "Gallbladder", system: digestive}
+  pancreas:        {label: "Pancreas", system: digestive}
+  spleen:          {label: "Spleen", system: lymphatic}
+  lymph_nodes:     {label: "Perigastric lymph nodes", system: lymphatic}
+  kidney_l:        {label: "Left kidney", system: urinary}
+  kidney_r:        {label: "Right kidney", system: urinary}
+  heart:           {label: "Heart", system: circulatory}
+  vessels:         {label: "Blood vessels", system: circulatory}
+  lung_l:          {label: "Left lung", system: respiratory}
+  lung_r:          {label: "Right lung", system: respiratory}
+
+# Stomach sub-regions (lesion location concept 5003 answers)
+stomach_regions:
+  7120: cardia
+  7121: body
+  7122: antrum
+  7123: diffuse
+
+# concept_id -> organ ids (+ optional severity weight 0..1 and region)
+concepts:
+  # gastric cancer diagnoses
+  2000: {organs: [stomach], weight: 1.0}
+  2001: {organs: [stomach, oesophagus], weight: 1.0, region: cardia}
+  2002: {organs: [stomach], weight: 1.0, region: body}
+  2003: {organs: [stomach, duodenum], weight: 1.0, region: antrum}
+  2004: {organs: [stomach], weight: 1.0, region: body}
+  2005: {organs: [stomach], weight: 0.9}
+  # GI diagnoses
+  2010: {organs: [stomach], weight: 0.45}
+  2011: {organs: [stomach], weight: 0.65}
+  2012: {organs: [stomach], weight: 0.7}
+  2013: {organs: [duodenum], weight: 0.6}
+  2014: {organs: [stomach], weight: 0.35}
+  2015: {organs: [oesophagus, stomach], weight: 0.35, region: cardia}
+  2016: {organs: [stomach, duodenum, small_intestine], weight: 0.85}
+  2017: {organs: [oesophagus, stomach], weight: 0.85}
+  2018: {organs: [duodenum, small_intestine, large_intestine], weight: 0.8}
+  2019: {organs: [stomach], weight: 0.55}
+  2020: {organs: [stomach], weight: 0.7}
+  2021: {organs: [stomach, duodenum], weight: 0.85, region: antrum}
+  2022: {organs: [vessels, heart], weight: 0.6}
+  2023: {organs: [vessels, heart], weight: 0.5}
+  2024: {organs: [small_intestine], weight: 0.35}
+  # background diseases
+  2100: {organs: [spleen, vessels], weight: 0.45}
+  2101: {organs: [lymph_nodes, vessels], weight: 0.4}
+  2102: {organs: [heart, vessels], weight: 0.4}
+  2103: {organs: [pancreas], weight: 0.4}
+  2104: {organs: [lung_l, lung_r], weight: 0.6}
+  2105: {organs: [lung_l, lung_r], weight: 0.2}
+  2106: {organs: [lung_l, lung_r], weight: 0.55}
+  2107: {organs: [small_intestine, large_intestine], weight: 0.3}
+  2108: {organs: [kidney_l, kidney_r], weight: 0.3}
+  2109: {organs: [skin], weight: 0.1}
+  2110: {organs: [lung_l, lung_r], weight: 0.35}
+  2111: {organs: [kidney_l, kidney_r], weight: 0.6}
+  2112: {organs: [heart], weight: 0.7}
+  2113: {organs: [skeleton], weight: 0.3}
+  2114: {organs: [skin, muscles], weight: 0.5}
+  2115: {organs: [liver], weight: 0.5}
+  2116: {organs: [skin], weight: 0.8}
+  2117: {organs: [skin], weight: 0.8}
+  2118: {organs: [oesophagus], weight: 0.9}
+  2119: {organs: [liver], weight: 0.9}
+  2120: {organs: [large_intestine], weight: 0.9}
+  2121: {organs: [kidney_l, kidney_r], weight: 0.8}
+  # symptoms
+  2200: {organs: [stomach], weight: 0.45}
+  2201: {organs: [stomach, small_intestine], weight: 0.3}
+  2202: {organs: [stomach], weight: 0.4, region: antrum}
+  2203: {organs: [oesophagus, stomach], weight: 0.75, region: cardia}
+  2204: {organs: [stomach], weight: 0.5}
+  2205: {organs: [skin, muscles], weight: 0.7}
+  2206: {organs: [stomach, skin], weight: 0.4}
+  2207: {organs: [muscles], weight: 0.25}
+  2208: {organs: [skin], weight: 0.25}
+  2209: {organs: [lung_l, lung_r], weight: 0.2}
+  2210: {organs: [brain], weight: 0.15}
+  2211: {organs: [oesophagus], weight: 0.3, region: cardia}
+  2212: {organs: [stomach, small_intestine], weight: 0.25}
+  2213: {organs: [stomach], weight: 0.9}
+  # labs
+  3100: {organs: [vessels, heart], weight: 0.6}
+  3101: {organs: [vessels], weight: 0.3}
+  3102: {organs: [vessels], weight: 0.3}
+  3105: {organs: [liver], weight: 0.3}
+  3106: {organs: [liver], weight: 0.3}
+  3107: {organs: [liver], weight: 0.3}
+  3109: {organs: [kidney_l, kidney_r], weight: 0.3}
+  3110: {organs: [pancreas], weight: 0.3}
+  3111: {organs: [pancreas], weight: 0.3}
+  3112: {organs: [spleen, vessels], weight: 0.4}
+  3113: {organs: [spleen, vessels], weight: 0.4}
+  3120: {organs: [stomach], weight: 0.5}
+  3121: {organs: [stomach], weight: 0.5}
+  3122: {organs: [stomach], weight: 0.5}
+  3123: {organs: [large_intestine, small_intestine], weight: 0.5}
+  3124: {organs: [small_intestine], weight: 0.3}
+  # vitals
+  3000: {organs: [skin], weight: 0.3}
+  3002: {organs: [skin], weight: 0.3}
+  3003: {organs: [heart, vessels], weight: 0.3}
+  3004: {organs: [heart, vessels], weight: 0.3}
+  3005: {organs: [heart], weight: 0.3}
+  3006: {organs: [skin], weight: 0.3}
+  3007: {organs: [lung_l, lung_r], weight: 0.3}
+  # endoscopy / pathology / staging
+  5000: {organs: [stomach], weight: 0.6}
+  5002: {organs: [stomach], weight: 0.6}
+  5020: {organs: [stomach], weight: 0.7}
+  5040: {organs: [stomach, lymph_nodes], weight: 0.9}
+  # drugs
+  6000: {organs: [stomach], weight: 0.2}
+  6001: {organs: [stomach], weight: 0.2}
+  6002: {organs: [stomach], weight: 0.2}
+  6003: {organs: [stomach], weight: 0.2}
+  6004: {organs: [stomach], weight: 0.2}
+  6005: {organs: [vessels], weight: 0.2}
+  6006: {organs: [stomach], weight: 0.15}
+  6007: {organs: [spleen, vessels], weight: 0.25}
+  6008: {organs: [small_intestine], weight: 0.2}
+  6011: {organs: [pancreas], weight: 0.15}
+  6012: {organs: [heart, vessels], weight: 0.15}
+  6013: {organs: [lymph_nodes], weight: 0.15}
+  6014: {organs: [stomach], weight: 0.4}
+  6015: {organs: [stomach], weight: 0.4}
+  # orders
+  8000: {organs: [stomach, oesophagus], weight: 0.3}
+  8001: {organs: [stomach], weight: 0.2}
+  8002: {organs: [vessels], weight: 0.15}
+  8005: {organs: [liver, stomach], weight: 0.2}
+  8006: {organs: [liver, stomach], weight: 0.3}
+
+# Staging -> spread markers
+spread:
+  n_stage: {7170: 0, 7171: 1, 7172: 2, 7173: 3}      # N0..N3 -> number of lit node groups
+  t_stage: {7160: 1, 7161: 2, 7162: 3, 7163: 4, 7164: 5}  # T1..T4b -> lesion depth/size level
+  m1_sites: [liver, peritoneum]

@@ -1,0 +1,21 @@
+# data outputs
+data/bulk/
+data/analytics/
+data/models/
+data/ground_truth.json
+data/reference/district_population.csv
+data/reference/district_adjacency.json
+data/sim_state/
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# node
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+# env
+.env
+*.log

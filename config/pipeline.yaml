@@ -1,0 +1,20 @@
+tick_seconds: 300
+offset_seconds: 60
+paths:
+  work_db: data/analytics/work.duckdb
+  serve_dir: data/analytics
+  current_json: data/analytics/current.json
+  app_state: data/analytics/app_state.sqlite
+  bulk_dir: data/bulk
+source:
+  kind: mysql            # mysql | parquet (parquet = bootstrap/offline mode)
+  database: openmrs
+watermark_tables: [person, patient, person_name, person_address, person_attribute, patient_identifier,
+                   visit, encounter, obs, orders, drug_order, patient_program]
+metrics:
+  bootstrap_resamples: 200
+  lisa_permutations: 999
+  controls_per_case: 5
+dq:
+  hb_plausible: [3, 22]
+  bmi_plausible: [10, 60]
