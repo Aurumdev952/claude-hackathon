@@ -121,7 +121,7 @@ function Readings({ rows, hivShapRank }: { rows: CoxRow[]; hivShapRank?: number 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-4">
       <div className="rounded-tile bg-tile px-4 py-3.5">
         <div className="flex items-center gap-0.5 text-label text-muted">Eradication
-          {er && <InfoHint size={12} className="!w-5 !h-5 !min-w-5 -my-1" label="About the eradication reading" title="Reading · eradication" content={<>
+          {er && <InfoHint size={12} className="!w-5 !h-5 !min-w-5 -my-1" label="About the eradication reading" title="Reading the eradication result" content={<>
             {er.uci < 1 ? <>H. pylori-positive patients who completed eradication therapy had about <b>{fmt(100 * (1 - er.hr), 0)}% lower</b> hazard of later gastric cancer </>
               : er.lci > 1 ? <>Eradication was associated with a <b>higher</b> hazard </> : <>No clear difference in hazard with eradication </>}
             (HR {fmt(er.hr, 2)}, 95% CI {fmt(er.lci, 2)}–{fmt(er.uci, 2)}). This is an association in routine data, not a trial result.</>} />}
@@ -135,7 +135,7 @@ function Readings({ rows, hivShapRank }: { rows: CoxRow[]; hivShapRank?: number 
       </div>
       <div className="rounded-tile bg-tile px-4 py-3.5">
         <div className="flex items-center gap-0.5 text-label text-muted">Negative control (HIV)
-          {hiv && <InfoHint size={12} className="!w-5 !h-5 !min-w-5 -my-1" label="About the negative control reading" title="Reading · negative control" content={hivOk
+          {hiv && <InfoHint size={12} className="!w-5 !h-5 !min-w-5 -my-1" label="About the negative control reading" title="Reading the negative control" content={hivOk
             ? <>HIV has no known effect on gastric cancer, and the system agrees: HR {fmt(hiv.hr, 2)} with a CI ({fmt(hiv.lci, 2)}–{fmt(hiv.uci, 2)}) that includes 1. The method is not finding effects that aren't there.</>
             : <>HIV should show <b>no</b> association, but this run estimates HR {fmt(hiv.hr, 2)} ({fmt(hiv.lci, 2)}–{fmt(hiv.uci, 2)}). A null exposure that looks protective points to residual bias in the cohort design (for example competing deaths or different follow-up among people living with HIV); read the eradication estimate with the same caution.</>} />}
         </div>

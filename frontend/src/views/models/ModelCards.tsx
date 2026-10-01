@@ -81,10 +81,10 @@ function TierCard({ m, best }: { m: RegistryModel; best: Record<Key, number | nu
                             minLabel="0.5" maxLabel="1.0" format={(n) => fmt(n, 2)} />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2.5 mt-5">
-        <StatTile label={lbl("auprc", "AUPRC")} value={fmt(t?.auprc, 3)} info={g ? `Guidance ${g.auprc[0]}–${g.auprc[1]}` : undefined} />
-        <StatTile label={lbl("sens_at_spec90", "Sensitivity")} value={t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`} info="At 90% specificity" />
-        <StatTile label={lbl("median_lead_time_days", "Lead time")} value={t?.median_lead_time_days === null || t?.median_lead_time_days === undefined ? "—" : fmt(t.median_lead_time_days / MO, 1)} unit="mo" info={`Median${g ? `; guidance ${g.lead[0]}–${g.lead[1]} months` : ""}`} />
+      <div className="grid grid-cols-3 gap-2 mt-5 [&>div]:px-3.5">
+        <StatTile label={lbl("auprc", "AUPRC")} value={fmt(t?.auprc, 3)} />
+        <StatTile label={lbl("sens_at_spec90", "Sensitivity")} value={t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`} />
+        <StatTile label={lbl("median_lead_time_days", "Lead time")} value={t?.median_lead_time_days === null || t?.median_lead_time_days === undefined ? "—" : fmt(t.median_lead_time_days / MO, 1)} unit="mo" />
       </div>
     </Card>
   );
