@@ -3,12 +3,12 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Button } from "@heroui/react";
-import { AlertCircle, ArrowDown, ArrowUpRight, CornerDownLeft, RotateCcw } from "lucide-react";
+import { AlertCircle, ArrowDown, CornerDownLeft, RotateCcw } from "lucide-react";
 import { EASE, itemEnter, stagger } from "@/lib/motion";
-import { AgentAvatar } from "./AgentAvatar";
 import { agentKeys, fetchConversation, truncateConversation, useAgentScope, useSuggestions } from "./api";
 import { Composer, type ComposerHandle } from "./Composer";
 import { MessageBubble } from "./MessageBubble";
+import { StateDot } from "./parts/ToolPart";
 import { createAgentTransport } from "./transport";
 import { PERSONA, type AgentMessage } from "./types";
 
@@ -168,8 +168,8 @@ export function Thread({ conversationId, initialMessages, autoSend, onStarted }:
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div ref={scroller} onScroll={onScroll} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain" aria-label="Conversation" role="log" aria-live="off">
-        <div className="mx-auto w-full max-w-[860px] px-4 sm:px-6 pt-6 pb-6 flex flex-col gap-6">
+      <div ref={scroller} onScroll={onScroll} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4" aria-label="Conversation" role="log" aria-live="off">
+        <div className="mx-auto w-full max-w-[760px] min-h-full pt-6 pb-8 flex flex-col gap-8">
           {messages.length === 0 && !busy ? (
             <Welcome onPick={send} />
           ) : (
@@ -181,44 +181,44 @@ export function Thread({ conversationId, initialMessages, autoSend, onStarted }:
             ))
           )}
           {waiting && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE }} className="flex gap-3 items-center">
-              <AgentAvatar role={role} size={28} busy />
-              <span className="text-[13.5px] agent-shimmer font-medium">Thinking</span>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, ease: EASE }} className="flex items-center gap-2.5 h-6">
+              <StateDot state="run" />
+              <span className="text-[14px] text-muted">Thinking</span>
             </motion.div>
           )}
           {unanswered && (
-            <div className="flex items-center gap-3 pl-10 text-label text-fg-muted">
-              <span>Not answered yet</span>
-              <Button size="sm" radius="full" variant="flat" onPress={() => regen()} startContent={<CornerDownLeft size={13} aria-hidden />} className="bg-accent-soft text-accent">Answer</Button>
+            <div className="flex items-center gap-3 text-[14px] text-muted">
+              <span>This question has no answer yet.</span>
+              <Button size="sm" radius="full" variant="flat" onPress={() => regen()} startContent={<CornerDownLeft size={14} aria-hidden />} className="h-9 px-4 bg-surface text-ink font-medium dark:border dark:border-hairline">Answer</Button>
             </div>
           )}
           {status === "error" && (
-            <div role="alert" className="ml-10 flex items-start gap-3 rounded-tile border border-danger/25 bg-danger/[0.06] px-4 py-3">
-              <AlertCircle size={16} className="text-tone-danger mt-0.5 shrink-0" aria-hidden />
+            <div role="alert" className="flex items-center gap-4 rounded-card bg-surface dark:border dark:border-hairline p-5">
+              <span className="w-9 h-9 shrink-0 rounded-full border border-signal/40 text-signal grid place-items-center" aria-hidden><AlertCircle size={17} /></span>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-medium text-fg">The agent could not answer</div>
-                <div className="text-micro text-fg-muted mt-0.5 break-words">{errorText(error)}</div>
+                <div className="text-[15px] font-semibold text-ink">The agent could not answer</div>
+                <div className="text-label font-normal text-muted mt-0.5 break-words">{errorText(error)}</div>
               </div>
-              <Button size="sm" radius="full" variant="flat" onPress={() => regen()} startContent={<RotateCcw size={13} aria-hidden />}>Retry</Button>
+              <Button radius="full" variant="flat" onPress={() => regen()} startContent={<RotateCcw size={14} aria-hidden />} className="h-10 px-4 bg-tile text-ink font-medium shrink-0">Retry</Button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="relative px-3 sm:px-6 pb-3 pt-2">
+      <div className="relative pb-1 pt-3">
         <AnimatePresence>
           {!pinned && messages.length > 0 && (
-            <motion.button type="button" key="jump" initial={{ opacity: 0, y: 8, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                           transition={{ duration: 0.2, ease: EASE }} onClick={() => { pinnedRef.current = true; setPinned(true); toBottom(true); }}
+            <motion.button type="button" key="jump" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                           transition={{ duration: 0.18, ease: EASE }} onClick={() => { pinnedRef.current = true; setPinned(true); toBottom(true); }}
                            aria-label="Jump to latest"
-                           className="absolute left-1/2 -translate-x-1/2 -top-11 w-9 h-9 rounded-full bg-surface border border-border shadow-float grid place-items-center text-fg-muted hover:text-fg">
-              <ArrowDown size={16} aria-hidden />
+                           className="absolute left-1/2 -translate-x-1/2 -top-12 z-10 w-10 h-10 rounded-full bg-surface shadow-float dark:border dark:border-hairline grid place-items-center text-ink hover:bg-tile">
+              <ArrowDown size={17} aria-hidden />
             </motion.button>
           )}
         </AnimatePresence>
-        <div className="mx-auto w-full max-w-[860px]">
+        <div className="mx-auto w-full max-w-[760px]">
           <Composer ref={composer} onSend={send} onStop={stop} busy={busy}
-                    placeholder={role === "doctor" ? "Ask about your patients, alerts or risk…" : "Ask about rates, trends, hotspots or care quality…"} />
+                    placeholder={role === "doctor" ? "Ask about your patients, alerts or risk" : "Ask about rates, trends, hotspots or care quality"} />
         </div>
       </div>
     </div>
@@ -231,23 +231,18 @@ function Welcome({ onPick }: { onPick: (q: string) => void }) {
   const reduce = useReducedMotion();
   const qs = s.data?.questions ?? [];
   return (
-    <motion.div className="flex flex-col items-center text-center pt-[6vh] pb-4" variants={stagger(0.05, 0.05)} initial={reduce ? false : "hidden"} animate="show">
-      <motion.div variants={itemEnter} className="relative">
-        <div className="absolute inset-0 -m-6 rounded-full blur-2xl opacity-60" style={{ background: "radial-gradient(circle, rgb(var(--accent) / 0.35), transparent 70%)" }} aria-hidden />
-        <AgentAvatar role={role} size={56} />
-      </motion.div>
-      <motion.h2 variants={itemEnter} className="mt-5 text-h1 text-fg">{PERSONA[role].name}</motion.h2>
-      <motion.p variants={itemEnter} className="mt-1 text-[14px] text-fg-muted max-w-md">{PERSONA[role].blurb}</motion.p>
-      <motion.ul variants={stagger(0.04, 0.15)} className="mt-8 grid w-full max-w-[720px] gap-2.5 sm:grid-cols-2 text-left" aria-label="Suggested questions">
-        {s.isLoading && Array.from({ length: 4 }).map((_, i) => <li key={i} className="h-[52px] rounded-tile bg-surface-2 animate-pulse" />)}
-        {qs.slice(0, 6).map((q) => (
-          <motion.li key={q} variants={itemEnter}>
+    <motion.div className="my-auto flex flex-col items-center text-center py-10" variants={stagger(0.04, 0.02)} initial={reduce ? false : "hidden"} animate="show">
+      <motion.h2 variants={itemEnter} className="max-w-[560px] text-[28px] leading-[36px] font-medium tracking-[-0.015em] text-ink text-balance">{PERSONA[role].ask}</motion.h2>
+      <motion.p variants={itemEnter} className="mt-2 max-w-[520px] text-[15px] leading-6 text-muted">{PERSONA[role].blurb}</motion.p>
+      <motion.ul variants={itemEnter} className="mt-8 flex flex-wrap justify-center gap-2 max-w-[700px]" aria-label="Suggested questions">
+        {s.isLoading && [180, 240, 210, 260].map((w, i) => <li key={i} className="h-10 rounded-full bg-ink/[0.05] dark:bg-tile animate-pulse" style={{ width: w }} />)}
+        {qs.slice(0, 4).map((q) => (
+          <li key={q} className="max-w-full">
             <button type="button" onClick={() => onPick(q)} data-testid="suggestion"
-                    className="group w-full h-full flex items-center gap-3 rounded-tile bg-surface border border-border shadow-tile px-4 py-3 text-[13.5px] text-fg text-left transition hover:border-accent/40 hover:shadow-card hover:-translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
-              <span className="flex-1">{q}</span>
-              <ArrowUpRight size={15} className="text-fg-muted group-hover:text-accent transition-colors shrink-0" aria-hidden />
+                    className="max-w-full min-h-10 rounded-[20px] bg-ink/[0.05] dark:bg-tile px-4 py-2 text-[14px] leading-5 text-ink text-left transition-colors hover:bg-ink/[0.09] dark:hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+              {q}
             </button>
-          </motion.li>
+          </li>
         ))}
       </motion.ul>
     </motion.div>

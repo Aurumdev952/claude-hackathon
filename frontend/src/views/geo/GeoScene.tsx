@@ -42,9 +42,10 @@ export function useRise(ready: boolean, token = 0) {
 const ENDO_ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><path fill='#fff' fill-rule='evenodd' d='M32 2 L62 32 L32 62 L2 32 Z M32 21 A11 11 0 1 0 32.01 21 Z'/></svg>");
 
-function fitView(w: number, h: number, mini: boolean): MapViewState {
+export type FitPad = { top: number; bottom: number; left: number; right: number };
+function fitView(w: number, h: number, mini: boolean, fit?: FitPad): MapViewState {
   const vp = new WebMercatorViewport({ width: Math.max(w, 200), height: Math.max(h, 200) });
-  const pad = mini ? { top: 10, bottom: 10, left: 6, right: 6 } : { top: 90, bottom: 96, left: Math.min(250, w * 0.2), right: 24 };
+  const pad = fit ?? (mini ? { top: 10, bottom: 10, left: 6, right: 6 } : { top: 90, bottom: 96, left: Math.min(250, w * 0.2), right: 24 });
   const { longitude, latitude, zoom } = vp.fitBounds(BOUNDS, { padding: pad });
   return { longitude: longitude + 0.03, latitude: latitude - (mini ? 0.12 : 0.2), zoom: zoom + (mini ? -0.02 : 0.12), pitch: mini ? 46 : 48, bearing: mini ? -14 : -12 };
 }
@@ -63,6 +64,8 @@ export type SceneProps = {
   selected?: string | null; highlight?: string | null; labels?: number;
   onSelect?: (code: string | null) => void; onHover?: (h: HoverInfo | null) => void;
   focusOffsetPx?: number; resetToken?: number; riseToken?: number; animate?: boolean;
+  /** Override the home-view padding in px (e.g. to keep the map clear of overlay strips). */
+  fitPad?: FitPad;
 };
 
 export function GeoScene(p: SceneProps) {
@@ -72,7 +75,8 @@ export function GeoScene(p: SceneProps) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [vs, setVs] = useState<MapViewState | null>(null);
-  const home = useMemo(() => (size ? fitView(size.w, size.h, mini) : null), [size, mini]);
+  const padKey = p.fitPad ? `${p.fitPad.top},${p.fitPad.bottom},${p.fitPad.left},${p.fitPad.right}` : "";
+  const home = useMemo(() => (size ? fitView(size.w, size.h, mini, p.fitPad) : null), [size, mini, padKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const rise = useRise(!!size && rows.length > 0, p.riseToken);
   const motion = p.animate !== false && !reducedMotion();
 

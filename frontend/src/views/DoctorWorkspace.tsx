@@ -1,34 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Input } from "@heroui/react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Activity, BellRing, Box, CalendarDays, ChevronLeft, ChevronRight, Droplet, FlaskConical, Gauge, History, Hospital, MapPin, MessageSquareText,
-  RefreshCw, Search, Sparkles, UserRound, Users, Weight,
+  Activity, BellRing, Box, ChevronLeft, ChevronRight, Droplet, FlaskConical, Gauge, History, Hospital, ListChecks, MessageSquareText,
+  RefreshCw, Search, Sparkles, UserRound, Weight,
 } from "lucide-react";
 import { get, post, qs } from "@/api/client";
 import type { Alert, PatientRow } from "@/api/types";
 import {
-  BentoGrid, Card, DetailModal, ErrorNote, GridItem, InfoHint, Loading, PageHeader, PillTabs, RiskScoreBar, Seg, Skeleton, Sparkline, StatTile,
-  StatusChip, useDetailModal, type StatusKind,
+  BentoGrid, Card, DetailModal, ErrorNote, GridItem, InfoHint, Loading, PageHeader, PillTabs, Seg, Skeleton, Sparkline, useDetailModal,
 } from "@/components/ui";
-import { BandChip, SeverityChip } from "@/components/ui/Status";
 import { useRole } from "@/state/role";
 import { date, fmt, signed } from "@/lib/format";
-import { itemEnter, stagger, useGesture } from "@/lib/motion";
+import { itemEnter, stagger } from "@/lib/motion";
 import { FacilityPicker } from "./doctor/FacilityPicker";
-import { RISK_METHOD, RiskCard } from "./doctor/RiskCard";
+import { RISK_METHOD, ReasonBars, RiskSummary, SHAP_NOTE, Track } from "./doctor/RiskCard";
 import { MiniSeries, Timeline } from "./doctor/Timeline";
-import { AlertActions, triggerLabel } from "./doctor/AlertActions";
+import { AlertActions, SeverityMark, triggerLabel } from "./doctor/AlertActions";
 import { PatientAvatar } from "./doctor/PatientAvatar";
+import { BandMark, Dot } from "./doctor/BandMark";
 
 export { AlertActions } from "./doctor/AlertActions";
 
 type Tab = "flagged" | "diagnosed" | "alerts";
-const ABOUT = "Patients of this facility ranked by their 12-month gastric-cancer risk, diagnosed cases, and the alerts inbox. Decision support only — synthetic data.";
+const ABOUT = "Patients of this facility ranked by their 12-month gastric-cancer risk, diagnosed cases, and the alerts inbox. Decision support only, synthetic data.";
+const cap = (s: unknown) => { const t = String(s ?? "").toLowerCase().replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
 
-/** V7 Doctor workspace (MedEx-style bento): patient list on the left, the selected patient's cards on the right. */
+/** Doctor workspace (design v3): a plain patient list on the left (span 4), the selected patient's cards on the right. */
 export default function DoctorWorkspace() {
   const { facilityId, facilityName, role } = useRole();
   const [tab, setTab] = useState<Tab>("flagged");
@@ -37,22 +37,23 @@ export default function DoctorWorkspace() {
   if (role !== "doctor" || !facilityId) return <FacilityPicker />;
   const nNew = newAlerts.data?.data?.length;
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader eyebrow="Doctor workspace" title={facilityName?.replace(" (Synthetic)", "")} icon={<Hospital size={20} />} info={ABOUT}
+    <div className="flex flex-col gap-5">
+      <PageHeader eyebrow="Doctor workspace" title={facilityName?.replace(" (Synthetic)", "")} icon={<Hospital size={18} />} info={ABOUT}
                   right={
-                    <PillTabs ariaLabel="Workspace lists" selectedKey={tab} onSelectionChange={setTab} panelClassName="hidden"
+                    <PillTabs ariaLabel="Workspace lists" selectedKey={tab} onSelectionChange={setTab} panelClassName="hidden" variant="surface"
                               items={[
-                                { key: "flagged", label: "Risk-ranked patients", icon: <Gauge size={14} aria-hidden /> },
-                                { key: "diagnosed", label: "Diagnosed cases", icon: <Activity size={14} aria-hidden /> },
-                                { key: "alerts", label: "Alerts inbox", icon: <BellRing size={14} aria-hidden />, count: nNew || undefined },
+                                { key: "flagged", label: "Risk-ranked patients", icon: <Gauge size={15} aria-hidden /> },
+                                { key: "diagnosed", label: "Diagnosed cases", icon: <Activity size={15} aria-hidden /> },
+                                { key: "alerts", label: "Alerts inbox", icon: <BellRing size={15} aria-hidden />, count: nNew || undefined },
                               ]} />
                   }
                   actions={
-                    <Button size="sm" radius="full" variant="flat" className="bg-surface border border-border text-fg h-9" startContent={<RefreshCw size={14} aria-hidden />}
+                    <Button radius="full" variant="flat" className="bg-surface text-ink h-10 px-4 text-[14px] font-medium data-[hover=true]:bg-tile dark:border dark:border-hairline"
+                            startContent={<RefreshCw size={14} aria-hidden />}
                             onPress={() => useRole.setState({ facilityId: null, facilityName: null })}>Change facility</Button>
                   } />
-      <div className="grid grid-cols-12 gap-4 items-start">
-        <div className="col-span-12 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-0 flex flex-col lg:h-[calc(100vh-152px)] min-h-[560px]">
+      <div className="grid grid-cols-12 gap-5 items-start">
+        <div className="col-span-12 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-0 flex flex-col lg:h-[calc(100vh-180px)] min-h-[560px]">
           {tab === "alerts" ? <AlertsInbox onOpen={setSelected} selected={selected} /> : <PatientList status={tab} selected={selected} onSelect={setSelected} />}
         </div>
         <div className="col-span-12 lg:col-span-7 xl:col-span-8 min-w-0">{selected ? <PatientPanel key={selected} patientId={selected} /> : <Empty />}</div>
@@ -63,9 +64,10 @@ export default function DoctorWorkspace() {
 
 function Empty() {
   return (
-    <Card className="min-h-[420px] items-center justify-center text-center" bodyClassName="flex flex-col items-center justify-center gap-3">
-      <span className="w-14 h-14 rounded-full bg-accent-soft text-accent grid place-items-center" aria-hidden><UserRound size={24} /></span>
-      <div className="text-title text-fg">Select a patient</div>
+    <Card className="min-h-[420px]" bodyClassName="flex flex-col items-center justify-center gap-3 text-center">
+      <span className="w-12 h-12 rounded-full border border-hairline text-ink grid place-items-center" aria-hidden><UserRound size={20} /></span>
+      <div className="text-title text-ink">Select a patient</div>
+      <div className="text-label font-normal text-muted">Pick someone from the list to see their risk, alerts and timeline.</div>
     </Card>
   );
 }
@@ -73,14 +75,41 @@ function Empty() {
 function Pager({ total, page, setPage }: { total: number; page: number; setPage: (f: (p: number) => number) => void }) {
   const pages = Math.max(1, Math.ceil(total / 25));
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-t border-border text-label text-fg-muted">
-      <span className="inline-flex items-center gap-1.5 tabular"><Users size={13} aria-hidden />{total.toLocaleString()} patients</span>
+    <div className="flex items-center justify-between px-6 py-3 border-t border-hairline text-label text-muted">
+      <span className="tabular"><span className="text-ink font-semibold">{total.toLocaleString()}</span> patients</span>
       <div className="flex items-center gap-1">
-        <Button isIconOnly size="sm" radius="full" variant="light" isDisabled={page <= 1} onPress={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft size={15} /></Button>
-        <span className="tabular px-1">{page} / {pages}</span>
-        <Button isIconOnly size="sm" radius="full" variant="light" isDisabled={page >= pages} onPress={() => setPage((p) => p + 1)} aria-label="Next page"><ChevronRight size={15} /></Button>
+        <Button isIconOnly size="sm" radius="full" variant="light" className="text-ink" isDisabled={page <= 1} onPress={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft size={16} /></Button>
+        <span className="tabular px-1">{page} of {pages}</span>
+        <Button isIconOnly size="sm" radius="full" variant="light" className="text-ink" isDisabled={page >= pages} onPress={() => setPage((p) => p + 1)} aria-label="Next page"><ChevronRight size={16} /></Button>
       </div>
     </div>
+  );
+}
+
+/** Search field for the list cards: grey fill, no border (reference header search). */
+function ListSearch({ value, onChange, label, placeholder }: { value: string; onChange: (v: string) => void; label: string; placeholder: string }) {
+  return (
+    <Input size="sm" radius="full" aria-label={label} placeholder={placeholder} value={value} onValueChange={onChange}
+           startContent={<Search size={15} className="text-muted shrink-0" aria-hidden />}
+           classNames={{ base: "flex-1 min-w-[140px]", inputWrapper: "bg-tile data-[hover=true]:bg-tile-hover group-data-[focus=true]:bg-tile shadow-none h-10 px-4", input: "text-[14px] placeholder:text-muted" }} />
+  );
+}
+
+/** A 56px+ list row: avatar, name, muted second line, right block. Selected = grey tile fill. */
+function Row({ on, onPress, title, avatar, name, sub, right }: {
+  on: boolean; onPress: () => void; title?: string; avatar: ReactNode; name: ReactNode; sub: ReactNode; right: ReactNode;
+}) {
+  return (
+    <button onClick={onPress} aria-current={on ? "true" : undefined} title={title}
+            className={`w-full min-h-[60px] text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-signal
+                        ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
+      {avatar}
+      <span className="flex-1 min-w-0">
+        <span className="block text-[14px] leading-5 font-semibold text-ink truncate">{name}</span>
+        <span className="flex items-center gap-3 text-micro font-normal text-muted tabular mt-0.5 min-w-0 whitespace-nowrap overflow-hidden">{sub}</span>
+      </span>
+      {right}
+    </button>
   );
 }
 
@@ -101,57 +130,49 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
   useEffect(() => { if (!selected && rows.length) onSelect(rows[0].patient_id); }, [rows, selected, onSelect]);
   return (
     <Card padding="none" className="flex-1 min-h-0 overflow-hidden" bodyClassName="flex flex-col min-h-0">
-      <div className="flex items-center gap-2 p-3 border-b border-border">
-        <Input size="sm" radius="full" aria-label="Search patients" placeholder="Name or ID" value={q} onValueChange={setQ}
-               startContent={<Search size={14} className="text-fg-muted" aria-hidden />}
-               classNames={{ inputWrapper: "bg-surface-2 border border-border shadow-none h-9" }} />
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3">
+        <ListSearch value={q} onChange={setQ} label="Search patients" placeholder="Name or ID" />
         {status === "flagged" && (
-          <Seg label="Risk band" value={band} onChange={setBand}
-               options={[{ value: "", label: "All" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Med" }, { value: "LOW", label: "Low" }]} />
+          <Seg label="Risk band" value={band} onChange={setBand} variant="glass"
+               options={[{ value: "", label: "All" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Medium" }, { value: "LOW", label: "Low" }]} />
         )}
       </div>
-      {error && <div className="p-3"><ErrorNote error={error} /></div>}
+      {error && <div className="px-4 pb-3"><ErrorNote error={error} /></div>}
       {isLoading ? <div className="p-4"><Skeleton variant="list" rows={8} label="Loading patients" /></div> : (
-        <motion.ul className="flex-1 overflow-auto p-2 flex flex-col gap-1" aria-label="Patients" variants={stagger(0.025)} initial={reduce ? false : "hidden"} animate="show">
+        <motion.ul className="flex-1 overflow-auto px-2 pb-2 flex flex-col" aria-label="Patients" variants={stagger(0.02)} initial={reduce ? false : "hidden"} animate="show">
           {rows.map((p) => {
             const on = selected === p.patient_id;
+            const prob = p.ensemble_prob ?? 0;
             return (
               <motion.li key={p.patient_id} variants={itemEnter}>
-                <button onClick={() => onSelect(p.patient_id)} aria-current={on ? "true" : undefined}
-                        title={status === "flagged" ? (p.top_reasons ?? []).map((r) => r.label).join(" · ") : undefined}
-                        className={`relative w-full text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                                    ${on ? "bg-accent-soft" : "hover:bg-surface-2"}`}>
-                  {on && <motion.span layoutId="patient-row" className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-accent" aria-hidden />}
-                  <span className="relative">
-                    <PatientAvatar name={p.name} id={p.patient_id} size="sm" />
-                    {p.open_alerts > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-danger text-white text-[10px] font-semibold leading-[17px] text-center ring-2 ring-surface tabular"
-                            aria-label={`${p.open_alerts} open alert${p.open_alerts > 1 ? "s" : ""}`}>{p.open_alerts}</span>
-                    )}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="flex items-baseline gap-1.5 min-w-0">
-                      <span className={`text-[13.5px] font-semibold truncate ${on ? "text-accent" : "text-fg"}`}>{p.name}</span>
-                      <span className="text-micro text-fg-muted shrink-0">{p.sex} · {p.age}</span>
-                    </span>
-                    <span className="block text-micro text-fg-muted tabular truncate mt-0.5">
-                      {p.display_id} · {status === "flagged" ? `seen ${date(p.last_visit)}` : `dx ${date(p.dx_date)}`}
-                    </span>
-                  </span>
-                  {status === "flagged" ? (
-                    <span className="w-[132px] shrink-0 flex flex-col gap-1.5">
-                      <span className="flex items-center justify-between gap-1">
-                        <BandChip band={p.risk_band} />
-                        <span className="text-[13px] font-semibold tabular text-fg">{fmt(100 * (p.ensemble_prob ?? 0))}%</span>
-                      </span>
-                      <RiskScoreBar score={p.ensemble_prob} band={p.risk_band} compact label={`${p.name} risk`} />
-                    </span>
-                  ) : <StatusChip status="critical" label={String(p.case_status ?? "case").toLowerCase()} className="capitalize" />}
-                </button>
+                <Row on={on} onPress={() => onSelect(p.patient_id)}
+                     title={status === "flagged" ? (p.top_reasons ?? []).map((r) => r.label).join("; ") : undefined}
+                     avatar={
+                       <span className="relative shrink-0">
+                         <PatientAvatar name={p.name} size="sm" className={on ? "!bg-surface" : ""} />
+                         {p.open_alerts > 0 && (
+                           <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-ink text-ink-on text-[10.5px] font-semibold leading-[18px] text-center ring-2 ring-surface tabular"
+                                 aria-label={`${p.open_alerts} open alert${p.open_alerts > 1 ? "s" : ""}`}>{p.open_alerts}</span>
+                         )}
+                       </span>
+                     }
+                     name={p.name}
+                     sub={<><span>{p.display_id}</span><span className="truncate">{status === "flagged" ? `Seen ${date(p.last_visit)}` : `Diagnosed ${date(p.dx_date)}`}</span></>}
+                     right={status === "flagged" ? (
+                       <span className="w-[96px] shrink-0 flex flex-col gap-2">
+                         <span className="flex items-center justify-between gap-1">
+                           <BandMark band={p.risk_band} />
+                           <span className="text-[14px] leading-5 font-semibold tabular text-ink">{fmt(100 * prob)}%</span>
+                         </span>
+                         <Track value={prob} tone={p.risk_band === "HIGH" ? "ink" : "sky"} height={4} label={`${p.name} risk`} delay={0} />
+                       </span>
+                     ) : (
+                       <span className="shrink-0 rounded-full bg-tile px-2.5 py-1 text-micro text-muted">{cap(p.case_status ?? "case")}</span>
+                     )} />
               </motion.li>
             );
           })}
-          {!rows.length && <li className="p-8 text-center text-label text-fg-muted">No patients match</li>}
+          {!rows.length && <li className="p-8 text-center text-label text-muted">No patients match</li>}
         </motion.ul>
       )}
       <Pager total={total} page={page} setPage={setPage} />
@@ -159,32 +180,40 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
   );
 }
 
-/** Small "Latest blood test"-style tile (MedEx): label pill, value + unit, status + sparkline; opens a chart modal. */
-function MeasureTile({ label, icon, value, unit, decimals = 1, status, statusLabel, spark, onPress }: {
-  label: string; icon: React.ReactNode; value: number | null | undefined; unit?: string; decimals?: number; status?: StatusKind | null; statusLabel?: string;
+/** Measurement tile (reference "Prady Lhambel 89%" tile): grey fill, muted label, medium number + unit, one muted line or
+ * a dot + text status, sky sparkline. Opens a chart modal when it has a series. */
+function MeasureTile({ label, value, unit, decimals = 1, note, alert, spark, onPress }: {
+  label: string; value: number | null | undefined; unit?: string; decimals?: number; note?: ReactNode; alert?: boolean;
   spark?: number[]; onPress?: () => void;
 }) {
   const body = (
     <>
-      <span className="inline-flex self-start items-center gap-1 rounded-full bg-accent-soft text-accent px-2 py-0.5 text-[11px] font-semibold">{icon}{label}</span>
-      <span className="flex items-baseline gap-1 min-w-0">
-        <span className="text-[22px] leading-7 font-semibold tabular text-fg">{value === null || value === undefined ? "—" : fmt(value, decimals)}</span>
-        {unit && <span className="text-micro text-fg-muted truncate">{unit}</span>}
+      <span className="flex items-center justify-between gap-2 text-label text-muted">
+        <span className="truncate">{label}</span>
+        {onPress && <ChevronRight size={14} className="text-faint shrink-0" aria-hidden />}
       </span>
-      <span className="flex items-center justify-between gap-2 min-h-[24px]">
-        {status ? <StatusChip status={status} label={statusLabel} /> : <span />}
-        {spark && spark.length > 1 && <span className="w-[64px] shrink-0"><Sparkline values={spark} height={22} /></span>}
+      <span className="flex items-baseline gap-1 min-w-0 mt-1">
+        <span className="text-[26px] leading-8 font-medium tracking-[-0.01em] tabular text-ink">{value === null || value === undefined ? "—" : fmt(value, decimals)}</span>
+        {unit && <span className="text-label font-normal text-muted truncate">{unit}</span>}
+      </span>
+      <span className="flex items-end justify-between gap-3 min-h-[24px] mt-1.5">
+        <span className={`inline-flex items-center gap-1.5 text-micro ${alert ? "text-ink" : "text-muted"} whitespace-nowrap`}>{alert && <Dot level="high" />}{note}</span>
+        {spark && spark.length > 1 && <span className="w-[72px] shrink-0"><Sparkline values={spark} height={24} area={false} /></span>}
       </span>
     </>
   );
-  const lift = useGesture({ y: -2 });
-  const cls = "text-left rounded-tile bg-surface-2 border border-border/70 p-3 min-w-0 flex flex-col gap-1.5";
+  const cls = "text-left rounded-tile bg-tile px-4 py-3.5 min-w-0 flex flex-col";
   if (!onPress) return <motion.div variants={itemEnter} className={cls}>{body}</motion.div>;
   return (
-    <motion.button type="button" onClick={onPress} variants={itemEnter} {...lift} aria-label={`${label}: open chart`}
-                   className={`${cls} cursor-pointer hover:shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}>{body}</motion.button>
+    <motion.button type="button" onClick={onPress} variants={itemEnter} aria-label={`${label}: open chart`}
+                   className={`${cls} cursor-pointer transition-colors hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal`}>{body}</motion.button>
   );
 }
+
+/** Quiet pill for the patient header chips row. */
+const Chip = ({ children, title }: { children: ReactNode; title?: string }) => (
+  <span title={title} className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-tile text-label text-ink whitespace-nowrap">{children}</span>
+);
 
 function PatientPanel({ patientId }: { patientId: number }) {
   const nav = useNavigate();
@@ -216,74 +245,90 @@ function PatientPanel({ patientId }: { patientId: number }) {
   const openChart = (k: "hb" | "weight") => { setChartKey(k); chart.open(); };
   const explain = () => { explainModal.open(); if (!ex.data && !ex.isPending) ex.mutate(); };
   const homeFacility = String(h.home_facility_name ?? "").replace(" (Synthetic)", "");
+  const risk = h.risk;
+  const band = risk?.risk_band as string | undefined;
+  const nNew = myAlerts.filter((a) => a.status === "NEW").length;
   return (
-    <BentoGrid step={0.05}>
+    <BentoGrid step={0.04}>
       <GridItem span={12}>
-        <Card padding="md" className="!p-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <PatientAvatar name={h.name} id={h.patient_id} size="lg" className="w-14 h-14 text-lg" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 min-w-0">
-                <h2 className="text-h1 text-fg truncate">{h.name}</h2>
+        <Card padding="md">
+          <div className="flex items-center gap-5 flex-wrap">
+            <PatientAvatar name={h.name} size="lg" />
+            <div className="min-w-0 flex-1 basis-[260px]">
+              <div className="flex items-center gap-0.5 min-w-0">
+                <h2 className="text-h1 text-ink truncate">{h.name}</h2>
                 <InfoHint title={h.name} label="About this patient"
                           about={<>Home facility {homeFacility}. Cohort entry {date(h.entry_date)} ({String(h.entry_reason).toLowerCase().replace(/_/g, " ")}).</>}
                           notes={`Last encounter ${date(h.last_encounter_date)}`} />
               </div>
-              <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                <span className="text-micro text-fg-muted tabular">{h.display_id}</span>
-                {h.is_case ? <StatusChip status="critical" label={`${String(h.case_status).toLowerCase()} gastric cancer · ${date(h.dx_date)}`} />
-                           : <BandChip band={h.risk?.risk_band} />}
-                {myAlerts.some((a) => a.status === "NEW") && <StatusChip status="info" icon={<BellRing size={11} aria-hidden />} label={`${myAlerts.filter((a) => a.status === "NEW").length} new alerts`} />}
-              </div>
+              <div className="text-label font-normal text-muted tabular mt-0.5">{h.display_id}</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button radius="full" variant="flat" className="bg-surface-2 border border-border text-fg h-10" startContent={<MessageSquareText size={15} aria-hidden />} onPress={explain}>Explain</Button>
-              <Button radius="full" className="bg-signal-strong text-signal-on font-semibold h-10 px-5"
+            <div className="flex items-center gap-2 max-sm:w-full">
+              <Button radius="full" variant="flat" className="bg-tile text-ink h-11 px-5 text-[14px] font-medium data-[hover=true]:bg-tile-hover max-sm:flex-1"
+                      startContent={<MessageSquareText size={16} aria-hidden />} onPress={explain}>Explain</Button>
+              <Button radius="full" className="bg-signal-strong text-signal-on font-semibold h-11 px-5 text-[14px] data-[hover=true]:bg-signal-text max-sm:flex-[2]"
                       startContent={<Box size={16} aria-hidden />} onPress={() => nav(`/doctor/case/${patientId}`)}>Analyse case in 3D</Button>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
-            <StatTile label="Age" value={h.age} unit="years" icon={<CalendarDays size={13} />} />
-            <StatTile label="Sex" value={h.sex === "F" ? "Female" : "Male"} icon={<UserRound size={13} />} />
-            <StatTile label="Weight" value={wLast} unit="kg" decimals={1} icon={<Weight size={13} />} />
-            <StatTile label="District" value={h.district_name ?? h.district_code} icon={<MapPin size={13} />} />
+          <div className="flex items-center gap-2 flex-wrap mt-5">
+            <Chip>{h.sex === "F" ? "Female" : "Male"}</Chip>
+            <Chip>{h.age} years</Chip>
+            {wLast !== null && <Chip>{fmt(wLast, 1)} kg</Chip>}
+            <Chip title="District">{h.district_name ?? h.district_code}</Chip>
+            {h.is_case
+              ? <Chip><Dot level="high" />{cap(h.case_status)} gastric cancer</Chip>
+              : band && <Chip><Dot level={band === "HIGH" ? "high" : band === "MEDIUM" ? "medium" : "low"} />{cap(band)} risk</Chip>}
+            {h.is_case && <Chip>Diagnosed {date(h.dx_date)}</Chip>}
+            {nNew > 0 && <Chip><BellRing size={13} className="text-muted" aria-hidden />{nNew} new alert{nNew === 1 ? "" : "s"}</Chip>}
           </div>
         </Card>
       </GridItem>
 
-      <GridItem span={{ md: 12, lg: 7 }}>
-        <Card title="Risk" icon={<Gauge size={16} />} iconTone="danger" info={{ method: RISK_METHOD }}>
-          <RiskCard risk={h.risk} />
+      {risk ? (
+        <>
+          <GridItem span={{ md: 6 }}>
+            <Card title="Risk" icon={<Gauge size={16} />} info={{ method: RISK_METHOD }}
+                  actions={band === "HIGH" ? <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-signal-strong text-signal-on text-micro font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-signal-on" aria-hidden />High</span>
+                         : band ? <span className="inline-flex items-center h-7 px-3 rounded-full bg-tile text-micro text-muted">{cap(band)}</span> : undefined}>
+              <RiskSummary risk={risk} />
+            </Card>
+          </GridItem>
+          <GridItem span={{ md: 6 }}>
+            <Card title="Why flagged" icon={<ListChecks size={16} />} info={SHAP_NOTE}>
+              <ReasonBars reasons={risk.top_reasons ?? []} />
+            </Card>
+          </GridItem>
+        </>
+      ) : (
+        <GridItem span={12}>
+          <Card title="Risk" icon={<Gauge size={16} />} info={{ method: RISK_METHOD }}>
+            <RiskSummary risk={null} />
+          </Card>
+        </GridItem>
+      )}
+
+      <GridItem span={{ md: 6 }}>
+        <Card title="Alerts" icon={<BellRing size={16} />} info="Open alerts for this patient. Acknowledge, mark as referred, or dismiss with a reason; every action is logged.">
+          {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} variant="rows" />}
         </Card>
       </GridItem>
-      <GridItem span={{ md: 12, lg: 5 }}>
-        <Card title="Alerts" icon={<BellRing size={16} />} iconTone="warning" info="Open alerts for this patient. Acknowledge, mark as referred, or dismiss with a reason; every action is logged."
->
-          {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} />}
+      <GridItem span={{ md: 6 }}>
+        <Card title="Latest measurements" icon={<FlaskConical size={16} />} info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
+          <motion.div className="grid grid-cols-2 gap-2.5" variants={stagger(0.04)} initial="hidden" animate="show">
+            <MeasureTile label="Haemoglobin" value={hbLast} unit="g/dL" spark={hb.map((x) => x.value)} onPress={() => openChart("hb")}
+                         alert={hbLast !== null && hbLast < hbThr} note={hbLast === null ? "Not measured" : hbLast < hbThr ? `Below ${hbThr}` : "Normal"} />
+            <MeasureTile label="Weight" value={wLast} unit="kg" spark={wt.map((x) => x.value)} onPress={() => openChart("weight")}
+                         alert={wChange !== null && wChange <= -5} note={wChange === null ? "No trend" : `${signed(wChange, 1, "%")} in window`} />
+            <MeasureTile label="Abnormal labs" value={abnormalLabs} decimals={0} unit="in 3 years" note={abnormalLabs ? "Review results" : "None"} />
+            <MeasureTile label="Visits" value={visits12} decimals={0} unit="in 12 months" note={visits12 >= 6 ? "Frequent" : "Usual"} />
+          </motion.div>
         </Card>
       </GridItem>
 
-      <GridItem span={{ md: 12, lg: 7 }}>
-        <Card title="Timeline" icon={<History size={16} />} info={{ about: "Last 3 years of visits, symptoms, diagnoses, labs, medicines, orders and endoscopy. Dashed rings mark events the models weighed most. Hover a dot for details." }}
-              detail={{ title: "Haemoglobin and weight", icon: <Activity size={18} />, size: "3xl",
-                        tabs: [{ key: "hb", label: "Haemoglobin", content: <MiniSeries title="Haemoglobin" unit="g/dL" points={hb} threshold={hbThr} height={300} /> },
-                               { key: "weight", label: "Weight", content: <MiniSeries title="Weight" unit="kg" points={wt} height={300} /> }] }}
-              detailLabel="Open measurement charts">
-          {tl.isLoading ? <Loading h={210} /> : <Timeline events={recent} />}
-        </Card>
-      </GridItem>
-      <GridItem span={{ md: 12, lg: 5 }}>
-        <Card title="Latest measurements" icon={<FlaskConical size={16} />} iconTone="success" info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
-          <motion.div className="grid grid-cols-2 gap-2" variants={stagger(0.05)} initial="hidden" animate="show">
-            <MeasureTile label="Hb" icon={<Droplet size={11} aria-hidden />} value={hbLast} unit="g/dL" spark={hb.map((x) => x.value)}
-                         status={hbLast === null ? null : hbLast < hbThr ? "critical" : "optimal"} statusLabel={hbLast !== null && hbLast < hbThr ? "Low" : "Normal"} onPress={() => openChart("hb")} />
-            <MeasureTile label="Weight" icon={<Weight size={11} aria-hidden />} value={wLast} unit={wChange === null ? "kg" : `kg · ${signed(wChange, 1, "%")}`} spark={wt.map((x) => x.value)}
-                         status={wChange === null ? null : wChange <= -5 ? "critical" : wChange <= -2 ? "suboptimal" : "optimal"} statusLabel={wChange !== null && wChange <= -5 ? "Loss" : undefined} onPress={() => openChart("weight")} />
-            <MeasureTile label="Labs" icon={<FlaskConical size={11} aria-hidden />} value={abnormalLabs} decimals={0} unit="abnormal · 3 y"
-                         status={abnormalLabs ? "suboptimal" : "optimal"} statusLabel={abnormalLabs ? "Review" : "None"} />
-            <MeasureTile label="Visits" icon={<CalendarDays size={11} aria-hidden />} value={visits12} decimals={0} unit="in 12 mo"
-                         status={visits12 >= 6 ? "suboptimal" : null} statusLabel="Frequent" />
-          </motion.div>
+      <GridItem span={12}>
+        <Card title="Timeline" icon={<History size={16} />}
+              info={{ about: "Last 3 years of visits, symptoms, diagnoses, labs, medicines, orders and endoscopy. Dashed rings mark events the models weighed most. Hover a dot for details." }}>
+          {tl.isLoading ? <Loading h={224} /> : <Timeline events={recent} height={224} />}
         </Card>
       </GridItem>
 
@@ -293,9 +338,12 @@ function PatientPanel({ patientId }: { patientId: number }) {
       </DetailModal>
       <DetailModal {...explainModal.modalProps} title="Patient summary" icon={<Sparkles size={18} />} size="2xl" subtitle={h.name}>
         {ex.isPending ? <Skeleton variant="text" rows={5} label="Summarising" /> : ex.error ? <ErrorNote error={ex.error} /> : ex.data ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-[14px] leading-relaxed text-fg">{ex.data.data.summary}</p>
-            <div className="text-micro text-fg-muted">{ex.data.data.disclaimer} · {ex.data.data.generated_by}</div>
+          <div className="flex flex-col gap-4">
+            <p className="text-[15px] leading-[24px] text-ink max-w-[640px]">{ex.data.data.summary}</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-micro text-muted">
+              <span>{ex.data.data.disclaimer}</span>
+              <span>{ex.data.data.generated_by}</span>
+            </div>
           </div>
         ) : null}
       </DetailModal>
@@ -311,27 +359,23 @@ function AlertsInbox({ onOpen, selected }: { onOpen: (id: number) => void; selec
   const rows = data?.data ?? [];
   return (
     <Card padding="none" className="flex-1 min-h-0 overflow-hidden" bodyClassName="flex flex-col min-h-0">
-      <div className="flex flex-wrap items-center gap-2 p-3 border-b border-border">
-        <Seg label="Alert status" value={status} onChange={setStatus}
-             options={[{ value: "NEW", label: "New" }, { value: "ACKNOWLEDGED", label: "Ack." }, { value: "REFERRED", label: "Referred" }, { value: "DISMISSED", label: "Dismissed" }, { value: "", label: "All" }]} />
-        <Seg label="Severity" value={sev} onChange={setSev} options={[{ value: "", label: "Any" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Med" }]} />
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3">
+        <Seg label="Alert status" value={status} onChange={setStatus} variant="glass"
+             options={[{ value: "NEW", label: "New" }, { value: "ACKNOWLEDGED", label: "Seen", title: "Acknowledged" }, { value: "REFERRED", label: "Referred" }, { value: "DISMISSED", label: "Dismissed" }, { value: "", label: "All" }]} />
+        <Seg label="Severity" value={sev} onChange={setSev} variant="glass" options={[{ value: "", label: "Any" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Medium" }]} />
       </div>
       {isLoading ? <div className="p-4"><Skeleton variant="list" rows={8} label="Loading alerts" /></div> : (
-        <motion.ul className="flex-1 overflow-auto p-2 flex flex-col gap-1" aria-label="Alerts" variants={stagger(0.02)} initial={reduce ? false : "hidden"} animate="show">
+        <motion.ul className="flex-1 overflow-auto px-2 pb-2 flex flex-col" aria-label="Alerts" variants={stagger(0.02)} initial={reduce ? false : "hidden"} animate="show">
           {rows.map((a) => (
             <motion.li key={a.alert_id} variants={itemEnter}>
-              <button className={`w-full text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${selected === a.patient_id ? "bg-accent-soft" : "hover:bg-surface-2"}`}
-                      onClick={() => onOpen(a.patient_id)} title={a.summary}>
-                <PatientAvatar name={a.name} id={a.patient_id} size="sm" />
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[13.5px] font-semibold text-fg truncate">{a.name}</span>
-                  <span className="block text-micro text-fg-muted truncate">{triggerLabel(a.trigger)} · {date(a.created_at)}</span>
-                </span>
-                <SeverityChip severity={a.severity} />
-              </button>
+              <Row on={selected === a.patient_id} onPress={() => onOpen(a.patient_id)} title={a.summary}
+                   avatar={<PatientAvatar name={a.name} size="sm" className={selected === a.patient_id ? "!bg-surface" : ""} />}
+                   name={a.name}
+                   sub={<><span className="truncate">{triggerLabel(a.trigger)}</span><span className="shrink-0">{date(a.created_at)}</span></>}
+                   right={<span className="shrink-0 w-[64px] flex justify-end"><SeverityMark severity={a.severity} /></span>} />
             </motion.li>
           ))}
-          {!rows.length && <li className="p-8 text-center text-label text-fg-muted">Inbox empty</li>}
+          {!rows.length && <li className="p-8 text-center text-label text-muted">No alerts here</li>}
         </motion.ul>
       )}
     </Card>
