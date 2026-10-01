@@ -35,7 +35,7 @@ export function PageHeader({ title, eyebrow, info, lede, actions, right, icon, c
       <div className="min-w-0 flex-1">
         {eyebrow && <div className="text-label font-medium text-accent">{eyebrow}</div>}
         <div className="flex items-center gap-0.5 min-w-0">
-          <h1 className="text-h1 text-fg truncate">{title}</h1>
+          <h1 className="text-h1 text-fg sm:truncate max-sm:text-[19px] max-sm:leading-6">{title}</h1>
           {hint ? <InfoHint {...infoProps(hint, title, `About ${typeof title === "string" ? title : "this page"}`)} placement="bottom-start" /> : null}
         </div>
       </div>

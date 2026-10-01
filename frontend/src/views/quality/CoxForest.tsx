@@ -11,8 +11,8 @@ const TERM_LABEL: Record<string, string> = {
   stage_II: "Stage II vs I", stage_III: "Stage III vs I", stage_IV: "Stage IV vs I", tier_low: "Low-testing tier vs high", tier_medium: "Medium-testing tier vs high",
 };
 const MODELS = [
-  { id: "eradication_ins4", term: "eradicated", title: "H. pylori eradication", sub: "H. pylori-positive patients → later gastric cancer · adjusted for age, sex, atrophy/IM, hotspot" },
-  { id: "hiv_negative_control", term: "hiv", title: "HIV infection", sub: "Negative control · GI cohort → gastric cancer · adjusted for age, sex" },
+  { id: "eradication_ins4", term: "eradicated", title: "H. pylori eradication", sub: "HP+ → gastric cancer · adjusted", full: "H. pylori-positive patients → later gastric cancer · adjusted for age, sex, atrophy/IM, hotspot" },
+  { id: "hiv_negative_control", term: "hiv", title: "HIV infection", sub: "Negative control · adjusted", full: "Negative control · GI cohort → gastric cancer · adjusted for age, sex" },
 ];
 const LO = 0.2, HI = 5, TICKS = [0.25, 0.5, 1, 2, 4];
 
@@ -36,11 +36,11 @@ export function CoxForest({ rows, covariates, hivShapRank }: { rows: CoxRow[]; c
   const [ref, w] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<{ r: CoxRow; y: number } | null>(null);
   const x = (v: number) => 8 + ((Math.log(Math.max(LO, Math.min(HI, v))) - Math.log(LO)) / (Math.log(HI) - Math.log(LO))) * (w - 16);
-  type Line = { r: CoxRow; main: boolean; title: string; sub?: string };
+  type Line = { r: CoxRow; main: boolean; title: string; sub?: string; full?: string };
   const lines: Line[] = [];
   MODELS.forEach((m) => {
     const main = rows.find((r) => r.model_id === m.id && r.term === m.term);
-    if (main) lines.push({ r: main, main: true, title: m.title, sub: m.sub });
+    if (main) lines.push({ r: main, main: true, title: m.title, sub: m.sub, full: m.full });
     if (covariates) rows.filter((r) => r.model_id === m.id && r.term !== m.term).forEach((r) => lines.push({ r, main: false, title: TERM_LABEL[r.term] ?? r.term }));
   });
   const H = (l: Line) => (l.main ? 58 : 24);
@@ -57,7 +57,7 @@ export function CoxForest({ rows, covariates, hivShapRank }: { rows: CoxRow[]; c
             <div key={i} className="absolute left-0 right-0 -translate-y-1/2" style={{ top: ys[i] }}>
               {l.main ? (<>
                 <div className="text-sm font-semibold leading-tight">{l.title}</div>
-                <div className="text-[10px] text-fg-muted leading-snug line-clamp-2">{l.sub}</div>
+                <div className="text-[10px] text-fg-muted leading-snug truncate" title={l.full}>{l.sub}</div>
               </>) : <div className="text-[11px] text-fg-muted pl-3 truncate">{l.title}</div>}
             </div>
           ))}

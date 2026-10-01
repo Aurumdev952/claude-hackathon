@@ -52,7 +52,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ on
         </AnimatePresence>
       </div>
       <p className="mt-1.5 text-center text-micro text-fg-muted/90">
-        Synthetic data · numbers are checked against tool outputs · <kbd className="font-sans">Shift</kbd>+<kbd className="font-sans">Enter</kbd> for a new line
+        Synthetic data · numbers verified · <kbd className="font-sans">Shift</kbd>+<kbd className="font-sans">Enter</kbd> new line
       </p>
     </form>
   );

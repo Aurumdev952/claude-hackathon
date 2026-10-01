@@ -70,7 +70,7 @@ function Funnel({ title, steps, color }: { title: string; steps: FunnelRow[]; co
                   <CornerDownRight size={11} className="shrink-0 opacity-70" aria-hidden />
                   {lost >= 0
                     ? <span><b className="text-fg font-semibold">{int(lost)}</b> {DROP_LABEL[s.stage]} <span className="opacity-80">({fmt((100 * lost) / prev.n, 0)}%)</span></span>
-                    : <span>+{int(-lost)} more than the previous step (recorded without it)</span>}
+                    : <span title="More than the previous step: recorded without it">+{int(-lost)} vs previous step</span>}
                 </div>
               )}
               <div className="group flex items-center gap-3 rounded-md hover:bg-surface-2 px-1 -mx-1" title={`${STAGE_LABEL[s.stage]}: ${int(s.n)} patients · ${fmt((100 * s.n) / n0, 1)}% of flagged${s.pct_of_prev !== null ? ` · ${fmt(s.pct_of_prev, 1)}% of previous step` : ""}`}>

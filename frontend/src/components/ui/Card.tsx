@@ -72,7 +72,7 @@ export function Card({ title, modalTitle, titleText, icon, iconTone = "accent", 
   const d = useDetailModal();
   const M = motion[as] as typeof motion.section;
   const anim = noAnim || scope === "item" ? {} : scope === "grid" ? { variants: cardEnter } : { variants: cardEnter, initial: reduce ? false : "hidden", animate: "show" };
-  const press = onPress ? { whileHover: hoverLift, whileTap: tapPress, onClick: onPress, role: role ?? "button", tabIndex: 0,
+  const press = onPress ? { whileHover: reduce ? undefined : hoverLift, whileTap: reduce ? undefined : tapPress, onClick: onPress, role: role ?? "button", tabIndex: 0,
     onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPress(); } }, "aria-label": pressLabel } : {};
   const hasHeader = title !== undefined || icon || info || actions || detail;
   const detailProps = isDetailObject(detail) ? detail : { children: detail };
