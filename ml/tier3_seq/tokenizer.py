@@ -25,10 +25,10 @@ ev AS (
   UNION ALL SELECT patient_id, datetime, 'R', drug_concept_id, duration_days, NULL FROM ml_drug
 )
 SELECT lm.row_id, ev.et, ev.c, ev.v, ev.a, date_diff('day', ev.t, lm.L) AS days_before,
-       date_diff('day', p.birthdate, ev.t) / 365.25 AS age_at
+       date_diff('day', p.birthdate, ev.t) / 365.25 AS age_at, ev.t AS ts
 FROM lm JOIN ev ON ev.patient_id = lm.patient_id AND ev.t < lm.L + INTERVAL 1 DAY AND ev.t > lm.L - INTERVAL {lookback} DAY
 JOIN core_dim_patient p ON p.patient_id = lm.patient_id
-QUALIFY row_number() OVER (PARTITION BY lm.row_id ORDER BY ev.t DESC) <= {max_len}
+QUALIFY row_number() OVER (PARTITION BY lm.row_id ORDER BY ev.t DESC, ev.et, ev.c, ev.v, ev.a) <= {max_len}  -- full tie-break: deterministic cut
 """
 
 

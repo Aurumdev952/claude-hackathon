@@ -112,8 +112,9 @@ def _tier3(con, m, feats, X, log=print):
     pids = lm["patient_id"].to_numpy()
 
     def seq_hash(row):
-        m = ids[row] > 0  # event identity = token + absolute date, so the hash is stable as the landmark moves
-        return hashlib.blake2b(ids[row][m].tobytes() + np.round(l_ord - days[row][m], 3).tobytes(), digest_size=12).hexdigest()
+        m = ids[row] > 2  # events only ([CLS] sits at the landmark); token + absolute date is stable as the landmark moves
+        when = np.round(l_ord - days[row][m].astype(np.float64), 1)  # float64: float32 + a date ordinal loses ~0.06 days
+        return hashlib.blake2b(ids[row][m].tobytes() + when.tobytes(), digest_size=12).hexdigest()
 
     hashes = {int(r): seq_hash(r) for r in top}
     cached = {int(a): (h, c, j) for a, h, c, j in con.execute(
@@ -130,7 +131,7 @@ def _tier3(con, m, feats, X, log=print):
         a = M3.integrated_gradients(p, ids[b], days[b], age[b], S[b], cfg)
         for j, row in enumerate(b):
             order = np.argsort(-a[j])[:5]
-            fresh[int(row)] = [{"token": inv.get(int(ids[row, k]), "?"), "event_day": float(l_ord - days[row, k]),
+            fresh[int(row)] = [{"token": inv.get(int(ids[row, k]), "?"), "event_day": l_ord - float(days[row, k]),
                                 "attribution": round(float(a[j, k]), 4)} for k in order if a[j, k] > 0 and ids[row, k] > 2]
     if todo:
         upd = pd.DataFrame({"patient_id": pids[todo].astype(np.int64), "model_id": model_id,

@@ -131,6 +131,7 @@ def main():
             days += ff
             c["fast_forward_days"] = 0
             _write(CONTROL, c)
+        started = time.time()
         if not c.get("paused"):
             if dt.datetime.fromisoformat(state["sim_time"]) >= dt.datetime(2027, 12, 31):
                 print("simulation horizon reached (2027-12-31); nothing left to replay")
@@ -141,7 +142,9 @@ def main():
                       f"+{info['obs_added']} obs ({time.time() - t:.1f}s)", flush=True)
         if a.once:
             break
-        time.sleep(interval)
+        # the interval is the tick period: at scale 1.0 inserting a 7-day demo window into the indexed tables takes
+        # minutes (unique uuid lookups), so ticks then run back to back instead of drifting by interval + insert time
+        time.sleep(max(1.0, interval - (time.time() - started)))
 
 
 if __name__ == "__main__":
