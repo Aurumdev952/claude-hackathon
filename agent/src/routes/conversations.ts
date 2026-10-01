@@ -1,7 +1,7 @@
 /** Conversation CRUD + linear rewind. Conversations are pinned to the X-Role / X-Facility-Id that created them. */
 import { Hono } from "hono";
 import { z } from "zod";
-import { conversationsRepo } from "../db/repo.js";
+import { conversationsRepo, titleFrom } from "../db/repo.js";
 import { ApiError } from "../lib/errors.js";
 import type { Env } from "../lib/hono.js";
 
@@ -56,6 +56,12 @@ conversationRoutes.post("/conversations/:id/truncate", async (c) => {
   const body = TruncateBody.parse(await c.req.json());
   const repo = conversationsRepo();
   const conv = await repo.getFor(c.req.param("id"), ctx.role, ctx.facilityId);
+  const first = (await repo.messages(conv.id))[0];
   const deleted = await repo.truncate(conv.id, body.messageId, body.inclusive);
+  // Edit of the first message (truncate inclusive + resend): drop its auto title so the resent message names the
+  // conversation again. A title the user renamed is kept.
+  if (body.inclusive && first?.id === body.messageId && conv.title === titleFrom(first as never)) {
+    await repo.update(conv.id, { title: "New conversation" });
+  }
   return c.json({ data: { id: conv.id, deleted, messages: await repo.messages(conv.id) } });
 });

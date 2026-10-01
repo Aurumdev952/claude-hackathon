@@ -133,8 +133,26 @@ describe("chat (mock model)", () => {
     await res.text();
     const conv = await waitFor(() => getConv("c-stream"), (c) => c.messages.length === 2);
     expect(conv.messages[0].id).toBe("u1b");
+    expect(conv.title).toBe("Edited question"); // the first message was replaced: the auto title follows it
     const rw = await app.request("/agent/conversations/c-stream/truncate", { method: "POST", headers: MIN, body: JSON.stringify({ messageId: "u1b", inclusive: false }) });
     expect((await rw.json()).data.messages.map((m: { id: string }) => m.id)).toEqual(["u1b"]);
+  });
+
+  it("editing the first message in place retitles; a renamed title is kept", async () => {
+    const send = async (id: string, msgId: string, text: string) => (await app.request("/agent/chat", {
+      method: "POST", headers: MIN, body: JSON.stringify({ id, message: { id: msgId, role: "user", parts: [{ type: "text", text }] } }),
+    })).text();
+    await send("c-title", "t1", "First question");
+    await waitFor(() => getConv("c-title"), (c) => c?.messages?.length === 2);
+    await send("c-title", "t1", "First question, edited in place");
+    let conv = await waitFor(() => getConv("c-title"), (c) => c.messages.length === 2 && c.messages[0].parts[0].text.includes("edited"));
+    expect(conv.title).toBe("First question, edited in place");
+    await app.request("/agent/conversations/c-title", { method: "PATCH", headers: MIN, body: JSON.stringify({ title: "My briefing" }) });
+    const t = await app.request("/agent/conversations/c-title/truncate", { method: "POST", headers: MIN, body: JSON.stringify({ messageId: "t1", inclusive: true }) });
+    expect((await t.json()).data.messages).toEqual([]);
+    await send("c-title", "t2", "Another question");
+    conv = await waitFor(() => getConv("c-title"), (c) => c.messages.length === 2);
+    expect(conv.title).toBe("My briefing");
   });
 
   it("conversations are pinned to their role", async () => {
@@ -177,6 +195,56 @@ describe("chat (mock model)", () => {
     const d = (await (await app.request("/agent/chat/complete", { method: "POST", headers: MIN, body: JSON.stringify({ question: "ASR?" }) })).json()).data;
     expect(d.validated_numbers).toBe(false);
     expect(d.unsupported_numbers).toEqual([77.7]);
+  });
+});
+
+describe("chart nudge vs python requests (mock model)", () => {
+  /** Records the toolChoice and tool names of every model call; calls get_rates_trend once, then answers. */
+  function recording() {
+    const calls: { toolChoice: unknown; tools: string[] }[] = [];
+    const model = new MockLanguageModelV4({
+      modelId: "mock",
+      doStream: async (opts) => {
+        calls.push({ toolChoice: opts.toolChoice, tools: (opts.tools ?? []).map((t: { name: string }) => t.name) });
+        if (!opts.prompt.some((m) => m.role === "tool")) {
+          return streamOf([
+            { type: "stream-start", warnings: [] },
+            { type: "tool-call", toolCallId: `call_${Math.random().toString(36).slice(2, 7)}`, toolName: "get_rates_trend", input: JSON.stringify({ age_band: "<50" }) },
+            { type: "finish", finishReason: { unified: "tool-calls", raw: "tool_calls" }, usage },
+          ]) as never;
+        }
+        return streamOf([
+          { type: "stream-start", warnings: [] },
+          { type: "text-start", id: "t" }, { type: "text-delta", id: "t", delta: "Done." }, { type: "text-end", id: "t" },
+          { type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage },
+        ]) as never;
+      },
+    });
+    return { model, calls };
+  }
+  const ask = (question: string) => app.request("/agent/chat/complete", { method: "POST", headers: MIN, body: JSON.stringify({ question }) });
+
+  it("a trend question forces make_chart after the data tool", async () => {
+    const { model, calls } = recording();
+    setModelOverride(model);
+    await (await ask("How has the under-50 rate changed by year?")).json();
+    expect(calls[1].toolChoice).toMatchObject({ type: "tool", toolName: "make_chart" });
+  });
+
+  it("a python / matplotlib / plotly request is not forced to make_chart and keeps run_python", async () => {
+    for (const q of [
+      "Write a python script that plots the under-50 ASR by year",
+      "Plot the under-50 rate by year with matplotlib",
+      "Make a plotly chart of the under-50 trend",
+      "Use run_python to compare the under-50 rate by year",
+    ]) {
+      const { model, calls } = recording();
+      setModelOverride(model);
+      await (await ask(q)).json();
+      expect(calls.length).toBe(2);
+      expect(calls[1].toolChoice).not.toMatchObject({ type: "tool", toolName: "make_chart" });
+      expect(calls[1].tools).toContain("run_python");
+    }
   });
 });
 

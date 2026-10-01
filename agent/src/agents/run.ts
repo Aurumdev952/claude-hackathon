@@ -23,7 +23,7 @@ import { newToolCtx, type ToolCtx } from "../tools/types.js";
 import type { MessageMetadata } from "../widgets/specs.js";
 import { doctorSystem } from "./doctor.js";
 import { ministrySystem } from "./ministry.js";
-import { CHART_INTENT, PATIENT_INTENT } from "./shared.js";
+import { CHART_INTENT, PATIENT_INTENT, PYTHON_INTENT } from "./shared.js";
 
 export type AgentUIMessage = UIMessage<MessageMetadata>;
 
@@ -63,11 +63,12 @@ function calledTools(steps: AnyStep[]): string[] {
 
 /**
  * Nudges tool choice: after a data tool returned rows for a chart-worthy question, the next step must call make_chart;
- * a doctor question about one patient must reach make_patient_widget once the patient is known. run_python is removed
- * from the active tools after the per-turn limit.
+ * a doctor question about one patient must reach make_patient_widget once the patient is known. Questions that ask for
+ * Python / matplotlib / plotly are never forced to make_chart (run_python stays available). run_python is removed from
+ * the active tools after the per-turn limit.
  */
-function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCtx) {
-  const wantsChart = CHART_INTENT.test(question);
+export function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCtx) {
+  const wantsChart = CHART_INTENT.test(question) && !PYTHON_INTENT.test(question);
   const wantsPatient = ctx.role === "doctor" && PATIENT_INTENT.test(question);
   const names = toolDefsFor(ctx.role).map((d) => d.name);
   return ({ steps }: { steps: AnyStep[] }) => {

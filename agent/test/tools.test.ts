@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { ALL_TOOLS, buildTools, modelSafe, toolDefsFor, type AnyToolDef } from "../src/tools/index.js";
 import { newToolCtx, type ToolCtx } from "../src/tools/types.js";
+import { lateStage } from "../src/tools/clinical.js";
 import { ChartWidget, DOCTOR_TOOLS, MINISTRY_TOOLS, PatientWidget } from "../src/widgets/specs.js";
 
 const by = Object.fromEntries(ALL_TOOLS.map((t) => [t.name, t])) as Record<string, AnyToolDef>;
@@ -68,12 +69,23 @@ describe("ministry tools", () => {
     expect(wes.rows.find((r: Record<string, unknown>) => r.stage === "diagnosed")).toMatchObject({ n: null, n_label: "<5" });
     const sm = await run("get_stage_mix", { by: "tier" }, t);
     expect(sm.chi_square).toMatchObject({ p: 0.027 });
+    expect(sm.late_stage).toEqual(expect.arrayContaining([
+      { facility_tier: "HC", late_n: 65, late_pct_known: 61.9 },
+      { facility_tier: "RH", late_n: 50, late_pct_known: 55.6 },
+    ]));
+    // a suppressed stage III / IV cell keeps the late-stage share hidden (secondary disclosure)
+    expect(lateStage([
+      { year: "2024", stage_group: "II", n: 9 }, { year: "2024", stage_group: "III", n: 3 }, { year: "2024", stage_group: "IV", n: 12 },
+    ], "year")).toEqual([{ year: 2024, late_n: null, late_pct_known: null, late_label: "suppressed (a stage III or IV cell is <5)" }]);
     const sv = await run("get_survival", { include_curve: true, include_cox: true }, t);
     expect(sv.rows.find((r: Record<string, unknown>) => r.group_value === "IV").surv_1y).toBe(0.18);
     expect(sv.curve.dataset_id).toMatch(/^ds\d+$/);
     expect(sv.cox.rows).toHaveLength(3);
     const fq = await run("get_facility_quality", { order: "asc" }, t);
     expect(fq.rows[0]).toMatchObject({ name: "Musanze Health Centre", hp_test_rate_pct: 5 });
+    const below = await run("get_facility_quality", { max_hp_test_rate: 0.1, limit: 1 }, t);
+    expect(below).toMatchObject({ count: 1, total_matching: 1, n_with_no_hp_tests: 0 });
+    expect(below.rows[0].name).toBe("Musanze Health Centre");
     const mm = await run("get_model_metrics", { include_subgroups: true }, t);
     expect(mm.rows.find((r: Record<string, unknown>) => r.model_id === "ensemble").auroc).toBe(0.85);
   });

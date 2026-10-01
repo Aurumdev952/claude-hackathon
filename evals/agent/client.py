@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
@@ -16,6 +17,8 @@ import httpx
 
 DEFAULT_URL = "http://localhost:8787"
 WIDGET_TOOLS = {"make_chart", "make_patient_widget", "run_python"}
+# Text the agent streams when the model call itself failed (agent/src/agents/run.ts onError): not an answer.
+AGENT_ERROR_RE = re.compile(r"^\s*(Agent error:|The language model rejected the request)|Key limit exceeded|insufficient credits", re.I)
 
 
 def agent_url() -> str:
@@ -47,8 +50,10 @@ class AgentResponse:
         return [c["name"] for c in self.tool_calls]
 
     def to_json(self) -> dict:
+        """Persistable view: UI-only patient names and contact fields are redacted (results / fixtures stay name-free)."""
         d = asdict(self)
-        d.pop("names_in_ui", None)  # never persisted: results files must stay free of names
+        d.pop("names_in_ui", None)
+        d["widgets"] = redact(d["widgets"], set(self.names_in_ui))
         return d
 
     @classmethod
@@ -64,10 +69,42 @@ def _headers(role: str, facility_id: Optional[int]) -> dict:
     return h
 
 
-def _collect_names(o: Any, out: set[str]) -> None:
-    """Patient names in a UI payload: `name` of the patient card itself, given_name / family_name anywhere."""
+PATIENT_KEYS = {"display_id", "patient_id"}
+NAME_KEYS = {"given_name", "family_name", "patient_name", "full_name"}
+CONTACT_KEYS = {"birthdate", "phone", "national_id", "address"}
+REDACTED = "[redacted]"
+
+
+def _is_patient_obj(o: dict) -> bool:
+    return o.get("kind") == "patient" or bool(PATIENT_KEYS & o.keys())
+
+
+def redact(o: Any, names: set[str] | frozenset = frozenset()) -> Any:
+    """Structural + string redaction of patient names in UI payloads (patient card `name`, `name` next to a patient
+    key, given / family names, contact fields, and any string containing a known name)."""
     if isinstance(o, dict):
-        keys = ["given_name", "family_name"] + (["name"] if o.get("kind") == "patient" else [])
+        out = {}
+        for k, v in o.items():
+            if k in CONTACT_KEYS:
+                continue
+            if isinstance(v, str) and (k in NAME_KEYS or (k == "name" and _is_patient_obj(o))):
+                out[k] = REDACTED
+            else:
+                out[k] = redact(v, names)
+        return out
+    if isinstance(o, list):
+        return [redact(v, names) for v in o]
+    if isinstance(o, str) and names:
+        for n in names:
+            if n and n in o:
+                o = o.replace(n, REDACTED)
+    return o
+
+
+def _collect_names(o: Any, out: set[str]) -> None:
+    """Patient names in a UI payload: `name` of a patient card or of a row with a patient key, given / family names."""
+    if isinstance(o, dict):
+        keys = list(NAME_KEYS) + (["name"] if _is_patient_obj(o) else [])
         for k in keys:
             v = o.get(k)
             if isinstance(v, str) and v.strip():
@@ -98,13 +135,17 @@ def parse_response(golden_id: str, role: str, facility_id: Optional[int], questi
             widget_errors.append({"tool": name, "error": p.get("errorText")})
         elif isinstance(out, dict) and out.get("kind") in ("chart", "patient", "artifact"):
             widgets.append({"tool": name, "output": out})
-            if out.get("kind") == "patient":
-                _collect_names(out, names)
+            _collect_names(out, names)
         elif isinstance(out, dict):
             widget_errors.append({"tool": name, "error": out.get("error") or "no widget returned", "output": out})
+    answer = d.get("answer") or ""
+    agent_error = AGENT_ERROR_RE.search(answer) if not answer or len(answer) < 600 else None
     return AgentResponse(
-        golden_id=golden_id, role=role, facility_id=facility_id, question=question, ok=True, status=status,
-        answer=d.get("answer") or "",
+        golden_id=golden_id, role=role, facility_id=facility_id, question=question, ok=not agent_error and bool(answer),
+        error=(f"agent returned an error instead of an answer: {answer[:300]}" if agent_error else
+               None if answer else "empty answer"),
+        status=status,
+        answer=answer,
         tool_calls=d.get("tool_calls") or [],
         widgets=widgets, widget_errors=widget_errors,
         retrieval_context=d.get("retrieval_context") or [],

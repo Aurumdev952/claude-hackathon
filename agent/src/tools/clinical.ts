@@ -5,13 +5,41 @@ import { suppressSmallCells } from "../guardrails/suppress.js";
 import { round } from "./rates.js";
 import { defineTool } from "./types.js";
 
+/**
+ * Late-stage (III + IV) share of known stage per group, from the unsuppressed counts. Published only when stage III and
+ * stage IV are both >= 5: otherwise late_n minus the published stage would reveal the suppressed cell.
+ */
+export function lateStage(rows: Record<string, unknown>[], groupKey: string | null) {
+  const groups = new Map<string, Record<string, number>>();
+  for (const r of rows) {
+    const g = groupKey ? String(r[groupKey]) : "ALL";
+    const st = String(r.stage_group);
+    const n = typeof r.n === "number" ? r.n : 0;
+    const m = groups.get(g) ?? {};
+    m[st] = (m[st] ?? 0) + n;
+    groups.set(g, m);
+  }
+  return [...groups.entries()].map(([g, m]) => {
+    const known = (m.I ?? 0) + (m.II ?? 0) + (m.III ?? 0) + (m.IV ?? 0);
+    const late = (m.III ?? 0) + (m.IV ?? 0);
+    const ok = (m.III ?? 0) >= 5 && (m.IV ?? 0) >= 5 && known > 0;
+    return {
+      ...(groupKey ? { [groupKey]: groupKey === "year" ? Number(g) : g } : {}),
+      late_n: ok ? late : null,
+      late_pct_known: ok ? round((100 * late) / known, 1) : null,
+      ...(ok ? {} : { late_label: "suppressed (a stage III or IV cell is <5)" }),
+    };
+  });
+}
+
 export const getStageMix = defineTool({
   name: "get_stage_mix",
   title: "Stage at diagnosis",
   description:
     "Stage at diagnosis (stage_group I, II, III, IV, Unknown) with n, pct (of all) and pct_known (of known stage). by='year' " +
     "gives the mix per diagnosis year for a geography; by='tier' compares facility tiers (all years) with a chi-square test. " +
-    "level NATIONAL (geo_code RW), PROVINCE (KGL NOR SOU EAS WES) or DISTRICT (e.g. NOR-MUS). Late stage = III + IV.",
+    "level NATIONAL (geo_code RW), PROVINCE (KGL NOR SOU EAS WES) or DISTRICT (e.g. NOR-MUS). Late stage = III + IV: use the " +
+    "returned late_stage (late_pct_known per group), never sum rows yourself.",
   roles: ["ministry"],
   inputSchema: z.object({
     level: z.enum(["NATIONAL", "PROVINCE", "DISTRICT"]).default("NATIONAL"),
@@ -37,9 +65,14 @@ export const getStageMix = defineTool({
         `SELECT CAST(year AS INTEGER) AS year, stage_group, n, pct, pct_known FROM mart_stage_mix WHERE level = ? AND geo_code = ?
          AND facility_tier = 'ALL' AND year <> 'ALL' ORDER BY 1, 2`, [i.level, geo]);
     }
+    const late_stage = lateStage(rows, i.by === "tier" ? "facility_tier" : i.by === "year" ? "year" : null);
     rows = suppressSmallCells(rows).map((r) => ({ ...r, pct: round(r.pct, 1), pct_known: round(r.pct_known, 1) }));
     if (!rows.length) return { ok: false, error: `No stage mix for ${i.level} ${geo}` };
-    return { ok: true, level: i.level, geo_code: geo, by: i.by, chi_square, dataset_id: t.datasets.register("get_stage_mix", rows), rows };
+    return {
+      ok: true, level: i.level, geo_code: geo, by: i.by, chi_square, dataset_id: t.datasets.register("get_stage_mix", rows), rows,
+      late_stage,
+      note: "late_stage (III + IV, % of known stage) is computed here; do not add or subtract rows yourself, a suppressed (<5) cell must stay hidden.",
+    };
   },
 });
 
@@ -94,7 +127,9 @@ export const getFacilityQuality = defineTool({
   description:
     "Per-facility quality of care: H. pylori testing among dyspepsia patients (n_dyspepsia, n_hp_tested, hp_test_rate as a " +
     "fraction 0-1, funnel-plot outlier_flag), cases diagnosed (n_cases), pct_stage4 and median diagnostic interval (days). " +
-    "Filter by district or province, keep outliers only, sort and limit. Use for 'which facilities test the fewest / are " +
+    "Filter by district or province, max_hp_test_rate (e.g. 0.05 for 'below 5%'), keep outliers only, sort and limit. " +
+    "total_matching / n_with_no_hp_tests count every facility matching the filters (quote these, do not count rows). " +
+    "Use for 'which facilities test the fewest / are " +
     "outliers' questions. Facilities with fewer than min_dyspepsia patients are excluded (default 10).",
   roles: ["ministry"],
   inputSchema: z.object({
@@ -105,10 +140,12 @@ export const getFacilityQuality = defineTool({
     order: z.enum(["asc", "desc"]).default("asc"),
     min_dyspepsia: z.number().int().min(0).default(10),
     limit: z.number().int().min(1).max(200).default(20),
+    max_hp_test_rate: z.number().min(0).max(1).optional().describe("Keep facilities with hp_test_rate BELOW this fraction (0.05 = below 5%)"),
   }),
   async execute(i, t) {
     const where = ["n_dyspepsia >= ?"];
     const params: unknown[] = [i.min_dyspepsia];
+    if (i.max_hp_test_rate !== undefined) { where.push("hp_test_rate < ?"); params.push(i.max_hp_test_rate); }
     if (i.district_code) { where.push("district_code = ?"); params.push(i.district_code); }
     if (i.province_code) { where.push("province_code = ?"); params.push(i.province_code); }
     if (i.outliers_only) where.push("outlier_flag IS NOT NULL");
@@ -123,6 +160,14 @@ export const getFacilityQuality = defineTool({
       ...r, hp_test_rate: round(r.hp_test_rate, 3), hp_test_rate_pct: typeof r.hp_test_rate === "number" ? round(100 * r.hp_test_rate, 1) : null,
       funnel_lower95: round(r.funnel_lower95, 3), funnel_upper95: round(r.funnel_upper95, 3), pct_stage4: round(r.pct_stage4, 1),
     }));
-    return { ok: true, count: out.length, dataset_id: t.datasets.register("get_facility_quality", out), rows: out };
+    const tot = await SERVE().one(
+      `SELECT count(*) AS n, count(*) FILTER (WHERE n_hp_tested = 0) AS n_zero_tested FROM mart_facility_quality WHERE ${where.join(" AND ")}`,
+      params,
+    );
+    return {
+      ok: true, count: out.length, total_matching: Number(tot?.n ?? out.length), n_with_no_hp_tests: Number(tot?.n_zero_tested ?? 0),
+      filters: { min_dyspepsia: i.min_dyspepsia, max_hp_test_rate: i.max_hp_test_rate ?? null, district_code: i.district_code ?? null, province_code: i.province_code ?? null, outliers_only: i.outliers_only },
+      dataset_id: t.datasets.register("get_facility_quality", out), rows: out,
+    };
   },
 });

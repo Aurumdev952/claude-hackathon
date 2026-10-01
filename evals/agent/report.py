@@ -35,6 +35,11 @@ def compute_gate(rows: list[dict]) -> dict:
     q_rate = len(q_ok) / len(rows) if rows else 0.0
     out["quality"] = {"passed": len(q_ok), "applicable": len(rows), "rate": q_rate, "required": GATE["quality"],
                       "ok": q_rate >= GATE["quality"], "failing": [r["id"] for r in rows if r["summary"]["gates"].get("quality") is False]}
+    # diagnostic only (partial runs): goldens whose quality failures are all judge errors
+    def judge_only(r):
+        bad = [c for c in r["checks"] if c["group"] == "quality" and c["applicable"] and c["passed"] is False]
+        return bool(bad) and all(c["reason"].startswith("metric error") for c in bad)
+    out["quality"]["judge_error_only"] = [r["id"] for r in rows if r["summary"]["gates"].get("quality") is False and judge_only(r)]
     tcs = [r["summary"]["tool_correctness"] for r in rows if r["summary"]["tool_correctness"] is not None]
     # goldens with expected tools whose metric errored count as 0
     errored = [r for r in rows if r["expected_tools"] and r["summary"]["tool_correctness"] is None]
@@ -85,12 +90,18 @@ def render_markdown(res: dict) -> str:
     lines = [
         "# Early Signals agent - DeepEval readiness gate",
         "",
-        f"**Verdict: {'READY' if g['ready'] else 'NOT READY'}**  ",
-        f"Run {m['timestamp']} - agent `{m.get('agent_model')}` at {m.get('agent_url')} (serve run {m.get('serve_run_id')}), "
-        f"judge `{m.get('judge_model')}` via OpenRouter, deepeval {m.get('deepeval_version')}, "
+        f"**Verdict: {g.get('verdict') or ('READY' if g['ready'] else 'NOT READY')}**  ",
+        *([f"> **Partial run:** {m['aborted']}", ""] if m.get("aborted") else []),
+        *(["> **Offline replay** of recorded agent responses: only the deterministic checks ran (widget schema, PII / "
+           "names / scope, forbidden text, read-only SQL, numbers_check, required statements). DeepEval metrics are marked "
+           "n/a. This verifies the gate's structure, not the agent's readiness.", ""] if m.get("mode") == "offline" else []),
+        (f"Replay {m['timestamp']} of `{m.get('reused_responses')}` (agent `{m.get('agent_model')}`), deepeval {m.get('deepeval_version')}, "
+         if m.get("mode") == "offline" else
+         f"Run {m['timestamp']} - agent `{m.get('agent_model')}` at {m.get('agent_url')} (serve run {m.get('serve_run_id')}), "
+         f"judge `{m.get('judge_model')}` via OpenRouter (reasoning {m.get('judge_reasoning', 'low')}), deepeval {m.get('deepeval_version')}, ") +
         f"{m['n_goldens']} goldens ({m.get('n_ministry', 0)} ministry, {m.get('n_doctor', 0)} doctor), "
-        f"{m.get('duration_s', 0):.0f} s (agent {m.get('agent_phase_s', 0):.0f} s, judge {m.get('judge_phase_s', 0):.0f} s), "
-        f"judge calls {m.get('judge_usage', {}).get('calls')} (cost ${m.get('judge_usage', {}).get('cost_usd')}).",
+        f"{m.get('duration_s', 0):.0f} s (agent {m.get('agent_phase_s', 0):.0f} s, judge {m.get('judge_phase_s', 0):.0f} s), " +
+        (f"judge calls {m.get('judge_usage', {}).get('calls')} (cost ${m.get('judge_usage', {}).get('cost_usd')})." if m.get("mode") != "offline" else "no judge calls."),
         "",
         "| Gate | Result | Required | Status |",
         "|---|---|---|---|",
@@ -103,6 +114,12 @@ def render_markdown(res: dict) -> str:
         lines.append(f"| {label} | {x['passed']}/{x['applicable']} ({_pct(x['rate'])}) | {_pct(x['required'])} | {_ok(x['ok'])} |")
     t = g["tool_correctness_mean"]
     lines.append(f"| Mean ToolCorrectness | {t['value']:.2f} (n={t['n']}) | 0.80 | {_ok(t['ok'])} |")
+    je = g["quality"].get("judge_error_only") or []
+    if je:
+        q = g["quality"]
+        lines += ["", f"Quality failures caused only by judge errors (metric not evaluated): {len(je)} golden(s). Counting only "
+                  f"evaluated checks, {q['passed'] + len(je)}/{q['applicable']} goldens pass quality; still failing on evaluated "
+                  f"checks: {', '.join(i for i in q['failing'] if i not in je) or 'none'}."]
     lines += ["", "## Metrics", "", "| Group | Metric | Type | Pass | Mean score | Threshold | Judge errors |", "|---|---|---|---|---|---|---|"]
     for r in res["metrics"]:
         ms = "-" if r["mean_score"] is None else f"{r['mean_score']:.2f}"
@@ -128,7 +145,8 @@ def render_markdown(res: dict) -> str:
             sc = "" if c["score"] is None else f" score {c['score']:.2f}"
             reason = c["reason"].replace("\n", " ")[:500]
             lines.append(f"- **{r['id']}** `{c['group']}:{c['name']}`{sc}: {reason}")
-    lines += ["", "Full answers, tool calls and metric reasons: `evals/agent/results/latest.json`.", ""]
+    src = "offline-latest.json" if m.get("mode") == "offline" else "latest.json"
+    lines += ["", f"Full answers, tool calls and metric reasons: `evals/agent/results/{src}`.", ""]
     return "\n".join(lines)
 
 
@@ -140,7 +158,10 @@ def _wtype(w: dict) -> str:
 def write_reports(res: dict) -> dict[str, Path]:
     RESULTS.mkdir(parents=True, exist_ok=True)
     stamp = res["meta"]["timestamp"].replace(":", "").replace("-", "")
-    paths = {"run": RESULTS / f"{stamp}.json", "latest": RESULTS / "latest.json", "md": RESULTS / "latest.md"}
+    if res["meta"].get("mode") == "offline":  # never overwrite the live verdict with a replay
+        paths = {"run": RESULTS / f"offline-{stamp}.json", "latest": RESULTS / "offline-latest.json", "md": RESULTS / "offline-latest.md"}
+    else:
+        paths = {"run": RESULTS / f"{stamp}.json", "latest": RESULTS / "latest.json", "md": RESULTS / "latest.md"}
     blob = json.dumps(res, indent=2, ensure_ascii=False, default=str)
     paths["run"].write_text(blob)
     paths["latest"].write_text(blob)
@@ -162,7 +183,20 @@ def build_results(goldens: list[dict], responses: dict, checks: dict, meta: dict
         })
     meta = {**meta, "n_goldens": len(rows), "n_ministry": sum(r["role"] == "ministry" for r in rows),
             "n_doctor": sum(r["role"] == "doctor" for r in rows)}
-    return {"meta": meta, "gate": compute_gate(rows), "metrics": metric_table(rows), "goldens": rows}
+    return {"meta": meta, "gate": finalize_gate(compute_gate(rows), meta), "metrics": metric_table(rows), "goldens": rows}
+
+
+def finalize_gate(gate: dict, meta: dict) -> dict:
+    """An aborted / partial or offline run never says READY."""
+    if meta.get("aborted"):
+        gate["ready"] = False
+        gate["verdict"] = "ABORTED (partial run)"
+    elif meta.get("mode") == "offline":
+        gate["ready"] = False
+        gate["verdict"] = "OFFLINE replay - deterministic checks only, no readiness verdict"
+    else:
+        gate["verdict"] = "READY" if gate["ready"] else "NOT READY"
+    return gate
 
 
 def now_stamp() -> str:
@@ -172,7 +206,7 @@ def now_stamp() -> str:
 if __name__ == "__main__":
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else RESULTS / "latest.json"
     res = json.loads(src.read_text())
-    res["gate"] = compute_gate(res["goldens"])
+    res["gate"] = finalize_gate(compute_gate(res["goldens"]), res["meta"])
     res["metrics"] = metric_table(res["goldens"])
     (RESULTS / "latest.md").write_text(render_markdown(res))
     print(render_markdown(res))

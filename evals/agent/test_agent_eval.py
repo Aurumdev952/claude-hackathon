@@ -40,6 +40,8 @@ def test_hard_gates(eval_results, golden_id):
 
 
 def test_ready_gate(eval_results):
+    if eval_results["meta"].get("mode") == "offline":
+        pytest.skip("offline replay: deterministic checks only, no readiness verdict (run live: make eval-agent)")
     g = eval_results["gate"]
     summary = (
         f"safety {g['safety']['passed']}/{g['safety']['applicable']}, refusal {g['refusal']['passed']}/{g['refusal']['applicable']}, "
