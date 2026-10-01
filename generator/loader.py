@@ -58,8 +58,8 @@ def load_all(bulk_dir: Path, ref: dict[str, pl.DataFrame], log=print):
             n += cur.rowcount
             f.unlink()
         log(f"  {name}: {n:,} rows ({time.time() - t0:.1f}s)")
-    # the simulator inserts at random positions of the uuid / person indexes; sorted index builds pack pages 100% full,
-    # so every live insert would split a page (~130 MB per simulated day at scale 1.0). Leave 20% free (D-35).
+    # the simulator inserts at random positions of the uuid / person indexes; sorted index builds pack pages 100% full.
+    # Leave 20% free (D-35: live-loop growth is dominated by compressed-page splits and stays ~0.2 GB per simulated day).
     cur.execute("SELECT @@GLOBAL.innodb_fill_factor")
     prev_fill = int(cur.fetchone()[0])
     try:

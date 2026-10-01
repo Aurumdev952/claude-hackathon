@@ -11,7 +11,7 @@ innodb_log_buffer_size=64M
 # the bulk load stalls on checkpoints with the 100 MB default ("Consider increasing innodb_redo_log_capacity")
 innodb_redo_log_capacity=512M
 max_allowed_packet=256M
-# leave 20% free in index pages so live inserts do not split every page (D-35)
+# leave 20% free in index pages for live inserts (D-35)
 innodb_fill_factor=80
 # no replication: binary logs would double the disk used by the bulk load
 skip-log-bin
