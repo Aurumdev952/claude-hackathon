@@ -63,6 +63,20 @@ function CameraRig({ organs, controls }: { organs: Record<string, OrganInfo>; co
   return null;
 }
 
+/** Zoom requests from the StageControls (+/-): dolly the existing CameraControls, then clear the request. */
+function ZoomListener({ controls }: { controls: React.RefObject<CameraControls> }) {
+  const z = useCaseUI((s) => s.zoomDelta);
+  useEffect(() => {
+    const c = controls.current;
+    if (!c || !z) return;
+    const k = Math.pow(0.78, Math.abs(z));                 // one press = 22% closer (or the inverse when zooming out)
+    const d = c.distance;
+    c.dolly(z > 0 ? d * (1 - k) : -d * (1 / k - 1), true);
+    useCaseUI.getState().set({ zoomDelta: 0 });
+  }, [z, controls]);
+  return null;
+}
+
 /** Floating labels for the most affected organs + whatever is hovered/focused. */
 function OrganLabels({ organs, state }: { organs: Record<string, OrganInfo>; state: BodyState }) {
   const hovered = useCaseUI((s) => s.hoveredOrgan);
@@ -94,10 +108,12 @@ function OrganLabels({ organs, state }: { organs: Record<string, OrganInfo>; sta
         const side = o.center.x >= 0 ? 1 : -1;
         return (
           <Html key={id} position={[o.center.x, o.center.y + (placed[id] ?? 0), o.center.z]} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-            <div className={`case-label ${strong ? "is-strong" : ""}`} style={{ transform: `translate(${side > 0 ? "18px" : "calc(-100% - 18px)"}, -50%)` }}>
-              <span className="case-label-line" style={{ [side > 0 ? "left" : "right"]: -18 } as React.CSSProperties} />
+            <div className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] leading-none px-2 py-[5px] rounded-full border backdrop-blur-md transition-shadow
+                             bg-surface/90 text-fg shadow-tile ${strong ? "border-warning ring-2 ring-warning/35 shadow-float" : "border-border"}`}
+                 style={{ transform: `translate(${side > 0 ? "18px" : "calc(-100% - 18px)"}, -50%)` }}>
+              <span className="absolute top-1/2 w-[18px] h-px bg-fg-muted/60" style={{ [side > 0 ? "left" : "right"]: -18 } as React.CSSProperties} aria-hidden />
               <span className="font-semibold">{labelOf(id)}</span>
-              {s > 0 && <span className="tabular opacity-80">{Math.round(100 * s)}</span>}
+              {s > 0 && <span className="tabular text-fg-muted">{Math.round(100 * s)}</span>}
             </div>
           </Html>
         );
@@ -120,14 +136,16 @@ function useQuality() {
   return hi;
 }
 
-export function BodyScene({ state, anchors, reducedMotion }: {
-  state: BodyState; anchors: Record<string, [number, number, number]>; reducedMotion: boolean;
+/** `light` = the white "ClyHealth" stage: no vignette, softer bloom, raised ambient and a steel-blue glass shell. */
+export function BodyScene({ state, anchors, reducedMotion, light = false }: {
+  state: BodyState; anchors: Record<string, [number, number, number]>; reducedMotion: boolean; light?: boolean;
 }) {
   const controls = useRef<CameraControls>(null);
   const [organs, setOrgans] = useState<Record<string, OrganInfo>>({});
   const onOrgans = useCallback((o: Record<string, OrganInfo>) => setOrgans(o), []);
   const hi = useQuality();
   const clearSel = useCaseUI((s) => s.set);
+  useEffect(() => { shared.uLight.value = light ? 1 : 0; }, [light]);
   return (
     <Canvas
       dpr={hi ? [1, 2] : 1} gl={{ antialias: true, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: true }}
@@ -139,22 +157,27 @@ export function BodyScene({ state, anchors, reducedMotion }: {
       <CameraControls ref={controls} makeDefault minDistance={0.12} maxDistance={4.5} dollySpeed={0.6} smoothTime={0.55}
                       onStart={() => undefined} />
       <Director reducedMotion={reducedMotion} controls={controls} />
+      <ZoomListener controls={controls} />
       <Suspense fallback={<LoadingBody />}>
         <BodyModel state={state} anchors={anchors} reducedMotion={reducedMotion} onOrgans={onOrgans} />
         {organs.stomach && <Pathology state={state} anchors={anchors} organs={organs} />}
         <CameraRig organs={organs} controls={controls} />
         <OrganLabels organs={organs} state={state} />
       </Suspense>
-      {hi && (
+      {hi && (light ? (
+        <EffectComposer multisampling={4}>
+          <Bloom mipmapBlur luminanceThreshold={0.9} luminanceSmoothing={0.2} intensity={0.35} radius={0.6} />
+        </EffectComposer>
+      ) : (
         <EffectComposer multisampling={4}>
           <Bloom mipmapBlur luminanceThreshold={0.82} luminanceSmoothing={0.2} intensity={0.85} radius={0.7} />
           <Vignette eskil={false} offset={0.25} darkness={0.55} />
         </EffectComposer>
-      )}
+      ))}
     </Canvas>
   );
 }
 
 function LoadingBody() {
-  return <Html center><div className="text-xs text-fog animate-pulse whitespace-nowrap">Loading anatomy model…</div></Html>;
+  return <Html center><div className="text-xs text-fg-muted animate-pulse whitespace-nowrap">Loading anatomy model…</div></Html>;
 }

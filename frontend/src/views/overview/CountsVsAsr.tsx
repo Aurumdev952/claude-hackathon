@@ -10,7 +10,7 @@ export function CountsVsAsr({ rows, height = 230 }: { rows: RateRow[]; height?: 
   const k = ink(), S = SERIES[m];
   const ys = rows.filter((r) => r.asr !== null).map((r) => ({ ...r, year: Number(r.period) })).sort((a, b) => a.year - b.year);
   const baseRow = ys.find((r) => !r.coverage_flag && !r.partial_year && (r.cases ?? 0) > 0);
-  if (!baseRow) return <div className="text-xs text-fog p-4">Not enough years to index.</div>;
+  if (!baseRow) return <div className="text-xs text-fg-muted p-4">Not enough years to index.</div>;
   // Partial year: annualise the count by the share of person-time elapsed (YTD person-years ÷ previous full year).
   const ann = (r: (typeof ys)[number]) => {
     const prev = ys.find((x) => x.year === r.year - 1);
@@ -51,4 +51,15 @@ export function CountsVsAsr({ rows, height = 230 }: { rows: RateRow[]; height?: 
     ] as any,
   };
   return <EChart option={opt} height={height} ariaLabel={`Crude case counts versus age-standardised rate, indexed to ${baseRow.year}`} />;
+}
+
+/** Base-year → last-year multipliers for counts and ASR, matching the chart's end labels (a partial year is annualised). */
+export function countsVsAsrSummary(rows: RateRow[]) {
+  const ys = rows.filter((r) => r.asr !== null).map((r) => ({ ...r, year: Number(r.period) })).sort((a, b) => a.year - b.year);
+  const b = ys.find((r) => !r.coverage_flag && !r.partial_year && (r.cases ?? 0) > 0);
+  const l = ys[ys.length - 1];
+  if (!b || !l || l.year === b.year) return null;
+  const prev = ys.find((x) => x.year === l.year - 1);
+  const cases = l.partial_year && prev?.population ? ((l.cases ?? 0) * prev.population) / (l.population || 1) : l.cases ?? 0;
+  return { from: b.year, to: l.year, partial: !!l.partial_year, cases: cases / (b.cases || 1), asr: (l.asr ?? 0) / (b.asr || 1) };
 }

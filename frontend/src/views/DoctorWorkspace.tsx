@@ -1,49 +1,91 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Box, Check, ChevronLeft, ChevronRight, MessageSquareText, Search, Send, X } from "lucide-react";
-import { get, patch, post, qs } from "@/api/client";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button, Input } from "@heroui/react";
+import { motion, useReducedMotion } from "framer-motion";
+import {
+  Activity, BellRing, Box, CalendarDays, ChevronLeft, ChevronRight, Droplet, FlaskConical, Gauge, History, Hospital, MapPin, MessageSquareText,
+  RefreshCw, Search, Sparkles, UserRound, Users, Weight,
+} from "lucide-react";
+import { get, post, qs } from "@/api/client";
 import type { Alert, PatientRow } from "@/api/types";
+import {
+  BentoGrid, Card, DetailModal, ErrorNote, GridItem, InfoHint, Loading, PageHeader, PillTabs, RiskScoreBar, Seg, Skeleton, Sparkline, StatTile,
+  StatusChip, useDetailModal, type StatusKind,
+} from "@/components/ui";
 import { BandChip, SeverityChip } from "@/components/ui/Status";
-import { ErrorNote, Loading, Panel } from "@/components/ui/Panel";
 import { useRole } from "@/state/role";
-import { date, fmt } from "@/lib/format";
+import { date, fmt, signed } from "@/lib/format";
+import { itemEnter, stagger } from "@/lib/motion";
 import { FacilityPicker } from "./doctor/FacilityPicker";
-import { RiskCard } from "./doctor/RiskCard";
+import { RISK_METHOD, RiskCard } from "./doctor/RiskCard";
 import { MiniSeries, Timeline } from "./doctor/Timeline";
+import { AlertActions, triggerLabel } from "./doctor/AlertActions";
+import { PatientAvatar } from "./doctor/PatientAvatar";
 
+export { AlertActions } from "./doctor/AlertActions";
+
+type Tab = "flagged" | "diagnosed" | "alerts";
+const ABOUT = "Patients of this facility ranked by their 12-month gastric-cancer risk, diagnosed cases, and the alerts inbox. Decision support only — synthetic data.";
+
+/** V7 Doctor workspace (MedEx-style bento): patient list on the left, the selected patient's cards on the right. */
 export default function DoctorWorkspace() {
   const { facilityId, facilityName, role } = useRole();
-  const [tab, setTab] = useState<"flagged" | "diagnosed" | "alerts">("flagged");
+  const [tab, setTab] = useState<Tab>("flagged");
   const [selected, setSelected] = useState<number | null>(null);
+  const newAlerts = useQuery({ queryKey: ["alerts", "inbox", "NEW", ""], queryFn: () => get<Alert[]>(`/alerts${qs({ status: "NEW" })}`), enabled: role === "doctor" && !!facilityId });
   if (role !== "doctor" || !facilityId) return <FacilityPicker />;
+  const nNew = newAlerts.data?.data?.length;
   return (
-    <div className="grid grid-cols-[minmax(420px,1fr)_minmax(560px,1.35fr)] gap-4 h-full min-h-[640px]">
-      <div className="flex flex-col min-h-0 gap-3">
-        <div className="flex items-end justify-between">
-          <div>
-            <div className="panel-title">Doctor workspace</div>
-            <h1 className="text-xl font-bold">{facilityName?.replace(" (Synthetic)", "")}</h1>
-          </div>
-          <button className="text-xs text-kivu hover:underline" onClick={() => useRole.setState({ facilityId: null, facilityName: null })}>Change facility</button>
+    <div className="flex flex-col gap-4">
+      <PageHeader eyebrow="Doctor workspace" title={facilityName?.replace(" (Synthetic)", "")} icon={<Hospital size={20} />} info={ABOUT}
+                  right={
+                    <PillTabs ariaLabel="Workspace lists" selectedKey={tab} onSelectionChange={setTab} panelClassName="hidden"
+                              items={[
+                                { key: "flagged", label: "Risk-ranked patients", icon: <Gauge size={14} aria-hidden /> },
+                                { key: "diagnosed", label: "Diagnosed cases", icon: <Activity size={14} aria-hidden /> },
+                                { key: "alerts", label: "Alerts inbox", icon: <BellRing size={14} aria-hidden />, count: nNew || undefined },
+                              ]} />
+                  }
+                  actions={
+                    <Button size="sm" radius="full" variant="flat" className="bg-surface border border-border text-fg h-9" startContent={<RefreshCw size={14} aria-hidden />}
+                            onPress={() => useRole.setState({ facilityId: null, facilityName: null })}>Change facility</Button>
+                  } />
+      <div className="grid grid-cols-12 gap-4 items-start">
+        <div className="col-span-12 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-0 flex flex-col lg:h-[calc(100vh-152px)] min-h-[560px]">
+          {tab === "alerts" ? <AlertsInbox onOpen={setSelected} selected={selected} /> : <PatientList status={tab} selected={selected} onSelect={setSelected} />}
         </div>
-        <div className="seg self-start" role="tablist">
-          {(["flagged", "diagnosed", "alerts"] as const).map((t) => (
-            <button key={t} role="tab" aria-pressed={tab === t} onClick={() => setTab(t)}>{t === "flagged" ? "Risk-ranked patients" : t === "diagnosed" ? "Diagnosed cases" : "Alerts inbox"}</button>
-          ))}
-        </div>
-        {tab === "alerts" ? <AlertsInbox onOpen={setSelected} /> : <PatientList status={tab} selected={selected} onSelect={setSelected} />}
+        <div className="col-span-12 lg:col-span-7 xl:col-span-8 min-w-0">{selected ? <PatientPanel key={selected} patientId={selected} /> : <Empty />}</div>
       </div>
-      <div className="min-h-0 overflow-auto">{selected ? <PatientPanel patientId={selected} /> : <Empty />}</div>
     </div>
   );
 }
 
 function Empty() {
-  return <div className="panel h-full flex items-center justify-center text-fog text-sm p-10 text-center">Select a patient to see why they were flagged, their timeline, and the 3D case analysis.</div>;
+  return (
+    <Card className="min-h-[420px] items-center justify-center text-center" bodyClassName="flex flex-col items-center justify-center gap-3">
+      <span className="w-14 h-14 rounded-full bg-accent-soft text-accent grid place-items-center" aria-hidden><UserRound size={24} /></span>
+      <div className="text-title text-fg">Select a patient</div>
+    </Card>
+  );
+}
+
+function Pager({ total, page, setPage }: { total: number; page: number; setPage: (f: (p: number) => number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / 25));
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5 border-t border-border text-label text-fg-muted">
+      <span className="inline-flex items-center gap-1.5 tabular"><Users size={13} aria-hidden />{total.toLocaleString()} patients</span>
+      <div className="flex items-center gap-1">
+        <Button isIconOnly size="sm" radius="full" variant="light" isDisabled={page <= 1} onPress={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft size={15} /></Button>
+        <span className="tabular px-1">{page} / {pages}</span>
+        <Button isIconOnly size="sm" radius="full" variant="light" isDisabled={page >= pages} onPress={() => setPage((p) => p + 1)} aria-label="Next page"><ChevronRight size={15} /></Button>
+      </div>
+    </div>
+  );
 }
 
 function PatientList({ status, selected, onSelect }: { status: "flagged" | "diagnosed"; selected: number | null; onSelect: (id: number) => void }) {
+  const reduce = useReducedMotion();
   const [page, setPage] = useState(1);
   const [band, setBand] = useState<string>("");
   const [q, setQ] = useState("");
@@ -58,52 +100,84 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
   const total = Number((data as any)?.total ?? 0);
   useEffect(() => { if (!selected && rows.length) onSelect(rows[0].patient_id); }, [rows, selected, onSelect]);
   return (
-    <div className="panel flex flex-col min-h-0 flex-1">
-      <div className="flex items-center gap-2 p-3 border-b border-line/50">
-        <label className="flex items-center gap-2 flex-1 bg-ridge2/60 rounded-lg px-2">
-          <Search size={14} className="text-fog" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or ID" className="bg-transparent py-1.5 text-sm outline-none flex-1" aria-label="Search patients" />
-        </label>
+    <Card padding="none" className="flex-1 min-h-0 overflow-hidden" bodyClassName="flex flex-col min-h-0">
+      <div className="flex items-center gap-2 p-3 border-b border-border">
+        <Input size="sm" radius="full" aria-label="Search patients" placeholder="Name or ID" value={q} onValueChange={setQ}
+               startContent={<Search size={14} className="text-fg-muted" aria-hidden />}
+               classNames={{ inputWrapper: "bg-surface-2 border border-border shadow-none h-9" }} />
         {status === "flagged" && (
-          <div className="seg" role="group" aria-label="Risk band">
-            {["", "HIGH", "MEDIUM", "LOW"].map((b) => <button key={b} aria-pressed={band === b} onClick={() => setBand(b)}>{b || "All"}</button>)}
-          </div>
+          <Seg label="Risk band" value={band} onChange={setBand}
+               options={[{ value: "", label: "All" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Med" }, { value: "LOW", label: "Low" }]} />
         )}
       </div>
       {error && <div className="p-3"><ErrorNote error={error} /></div>}
-      {isLoading ? <Loading /> : (
-        <ul className="flex-1 overflow-auto divide-y divide-line/30" aria-label="Patients">
-          {rows.map((p) => (
-            <li key={p.patient_id}>
-              <button onClick={() => onSelect(p.patient_id)} className={`w-full text-left px-3 py-2.5 hover:bg-ridge2/50 ${selected === p.patient_id ? "bg-kivu/15 shadow-[inset_3px_0_0_rgb(var(--kivu))]" : ""}`}>
-                <div className="flex items-center gap-2">
-                  {status === "flagged" ? <BandChip band={p.risk_band} /> : <span className="chip bg-laterite/20 text-laterite">{p.case_status}</span>}
-                  <span className="font-medium text-sm">{p.name}</span>
-                  <span className="text-xs text-fog">{p.sex} · {p.age}</span>
-                  <span className="flex-1" />
-                  {p.open_alerts > 0 && <span className="chip bg-laterite/15 text-laterite">{p.open_alerts} alert{p.open_alerts > 1 ? "s" : ""}</span>}
-                  {status === "flagged" && <span className="text-sm font-semibold tabular w-14 text-right">{fmt(100 * (p.ensemble_prob ?? 0))}%</span>}
-                </div>
-                <div className="text-xs text-fog mt-1 flex gap-2">
-                  <span className="tabular">{p.display_id}</span><span>·</span>
-                  <span className="truncate">{status === "flagged" ? (p.top_reasons ?? []).map((r) => r.label).join(" · ") || "—" : `diagnosed ${date(p.dx_date)}`}</span>
-                </div>
-                <div className="text-[10px] text-fog mt-0.5">last visit {date(p.last_visit)}{p.t1_score !== null ? ` · points ${p.t1_score}` : ""}</div>
-              </button>
-            </li>
-          ))}
-          {!rows.length && <li className="p-6 text-sm text-fog">No patients match.</li>}
-        </ul>
+      {isLoading ? <div className="p-4"><Skeleton variant="list" rows={8} label="Loading patients" /></div> : (
+        <motion.ul className="flex-1 overflow-auto p-2 flex flex-col gap-1" aria-label="Patients" variants={stagger(0.025)} initial={reduce ? false : "hidden"} animate="show">
+          {rows.map((p) => {
+            const on = selected === p.patient_id;
+            return (
+              <motion.li key={p.patient_id} variants={itemEnter}>
+                <button onClick={() => onSelect(p.patient_id)} aria-current={on ? "true" : undefined}
+                        title={status === "flagged" ? (p.top_reasons ?? []).map((r) => r.label).join(" · ") : undefined}
+                        className={`relative w-full text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                                    ${on ? "bg-accent-soft" : "hover:bg-surface-2"}`}>
+                  {on && <motion.span layoutId="patient-row" className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-accent" aria-hidden />}
+                  <span className="relative">
+                    <PatientAvatar name={p.name} id={p.patient_id} size="sm" />
+                    {p.open_alerts > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-danger text-white text-[10px] font-semibold leading-[17px] text-center ring-2 ring-surface tabular"
+                            aria-label={`${p.open_alerts} open alert${p.open_alerts > 1 ? "s" : ""}`}>{p.open_alerts}</span>
+                    )}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-baseline gap-1.5 min-w-0">
+                      <span className={`text-[13.5px] font-semibold truncate ${on ? "text-accent" : "text-fg"}`}>{p.name}</span>
+                      <span className="text-micro text-fg-muted shrink-0">{p.sex} · {p.age}</span>
+                    </span>
+                    <span className="block text-micro text-fg-muted tabular truncate mt-0.5">
+                      {p.display_id} · {status === "flagged" ? `seen ${date(p.last_visit)}` : `dx ${date(p.dx_date)}`}
+                    </span>
+                  </span>
+                  {status === "flagged" ? (
+                    <span className="w-[112px] shrink-0 flex flex-col gap-1.5">
+                      <span className="flex items-center justify-between gap-1">
+                        <BandChip band={p.risk_band} />
+                        <span className="text-[13px] font-semibold tabular text-fg">{fmt(100 * (p.ensemble_prob ?? 0))}%</span>
+                      </span>
+                      <RiskScoreBar score={p.ensemble_prob} band={p.risk_band} compact label={`${p.name} risk`} />
+                    </span>
+                  ) : <StatusChip status="critical" label={String(p.case_status ?? "case").toLowerCase()} className="capitalize" />}
+                </button>
+              </motion.li>
+            );
+          })}
+          {!rows.length && <li className="p-8 text-center text-label text-fg-muted">No patients match</li>}
+        </motion.ul>
       )}
-      <div className="flex items-center justify-between p-2 border-t border-line/50 text-xs text-fog">
-        <span className="tabular">{total.toLocaleString()} patients</span>
-        <div className="flex items-center gap-1">
-          <button className="btn px-1.5 py-1" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft size={14} /></button>
-          <span className="tabular px-2">{page} / {Math.max(1, Math.ceil(total / 25))}</span>
-          <button className="btn px-1.5 py-1" disabled={page * 25 >= total} onClick={() => setPage((p) => p + 1)} aria-label="Next page"><ChevronRight size={14} /></button>
-        </div>
-      </div>
-    </div>
+      <Pager total={total} page={page} setPage={setPage} />
+    </Card>
+  );
+}
+
+/** Small "Latest blood test"-style tile (MedEx): label pill, value + unit, sparkline, status; opens a chart modal. */
+function MeasureTile({ label, icon, value, unit, decimals = 1, status, statusLabel, spark, onPress }: {
+  label: string; icon: React.ReactNode; value: number | null | undefined; unit?: string; decimals?: number; status?: StatusKind | null; statusLabel?: string;
+  spark?: number[]; onPress?: () => void;
+}) {
+  const Tag = onPress ? motion.button : motion.div;
+  return (
+    <Tag type={onPress ? "button" : undefined} onClick={onPress} variants={itemEnter} whileHover={onPress ? { y: -2 } : undefined} aria-label={onPress ? `${label}: open chart` : undefined}
+         className={`text-left rounded-tile bg-surface-2 border border-border/70 p-3 min-w-0 flex flex-col gap-1.5 ${onPress ? "cursor-pointer hover:shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" : ""}`}>
+      <span className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft text-accent px-2 py-0.5 text-[11px] font-semibold">{icon}{label}</span>
+        {status && <StatusChip status={status} label={statusLabel} />}
+      </span>
+      <span className="flex items-baseline gap-1">
+        <span className="text-[22px] leading-7 font-semibold tabular text-fg">{value === null || value === undefined ? "—" : fmt(value, decimals)}</span>
+        {unit && <span className="text-micro text-fg-muted">{unit}</span>}
+      </span>
+      {spark && spark.length > 1 ? <Sparkline values={spark} height={26} /> : <span className="h-[26px]" />}
+    </Tag>
   );
 }
 
@@ -112,108 +186,149 @@ function PatientPanel({ patientId }: { patientId: number }) {
   const p = useQuery({ queryKey: ["patients", "one", patientId], queryFn: () => get<any>(`/patients/${patientId}`) });
   const tl = useQuery({ queryKey: ["patients", "timeline", patientId], queryFn: () => get<any>(`/patients/${patientId}/timeline`) });
   const alerts = useQuery({ queryKey: ["alerts", "patient", patientId], queryFn: () => get<Alert[]>(`/alerts`) });
-  const [explain, setExplain] = useState<any>(null);
-  const ex = useMutation({ mutationFn: () => post<any>(`/patients/${patientId}/explain`, {}), onSuccess: (r) => setExplain(r.data) });
-  useEffect(() => setExplain(null), [patientId]);
-  if (p.isLoading) return <Loading h={500} />;
+  const ex = useMutation({ mutationFn: () => post<any>(`/patients/${patientId}/explain`, {}) });
+  const explainModal = useDetailModal();
+  const chart = useDetailModal();
+  const [chartKey, setChartKey] = useState<"hb" | "weight">("hb");
+  const h = p.data?.data;
+  const events: any[] = tl.data?.data?.events ?? [];
+  const recent = useMemo(() => {
+    if (!h) return [];
+    const cutoff = Math.min(Date.now() - 3 * 365 * 86400000, Date.parse(h.last_encounter_date ?? new Date().toISOString()) - 3 * 365 * 86400000);
+    return events.filter((e) => Date.parse(e.ts) >= cutoff);
+  }, [events, h]);
+  if (p.isLoading) return <Skeleton variant="card" h={520} label="Loading patient" />;
   if (p.error) return <ErrorNote error={p.error} />;
-  const h = p.data!.data;
-  const events = tl.data?.data?.events ?? [];
-  const cutoff = Date.now() - 1000 * 86400 * 365 * 3;
-  const recent = events.filter((e: any) => Date.parse(e.ts) >= Math.min(cutoff, Date.parse(h.last_encounter_date ?? new Date().toISOString()) - 3 * 365 * 86400000));
   const myAlerts = (alerts.data?.data ?? []).filter((a) => a.patient_id === patientId);
+  const hb: { ts: string; value: number }[] = tl.data?.data?.series?.hb ?? [];
+  const wt: { ts: string; value: number }[] = tl.data?.data?.series?.weight ?? [];
+  const hbThr = h.sex === "M" ? 13 : 12;
+  const hbLast = hb.length ? hb[hb.length - 1].value : null;
+  const wLast = wt.length ? wt[wt.length - 1].value : null;
+  const wChange = wt.length > 1 && wt[0].value ? (100 * (wt[wt.length - 1].value - wt[0].value)) / wt[0].value : null;
+  const abnormalLabs = recent.filter((e) => e.event_type === "LAB" && e.is_abnormal).length;
+  const visits12 = events.filter((e) => e.event_type === "VISIT" && Date.parse(e.ts) >= Date.parse(h.last_encounter_date ?? new Date().toISOString()) - 365 * 86400000).length;
+  const openChart = (k: "hb" | "weight") => { setChartKey(k); chart.open(); };
+  const explain = () => { explainModal.open(); if (!ex.data && !ex.isPending) ex.mutate(); };
+  const homeFacility = String(h.home_facility_name ?? "").replace(" (Synthetic)", "");
   return (
-    <div className="flex flex-col gap-3 animate-rise">
-      <div className="panel p-4 flex items-start gap-4">
-        <div className="flex-1">
-          <div className="text-xs text-fog tabular">{h.display_id} · {h.district_name} · cohort entry {date(h.entry_date)} ({String(h.entry_reason).toLowerCase().replace(/_/g, " ")})</div>
-          <h2 className="text-2xl font-bold">{h.name}</h2>
-          <div className="text-sm text-fog">{h.sex === "F" ? "Female" : "Male"}, {h.age} years · home facility {String(h.home_facility_name ?? "").replace(" (Synthetic)", "")}</div>
-          {h.is_case && <div className="mt-1 chip bg-laterite/20 text-laterite">{h.case_status} gastric cancer · diagnosed {date(h.dx_date)}</div>}
-        </div>
-        <button className="btn btn-primary" onClick={() => nav(`/doctor/case/${patientId}`)}><Box size={15} /> Analyse case in 3D</button>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Panel title="Risk" method="Final band = mean of the calibrated XGBoost and sequence-model probabilities; HIGH is the top 2% of eligible GI-cohort patients (endoscopy capacity), MEDIUM the next 8%. Thresholds were frozen at training time.">
-          <RiskCard risk={h.risk} />
-        </Panel>
-        <Panel title="Alerts & actions">
-          <AlertActions alerts={myAlerts} />
-          <div className="mt-3 border-t border-line/50 pt-3">
-            <button className="btn" onClick={() => ex.mutate()} disabled={ex.isPending}><MessageSquareText size={14} /> {ex.isPending ? "Summarising…" : "Explain this patient"}</button>
-            {explain && <div className="mt-2 text-sm leading-relaxed">{explain.summary}<div className="text-[10px] text-fog mt-1">{explain.disclaimer} · {explain.generated_by}</div></div>}
+    <BentoGrid step={0.05}>
+      <GridItem span={12}>
+        <Card padding="md" className="!p-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <PatientAvatar name={h.name} id={h.patient_id} size="lg" className="w-14 h-14 text-lg" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <h2 className="text-h1 text-fg truncate">{h.name}</h2>
+                <InfoHint title={h.name} label="About this patient"
+                          about={<>Home facility {homeFacility}. Cohort entry {date(h.entry_date)} ({String(h.entry_reason).toLowerCase().replace(/_/g, " ")}).</>}
+                          notes={`Last encounter ${date(h.last_encounter_date)}`} />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <span className="text-micro text-fg-muted tabular">{h.display_id}</span>
+                {h.is_case ? <StatusChip status="critical" label={`${String(h.case_status).toLowerCase()} gastric cancer · ${date(h.dx_date)}`} />
+                           : <BandChip band={h.risk?.risk_band} />}
+                {myAlerts.some((a) => a.status === "NEW") && <StatusChip status="info" icon={<BellRing size={11} aria-hidden />} label={`${myAlerts.filter((a) => a.status === "NEW").length} new alerts`} />}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button radius="full" variant="flat" className="bg-surface-2 border border-border text-fg h-10" startContent={<MessageSquareText size={15} aria-hidden />} onPress={explain}>Explain</Button>
+              <Button radius="full" className="bg-cta-gradient text-white font-semibold h-10 px-5 shadow-[0_8px_20px_-8px_rgb(var(--accent)/0.7)]"
+                      startContent={<Box size={16} aria-hidden />} onPress={() => nav(`/doctor/case/${patientId}`)}>Analyse case in 3D</Button>
+            </div>
           </div>
-        </Panel>
-      </div>
-      <Panel title="Timeline · last 3 years" subtitle="Dashed rings mark events the models weighed most">
-        {tl.isLoading ? <Loading h={220} /> : <Timeline events={recent} />}
-        <div className="grid grid-cols-2 gap-3 mt-2">
-          <MiniSeries title="Haemoglobin (g/dL)" unit="g/dL" points={tl.data?.data?.series?.hb ?? []} threshold={h.sex === "M" ? 13 : 12} />
-          <MiniSeries title="Weight (kg)" unit="kg" points={tl.data?.data?.series?.weight ?? []} />
-        </div>
-      </Panel>
-    </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+            <StatTile label="Age" value={h.age} unit="years" icon={<CalendarDays size={13} />} />
+            <StatTile label="Sex" value={h.sex === "F" ? "Female" : "Male"} icon={<UserRound size={13} />} />
+            <StatTile label="Weight" value={wLast} unit="kg" decimals={1} icon={<Weight size={13} />} />
+            <StatTile label="District" value={h.district_name ?? h.district_code} icon={<MapPin size={13} />} />
+          </div>
+        </Card>
+      </GridItem>
+
+      <GridItem span={{ md: 12, lg: 7 }}>
+        <Card title="Risk" icon={<Gauge size={16} />} iconTone="danger" info={{ method: RISK_METHOD }}>
+          <RiskCard risk={h.risk} />
+        </Card>
+      </GridItem>
+      <GridItem span={{ md: 12, lg: 5 }}>
+        <Card title="Alerts" icon={<BellRing size={16} />} iconTone="warning" info="Open alerts for this patient. Acknowledge, mark as referred, or dismiss with a reason; every action is logged."
+              actions={myAlerts.length ? <span className="text-micro text-fg-muted tabular">{myAlerts.length}</span> : undefined}>
+          {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} />}
+        </Card>
+      </GridItem>
+
+      <GridItem span={{ md: 12, lg: 8 }}>
+        <Card title="Timeline" icon={<History size={16} />} info={{ about: "Last 3 years of visits, symptoms, diagnoses, labs, medicines, orders and endoscopy. Dashed rings mark events the models weighed most. Hover a dot for details." }}
+              detail={{ title: "Haemoglobin and weight", icon: <Activity size={18} />, size: "3xl",
+                        tabs: [{ key: "hb", label: "Haemoglobin", content: <MiniSeries title="Haemoglobin" unit="g/dL" points={hb} threshold={hbThr} height={300} /> },
+                               { key: "weight", label: "Weight", content: <MiniSeries title="Weight" unit="kg" points={wt} height={300} /> }] }}
+              detailLabel="Open measurement charts">
+          {tl.isLoading ? <Loading h={210} /> : <Timeline events={recent} />}
+        </Card>
+      </GridItem>
+      <GridItem span={{ md: 12, lg: 4 }}>
+        <Card title="Latest measurements" icon={<FlaskConical size={16} />} iconTone="success" info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
+          <motion.div className="grid grid-cols-2 gap-2" variants={stagger(0.05)} initial="hidden" animate="show">
+            <MeasureTile label="Hb" icon={<Droplet size={11} aria-hidden />} value={hbLast} unit="g/dL" spark={hb.map((x) => x.value)}
+                         status={hbLast === null ? null : hbLast < hbThr ? "critical" : "optimal"} statusLabel={hbLast !== null && hbLast < hbThr ? "Low" : "Normal"} onPress={() => openChart("hb")} />
+            <MeasureTile label="Weight" icon={<Weight size={11} aria-hidden />} value={wLast} unit={wChange === null ? "kg" : `kg · ${signed(wChange, 1, "%")}`} spark={wt.map((x) => x.value)}
+                         status={wChange === null ? null : wChange <= -5 ? "critical" : wChange <= -2 ? "suboptimal" : "optimal"} statusLabel={wChange !== null && wChange <= -5 ? "Loss" : undefined} onPress={() => openChart("weight")} />
+            <MeasureTile label="Abnormal labs" icon={<FlaskConical size={11} aria-hidden />} value={abnormalLabs} decimals={0} unit="in 3 y"
+                         status={abnormalLabs ? "suboptimal" : "optimal"} statusLabel={abnormalLabs ? "Review" : "None"} />
+            <MeasureTile label="Visits" icon={<CalendarDays size={11} aria-hidden />} value={visits12} decimals={0} unit="in 12 mo"
+                         status={visits12 >= 6 ? "suboptimal" : null} statusLabel="Frequent" />
+          </motion.div>
+        </Card>
+      </GridItem>
+
+      <DetailModal {...chart.modalProps} title={chartKey === "hb" ? "Haemoglobin" : "Weight"} icon={chartKey === "hb" ? <Droplet size={18} /> : <Weight size={18} />} size="3xl"
+                   subtitle={h.name} info={chartKey === "hb" ? `Dashed line: anaemia threshold (${hbThr} g/dL for ${h.sex === "M" ? "men" : "women"}).` : undefined}>
+        {chartKey === "hb" ? <MiniSeries title="Haemoglobin" unit="g/dL" points={hb} threshold={hbThr} height={320} /> : <MiniSeries title="Weight" unit="kg" points={wt} height={320} />}
+      </DetailModal>
+      <DetailModal {...explainModal.modalProps} title="Patient summary" icon={<Sparkles size={18} />} size="2xl" subtitle={h.name}>
+        {ex.isPending ? <Skeleton variant="text" rows={5} label="Summarising" /> : ex.error ? <ErrorNote error={ex.error} /> : ex.data ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px] leading-relaxed text-fg">{ex.data.data.summary}</p>
+            <div className="text-micro text-fg-muted">{ex.data.data.disclaimer} · {ex.data.data.generated_by}</div>
+          </div>
+        ) : null}
+      </DetailModal>
+    </BentoGrid>
   );
 }
 
-export function AlertActions({ alerts }: { alerts: Alert[] }) {
-  const qc = useQueryClient();
-  const [dismissing, setDismissing] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const m = useMutation({
-    mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) => patch(`/alerts/${id}`, { status, reason, note: reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["alerts"] }); qc.invalidateQueries({ queryKey: ["patients"] }); setDismissing(null); setReason(""); },
-  });
-  if (!alerts.length) return <div className="text-xs text-fog">No alerts for this patient.</div>;
-  return (
-    <ul className="flex flex-col gap-2">
-      {alerts.map((a) => (
-        <li key={a.alert_id} className="rounded-lg border border-line/60 p-2.5">
-          <div className="flex items-center gap-2 mb-1"><SeverityChip severity={a.severity} /><span className="text-xs font-semibold">{a.trigger.replace(/_/g, " ")}</span>
-            <span className="flex-1" /><span className={`chip ${a.status === "NEW" ? "bg-kivu/20 text-mist" : "bg-ridge2 text-fog"}`}>{a.status}</span></div>
-          <p className="text-xs leading-relaxed">{a.summary}</p>
-          <p className="text-xs text-sorghum mt-1">{a.suggested_action}</p>
-          {a.status !== "DISMISSED" && a.status !== "REFERRED" && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {a.status === "NEW" && <button className="btn text-xs py-1" onClick={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}><Check size={13} /> Acknowledge</button>}
-              <button className="btn text-xs py-1" onClick={() => m.mutate({ id: a.alert_id, status: "REFERRED" })}><Send size={13} /> Mark referred</button>
-              <button className="btn text-xs py-1" onClick={() => setDismissing(a.alert_id)}><X size={13} /> Dismiss</button>
-            </div>
-          )}
-          {dismissing === a.alert_id && (
-            <div className="flex gap-1.5 mt-2">
-              <input className="flex-1 bg-ridge2 rounded px-2 text-xs border border-line" placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Dismiss reason" />
-              <button className="btn text-xs py-1" disabled={!reason.trim()} onClick={() => m.mutate({ id: a.alert_id, status: "DISMISSED", reason })}>Confirm</button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function AlertsInbox({ onOpen }: { onOpen: (id: number) => void }) {
+function AlertsInbox({ onOpen, selected }: { onOpen: (id: number) => void; selected: number | null }) {
+  const reduce = useReducedMotion();
   const [status, setStatus] = useState("NEW");
   const [sev, setSev] = useState("");
   const { data, isLoading } = useQuery({ queryKey: ["alerts", "inbox", status, sev], queryFn: () => get<Alert[]>(`/alerts${qs({ status: status || undefined, severity: sev || undefined })}`) });
+  const rows = data?.data ?? [];
   return (
-    <div className="panel flex flex-col min-h-0 flex-1">
-      <div className="flex gap-2 p-3 border-b border-line/50">
-        <div className="seg">{["NEW", "ACKNOWLEDGED", "REFERRED", "DISMISSED", ""].map((s) => <button key={s} aria-pressed={status === s} onClick={() => setStatus(s)}>{s || "All"}</button>)}</div>
-        <div className="seg">{["", "HIGH", "MEDIUM"].map((s) => <button key={s} aria-pressed={sev === s} onClick={() => setSev(s)}>{s || "Any"}</button>)}</div>
+    <Card padding="none" className="flex-1 min-h-0 overflow-hidden" bodyClassName="flex flex-col min-h-0">
+      <div className="flex flex-wrap items-center gap-2 p-3 border-b border-border">
+        <Seg label="Alert status" value={status} onChange={setStatus}
+             options={[{ value: "NEW", label: "New" }, { value: "ACKNOWLEDGED", label: "Ack." }, { value: "REFERRED", label: "Referred" }, { value: "DISMISSED", label: "Dismissed" }, { value: "", label: "All" }]} />
+        <Seg label="Severity" value={sev} onChange={setSev} options={[{ value: "", label: "Any" }, { value: "HIGH", label: "High" }, { value: "MEDIUM", label: "Med" }]} />
       </div>
-      {isLoading ? <Loading /> : (
-        <ul className="flex-1 overflow-auto divide-y divide-line/30">
-          {(data?.data ?? []).map((a) => (
-            <li key={a.alert_id}><button className="w-full text-left p-3 hover:bg-ridge2/50" onClick={() => onOpen(a.patient_id)}>
-              <div className="flex items-center gap-2"><SeverityChip severity={a.severity} /><span className="text-sm font-medium">{a.name}</span>
-                <span className="text-xs text-fog">{a.trigger.replace(/_/g, " ").toLowerCase()}</span><span className="flex-1" /><span className="text-[10px] text-fog">{date(a.created_at)}</span></div>
-              <div className="text-xs text-fog mt-1">{a.summary}</div>
-            </button></li>
+      {isLoading ? <div className="p-4"><Skeleton variant="list" rows={8} label="Loading alerts" /></div> : (
+        <motion.ul className="flex-1 overflow-auto p-2 flex flex-col gap-1" aria-label="Alerts" variants={stagger(0.02)} initial={reduce ? false : "hidden"} animate="show">
+          {rows.map((a) => (
+            <motion.li key={a.alert_id} variants={itemEnter}>
+              <button className={`w-full text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${selected === a.patient_id ? "bg-accent-soft" : "hover:bg-surface-2"}`}
+                      onClick={() => onOpen(a.patient_id)} title={a.summary}>
+                <PatientAvatar name={a.name} id={a.patient_id} size="sm" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13.5px] font-semibold text-fg truncate">{a.name}</span>
+                  <span className="block text-micro text-fg-muted truncate">{triggerLabel(a.trigger)} · {date(a.created_at)}</span>
+                </span>
+                <SeverityChip severity={a.severity} />
+              </button>
+            </motion.li>
           ))}
-          {!data?.data?.length && <li className="p-6 text-sm text-fog">Inbox empty.</li>}
-        </ul>
+          {!rows.length && <li className="p-8 text-center text-label text-fg-muted">Inbox empty</li>}
+        </motion.ul>
       )}
-    </div>
+    </Card>
   );
 }

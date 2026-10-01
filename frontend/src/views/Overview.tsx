@@ -1,14 +1,20 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@heroui/react";
+import { Activity, ArrowUpRight, GitCommitHorizontal, Map as MapIcon, Scale, TrendingUp } from "lucide-react";
 import type { RateRow } from "@/api/types";
 import { useFiltersMeta, useKpis } from "@/api/hooks";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { BentoGrid, Card, chartDetailTabs, DataTable, GridItem, Loading, MetricCard, PageHeader, PairCard, Skeleton, StatusChip } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
+import { useThemeMode } from "@/components/charts/EChart";
+import { SERIES } from "@/lib/viz";
 import { fmt, int, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";
 import { nationalSeriesId, useEvents, useJoinpointSafe, useNationalRates } from "./geo/data";
-import { AsrTrend, annotationsFor, type Obs } from "./geo/AsrTrend";
+import { AsrTrend, annotationsFor, SegmentList, type Obs } from "./geo/AsrTrend";
 import { KpiStrip, type KpiDef, type KpiPoint } from "./overview/KpiStrip";
 import { MiniMap } from "./overview/MiniMap";
-import { CountsVsAsr } from "./overview/CountsVsAsr";
+import { CountsVsAsr, countsVsAsrSummary } from "./overview/CountsVsAsr";
 
 const SEX = { ALL: "both sexes", M: "men", F: "women" } as const;
 const BAND = { ALL: "all ages", "<50": "under 50", "50-64": "50–64", "65+": "65 and over" } as const;
@@ -16,6 +22,8 @@ const BAND = { ALL: "all ages", "<50": "under 50", "50-64": "50–64", "65+": "6
 /** V1 National Overview (SPEC §16.3): KPI strip, mini 3D map, honest national trend with joinpoints and annotations. */
 export default function Overview() {
   const f = useFilters();
+  const nav = useNavigate();
+  const mode = useThemeMode();
   const meta = useFiltersMeta();
   const years: number[] = meta.data?.data?.years ?? [];
   const lastYear = years.length ? years[years.length - 1] : 2026;
@@ -73,11 +81,11 @@ export default function Overview() {
       { id: "di", label: "Time to diagnosis", value: int(di), unit: "days", partial, sub: di !== null ? `median ≈ ${fmt(di / 30.44, 1)} mo, first GI symptom → dx` : undefined,
         delta: diD === null ? null : { text: `${signed(diD, 0)} d ${vs}`, dir: dir(diD), tone: tone(diD, false, 7) },
         spark: spark(sp.median_diag_interval_days ?? []), format: (v) => `${int(v)} days`, scope },
-      { id: "hp", label: "H. pylori testing rate", value: hp === null ? "—" : fmt(100 * hp, 0), unit: "%", partial, sub: "of dyspepsia patients tested",
+      { id: "hp", label: "H. pylori testing", value: hp === null ? "—" : fmt(100 * hp, 0), unit: "%", partial, sub: "of dyspepsia patients tested",
         delta: hpD === null ? null : { text: `${signed(hpD, 1)} pts ${vs}`, dir: dir(hpD), tone: tone(hpD, true, 1) },
         spark: spark((sp.hp_testing_rate_dyspepsia ?? []).map((p) => ({ ...p, value: p.value === null ? null : 100 * p.value }))), format: (v) => `${fmt(v, 1)}%`, scope },
-      { id: "await", label: "High-risk awaiting endoscopy", value: k.high_risk_awaiting_endoscopy === null ? "—" : int(k.high_risk_awaiting_endoscopy), partial: false,
-        missing: k.high_risk_awaiting_endoscopy === null ? "Not published this run" : "HIGH band, not yet scoped", delta: null, spark: [], format: (v) => int(v),
+      { id: "await", label: "Awaiting endoscopy", value: k.high_risk_awaiting_endoscopy === null ? "—" : int(k.high_risk_awaiting_endoscopy), unit: "patients", partial: false,
+        missing: k.high_risk_awaiting_endoscopy === null ? "Not published this run" : "High-risk (HIGH band) patients not yet scoped", delta: null, spark: [], format: (v) => int(v),
         scope: k.high_risk_awaiting_endoscopy === null ? "Needs risk scores in the KPI mart" : "Current snapshot (no history)" },
     ];
   }, [kq.data, rates, year, f.yearFrom, f.sex, f.ageBand, filtered]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -92,72 +100,93 @@ export default function Overview() {
   const aapc = jp.data?.aapc_last10;
   const sub = `per 100,000 · ${SEX[f.sex]}, ${BAND[f.ageBand]} · ${f.caseDef === "CONFIRMED" ? "confirmed" : "confirmed + probable"} · ${f.yearFrom}–${f.yearTo}`;
 
+  const lastSeg = segs?.length ? segs[segs.length - 1] : null;
+  const ytd = !!kq.data?.data.partial_year && year === lastYear;
+  const pair = countsVsAsrSummary(ratesInRange);
+  const trendTable = (
+    <DataTable rows={obs} columns={[
+      { key: "year", label: "Year" }, { key: "asr", label: crude ? "Crude" : "ASR", num: true, fmt: (v) => fmt(v) },
+      { key: "lci", label: "95% CI", num: true, fmt: (_, r) => (r.lci === null ? "—" : `${fmt(r.lci)}–${fmt(r.uci)}`) },
+      { key: "cases", label: "Cases", num: true, fmt: (v) => int(v) },
+      { key: "coverage_flag", label: "Flag", fmt: (v, r) => (r.partial_year ? "year to date" : v ? "low EMR coverage" : "") }]} />
+  );
+  const trendMethod = crude
+    ? "Crude rate = cases ÷ live-facility person-years. Not age-adjusted. Dashed years have under 50% of facilities live (EMR roll-out) or are year-to-date."
+    : "Annual ASR (WHO World Standard) with 95% Fay–Feuer CI. Joinpoint: weighted log-linear segmented regression (0–2 joinpoints, BIC selection); APC per segment, * = 95% CI excludes 0. Low-coverage and year-to-date points are dashed and excluded from the fit.";
+  const trendNotes = <>
+    {crude ? "Crude rates are not age-adjusted; switch the filter bar to Age-standardised for the joinpoint model." :
+      !jpId || !jp.data ? "No joinpoint model is fitted for this sex × age combination — observed rates only." :
+      jp.data.n_joinpoints ? `${jp.data.n_joinpoints} joinpoint${jp.data.n_joinpoints > 1 ? "s" : ""} detected (diamond). ` : "No joinpoint detected: a single log-linear trend fits best. "}
+    {!crude && jp.data && segs?.length ? segs.map((s) => `${s.start_year}–${s.end_year}: APC ${signed(s.apc, 1, "%")} (${fmt(s.apc_lci)} to ${fmt(s.apc_uci)})${s.significant ? "" : ", not significant"}`).join(" · ") : ""}
+    {" "}▲ marks endoscopy units opening — local diagnosis rises without more cancer (INS-5).
+  </>;
+  const trendChart = (h: number) => (
+    <AsrTrend obs={obs} fitted={fit} segments={segs} events={ann.endo} emrSpan={ann.emrSpan} height={h} unit="" name={crude ? "Crude rate" : "Observed ASR"}
+              ariaLabel={`National ${crude ? "crude" : "age-standardised"} rate trend, ${sub}`} />
+  );
+
   return (
-    <div className="flex flex-col gap-3 min-w-0">
-      <div className="flex items-end gap-3 flex-wrap">
-        <div>
-          <div className="panel-title">V1 · National overview</div>
-          <h1 className="text-xl font-bold leading-tight">Gastric cancer in Rwanda, {year}{kq.data?.data.partial_year && year === lastYear ? " to date" : ""}</h1>
-        </div>
-        <p className="text-xs text-fog leading-snug max-w-[520px]">
-          Rates are per 100,000 person-years of the population served by live EMR facilities, so the 2015–2019 roll-out does not masquerade as rising cancer.
-          {kq.data?.data.partial_year && year === lastYear && <> {year} is year-to-date and flagged throughout.</>}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4 min-w-0">
+      <PageHeader icon={<Activity size={18} />} title={`Gastric cancer in Rwanda, ${year}${ytd ? " to date" : ""}`}
+        info={{
+          about: <>Rates are per 100,000 person-years of the population served by live EMR facilities, so the 2015–2019 roll-out does not masquerade as rising cancer.{ytd && <> {year} is year-to-date and flagged throughout.</>}</>,
+          method: <ul className="flex flex-col gap-1.5">
+            <li><b>Dashed</b> = years with under half of facilities on the EMR, or the current year to date. Treat as unreliable.</li>
+            <li><b>Bands</b> are 95% confidence intervals; a change inside the band is reported as “within CI”, not as a trend.</li>
+            <li><b>Joinpoints</b> mark where the trend changes slope; APC = annual percent change in that segment.</li>
+          </ul>,
+          notes: "Ministry view shows aggregates only; districts with fewer than 5 cases are suppressed.",
+        }}
+        right={ytd ? <StatusChip status="warning" size="md" label={`${year} year to date`} /> : undefined} />
 
-      {kq.error ? <ErrorNote error={kq.error} /> : !kpis ? <Loading h={150} label="Reading the KPI mart" /> : <KpiStrip items={kpis} />}
+      {kq.error ? <ErrorNote error={kq.error} /> : !kpis ? <Skeleton variant="card" h={150} label="Reading the KPI mart" /> : <KpiStrip items={kpis} />}
 
-      <div className="grid gap-3 grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
-        <Panel title={crude ? "National crude rate trend" : "National age-standardised rate trend"} subtitle={sub}
-               method={crude
-                 ? "Crude rate = cases ÷ live-facility person-years. Not age-adjusted. Dashed years have under 50% of facilities live (EMR roll-out) or are year-to-date."
-                 : "Annual ASR (WHO World Standard) with 95% Fay–Feuer CI. Joinpoint: weighted log-linear segmented regression (0–2 joinpoints, BIC selection); APC per segment, * = 95% CI excludes 0. Low-coverage and year-to-date points are dashed and excluded from the fit."}
-               table={<DataTable rows={obs} columns={[
-                 { key: "year", label: "Year" }, { key: "asr", label: crude ? "Crude" : "ASR", num: true, fmt: (v) => fmt(v) },
-                 { key: "lci", label: "95% CI", num: true, fmt: (_, r) => (r.lci === null ? "—" : `${fmt(r.lci)}–${fmt(r.uci)}`) },
-                 { key: "cases", label: "Cases", num: true, fmt: (v) => int(v) },
-                 { key: "coverage_flag", label: "Flag", fmt: (v, r) => (r.partial_year ? "year to date" : v ? "low EMR coverage" : "") }]} />}
-               actions={!crude && aapc && aapc.value !== null ? (
-                 <div className="text-right text-[11px] leading-tight mr-1">
-                   <div className="text-fog">AAPC, last 10 y</div>
-                   <div className="tabular"><b className="text-mist">{signed(aapc.value, 1, "%")}</b> <span className="text-fog">({fmt(aapc.lci)} to {fmt(aapc.uci)})</span></div>
-                 </div>) : undefined}>
-          {(jp.isLoading || rq.isLoading) ? <Loading h={300} /> : (rq.error && !jp.data) ? <ErrorNote error={rq.error} /> : (
-            <>
-              <AsrTrend obs={obs} fitted={fit} segments={segs} events={ann.endo} emrSpan={ann.emrSpan} height={376} unit="" name={crude ? "Crude rate" : "Observed ASR"}
-                        ariaLabel={`National ${crude ? "crude" : "age-standardised"} rate trend, ${sub}`} />
-              <div className="text-[11px] text-fog mt-1 leading-snug">
-                {crude ? "Crude rates are not age-adjusted; switch the filter bar to Age-standardised for the joinpoint model." :
-                  !jpId || !jp.data ? "No joinpoint model is fitted for this sex × age combination — observed rates only." :
-                  jp.data.n_joinpoints ? `${jp.data.n_joinpoints} joinpoint${jp.data.n_joinpoints > 1 ? "s" : ""} detected (diamond). ` : "No joinpoint detected: a single log-linear trend fits best. "}
-                {!crude && jp.data && segs?.length ? segs.map((s) => `${s.start_year}–${s.end_year}: APC ${signed(s.apc, 1, "%")} (${fmt(s.apc_lci)} to ${fmt(s.apc_uci)})${s.significant ? "" : ", not significant"}`).join(" · ") : ""}
-                {" "}▲ marks endoscopy units opening — local diagnosis rises without more cancer (INS-5).
-              </div>
-            </>
-          )}
-        </Panel>
-        <Panel title="Where it concentrates" subtitle="3-year pooled ASR · click the map to explore"
-               method="District ASR pooled over the latest 3 complete years to stabilise small numbers. Extrusion height and colour both encode the ASR. Click a district to open it in the Geo Explorer.">
-          <MiniMap yearTo={f.yearTo} />
-        </Panel>
-      </div>
+      <BentoGrid>
+        <GridItem span={{ lg: 8 }}>
+          <Card title={crude ? "National crude rate trend" : "National ASR trend"} icon={<TrendingUp size={16} />}
+                info={{ about: sub, method: trendMethod, notes: trendNotes }}
+                actions={!crude && aapc && aapc.value !== null ? (
+                  <StatusChip status="info" size="md" title={`AAPC, last 10 years: ${signed(aapc.value, 1, "%")} (95% CI ${fmt(aapc.lci)} to ${fmt(aapc.uci)})`}
+                              label={<span className="tabular">AAPC 10 y <b>{signed(aapc.value, 1, "%")}</b></span>} />) : undefined}
+                detail={{ tabs: chartDetailTabs({ chart: trendChart(420), table: trendTable, method: trendMethod, notes: trendNotes }), defaultTab: "table", subtitle: sub }}
+                detailLabel="View as table">
+            {(jp.isLoading || rq.isLoading) ? <Loading h={420} /> : (rq.error && !jp.data) ? <ErrorNote error={rq.error} /> : trendChart(420)}
+          </Card>
+        </GridItem>
+        <GridItem span={{ lg: 4 }}>
+          <Card title="Where it concentrates" icon={<MapIcon size={16} />}
+                info={{ about: "3-year pooled ASR per 100,000. Click the map or a district to explore it.", method: "District ASR pooled over the latest 3 complete years to stabilise small numbers. Extrusion height and colour both encode the ASR. Click a district to open it in the Geo Explorer.", notes: "× = ratio to the national rate · HH = High–High LISA cluster. Hover a row for its 95% CI." }}
+                actions={<Button isIconOnly size="sm" radius="full" variant="flat" aria-label="Open Geo Explorer" onPress={() => nav("/geo")}
+                                 className="min-w-8 w-8 h-8 bg-surface-2 border border-border text-fg-muted data-[hover=true]:text-fg"><ArrowUpRight size={16} /></Button>}>
+            <MiniMap yearTo={f.yearTo} />
+          </Card>
+        </GridItem>
 
-      <div className="grid gap-3 grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
-        <Panel title="Why raw counts mislead" subtitle={`Cases vs age-standardised rate, indexed to the first full-coverage year = 100 · ${SEX[f.sex]}, ${BAND[f.ageBand]}`}
-               method="Both series are divided by their value in the first year with full EMR coverage (= 100), so they share one axis. Raw counts climb as facilities go live; the person-time-based ASR stays near its baseline (INS-7)."
-               table={<DataTable rows={ratesInRange} columns={[{ key: "y", label: "Year" }, { key: "cases", label: "Cases", num: true, fmt: (v) => int(v) },
-                 { key: "asr", label: "ASR", num: true, fmt: (v) => fmt(v) }, { key: "coverage_flag", label: "Flag", fmt: (v, r) => (r.partial_year ? "year to date" : v ? "low EMR coverage" : "") }]} />}>
-          {rq.isLoading ? <Loading h={230} /> : rq.error ? <ErrorNote error={rq.error} /> : <CountsVsAsr rows={ratesInRange} />}
-        </Panel>
-        <Panel title="Reading this page" subtitle="How the numbers are built">
-          <ul className="text-xs text-fog leading-relaxed flex flex-col gap-2">
-            <li><b className="text-mist">Dashed</b> = years with under half of facilities on the EMR, or the current year to date. Treat as unreliable.</li>
-            <li><b className="text-mist">Bands</b> are 95% confidence intervals; a change inside the band is reported as “within CI”, not as a trend.</li>
-            <li><b className="text-mist">Joinpoints</b> mark where the trend changes slope; APC = annual percent change in that segment.</li>
-            <li><b className="text-mist">Ministry view</b> shows aggregates only; districts with fewer than 5 cases are suppressed.</li>
-          </ul>
-        </Panel>
-      </div>
+        <GridItem span={{ lg: 8 }}>
+          <Card title="Why raw counts mislead" icon={<Scale size={16} />}
+                info={{ about: `Cases vs age-standardised rate, indexed to the first full-coverage year = 100 · ${SEX[f.sex]}, ${BAND[f.ageBand]}.`,
+                        method: "Both series are divided by their value in the first year with full EMR coverage (= 100), so they share one axis. Raw counts climb as facilities go live; the person-time-based ASR stays near its baseline (INS-7)." }}
+                detail={{ tabs: chartDetailTabs({ chart: <CountsVsAsr rows={ratesInRange} height={360} />, table: <DataTable rows={ratesInRange} columns={[{ key: "y", label: "Year" }, { key: "cases", label: "Cases", num: true, fmt: (v) => int(v) },
+                  { key: "asr", label: "ASR", num: true, fmt: (v) => fmt(v) }, { key: "coverage_flag", label: "Flag", fmt: (v, r) => (r.partial_year ? "year to date" : v ? "low EMR coverage" : "") }]} /> }), defaultTab: "table" }}
+                detailLabel="View as table">
+            {rq.isLoading ? <Loading h={250} /> : rq.error ? <ErrorNote error={rq.error} /> : <CountsVsAsr rows={ratesInRange} height={250} />}
+          </Card>
+        </GridItem>
+        <GridItem span={{ lg: 4 }} className="gap-4">
+          <PairCard title="Counts vs rate" className="!flex-none"
+            info={pair ? `From ${pair.from} to ${pair.to}${pair.partial ? " (year to date, annualised)" : ""}, recorded cases multiplied by ${fmt(pair.cases, 1)} while the age-standardised rate moved ×${fmt(pair.asr, 2)}: the extra cases are facilities joining the EMR, not more cancer.` : undefined}
+            left={{ label: "Cases", value: pair ? `×${fmt(pair.cases, 1)}` : "—", unit: pair ? `${pair.from}→${String(pair.to).slice(2)}` : undefined, marker: SERIES[mode][2] }}
+            right={{ label: "ASR", value: pair ? `×${fmt(pair.asr, 2)}` : "—", marker: SERIES[mode][0] }} />
+          <MetricCard label={crude ? "Latest trend segment" : `Trend since ${lastSeg?.start_year ?? "—"}`} icon={<GitCommitHorizontal size={15} />} className="flex-1"
+            value={!crude && lastSeg ? signed(lastSeg.apc, 1, "%") : "—"} unit="per year"
+            status={!crude && lastSeg ? (!lastSeg.significant ? { status: "neutral", label: "Not significant" } : lastSeg.apc > 0 ? { status: "serious", label: "Rising" } : { status: "good", label: "Falling" }) : null}
+            aside={!crude && jp.data ? `${jp.data.n_joinpoints ?? 0} joinpoint${jp.data.n_joinpoints === 1 ? "" : "s"}` : undefined}
+            range={!crude && lastSeg ? { value: lastSeg.apc, min: -10, max: 10, thresholds: [0], label: "Annual percent change, −10% to +10%",
+              markers: [{ value: lastSeg.apc_lci, label: "95% CI lower" }, { value: lastSeg.apc_uci, label: "95% CI upper" }], minLabel: "−10%", maxLabel: "+10%" } : undefined}
+            info={{ about: !crude && lastSeg ? `Annual percent change ${lastSeg.start_year}–${lastSeg.end_year}, 95% CI ${fmt(lastSeg.apc_lci)} to ${fmt(lastSeg.apc_uci)}.` : "Joinpoint is fitted on age-standardised rates only.", method: trendMethod }}
+            detail={!crude && jp.data ? { children: <SegmentList segments={jp.data.segments} aapc={jp.data.aapc_last10} />, size: "xl" } : undefined} />
+        </GridItem>
+      </BentoGrid>
     </div>
   );
 }
