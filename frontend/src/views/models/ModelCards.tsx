@@ -74,7 +74,7 @@ function Card({ m, best }: { m: RegistryModel; best: Record<Key, number | null> 
       <div className="grid grid-cols-3 gap-x-3 gap-y-2.5 border-t border-line/50 pt-3">
         {cell("auprc", "AUPRC", fmt(t?.auprc, 3), g ? `guide ${g.auprc[0]}–${g.auprc[1]}` : undefined)}
         {cell("brier", "Brier", fmt(t?.brier, 4), m.tier === 1 ? "on rescaled score" : t?.ece !== null && t?.ece !== undefined ? `ECE ${fmt(t.ece, 4)}` : undefined)}
-        {cell("sens_at_spec90", "Sens @ 90% spec", t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`)}
+        {cell("sens_at_spec90", "Sensitivity", t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`, "at 90% specificity")}
         {cell("nns_at_top2pct", "NNS @ top 2%", fmt(t?.nns_at_top2pct, 1), t?.ppv_at_top2pct ? `PPV ${fmt(100 * t.ppv_at_top2pct, 1)}%` : undefined)}
         {cell("median_lead_time_days", "Median lead", t?.median_lead_time_days === null || t?.median_lead_time_days === undefined ? "—" : `${fmt(t.median_lead_time_days / MO, 1)} mo`, g ? `guide ${g.lead[0]}–${g.lead[1]} mo` : undefined)}
         <div className="min-w-0">
@@ -83,16 +83,17 @@ function Card({ m, best }: { m: RegistryModel; best: Record<Key, number | null> 
           <div className="text-[10px] text-fog leading-tight">of test-period cases</div>
         </div>
       </div>
-      <footer className="text-[10px] text-fog tabular border-t border-line/50 pt-2 flex flex-wrap gap-x-3">
+      <footer className="text-[10px] text-fog tabular border-t border-line/50 pt-2 flex flex-wrap gap-x-3 items-center">
         <span>test {int(t?.n_pos)} cases / {int((t?.n_pos ?? 0) + (t?.n_neg ?? 0))} landmarks</span>
         {v?.auroc !== null && v?.auroc !== undefined && <span>val AUROC {fmt(v.auroc, 3)}</span>}
+        <span className="flex-1" /><span className="inline-flex items-center gap-1"><Award size={10} aria-hidden />= best of 3</span>
       </footer>
     </article>
   );
 }
 
 function BestTag() {
-  return <span className="inline-flex items-center gap-0.5 rounded px-1 text-[9px] font-semibold uppercase tracking-wider text-mist bg-mist/10" title="Best of the three tiers"><Award size={9} aria-hidden />best</span>;
+  return <span className="inline-flex items-center text-mist" title="Best of the three tiers"><Award size={12} aria-hidden /><span className="sr-only">best of the three tiers</span></span>;
 }
 
 /** AUROC on a 0.5 (chance) → 1.0 scale with the SPEC guidance range shaded. */
