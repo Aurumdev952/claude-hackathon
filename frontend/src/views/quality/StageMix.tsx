@@ -48,7 +48,7 @@ export function StageMix({ rows, includeUnknown }: { rows: StageTierRow[]; inclu
         axisLabel: { color: k.secondary, formatter: (t: string) => `{a|${TIER_LABEL[t]}}\n{b|n = ${int(nOf(t))}}`,
                      rich: { a: { color: k.primary, fontSize: 11, fontWeight: 600, lineHeight: 15 }, b: { color: k.muted, fontSize: 10 } } } }),
       series: stages.map((s) => ({
-        name: s, type: "bar", stack: "s", barWidth: 22,
+        name: s, type: "bar", stack: "s", barWidth: 16,
         data: tiers.map((t) => ({ value: val(t, s), itemStyle: { opacity: t === "unknown" ? 0.7 : 1 } })),
         itemStyle: { color: col[s], borderColor: k.surface, borderWidth: 2, borderRadius: 0 },
         label: { show: true, position: "inside", fontSize: 10, fontWeight: s === "IV" ? 700 : 500,

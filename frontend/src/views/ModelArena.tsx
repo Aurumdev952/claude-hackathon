@@ -54,27 +54,23 @@ export default function ModelArena() {
   };
 
   const card = (title: string, icon: React.ReactNode, about: string, method: string, kind: Kind | null, body: React.ReactNode, actions?: React.ReactNode) => (
-    <Card title={title} icon={icon} info={{ about, method }} actions={actions}
-          detail={kind && curves.length ? { tabs: chartDetailTabs({ table: <CurveTable kind={kind} models={curves} />, method }), defaultTab: "table" } : undefined} detailLabel="View as table">
+    <Card title={title} icon={icon} actions={actions} info={kind && curves.length ? undefined : { about, method }}
+          detail={kind && curves.length ? { tabs: chartDetailTabs({ table: <CurveTable kind={kind} models={curves} />, method: <><p>{about}</p><p className="mt-2">{method}</p></> }), defaultTab: "table" } : undefined} detailLabel={`${title}: view as table`}>
       {body}
     </Card>
   );
   return (
-    <div className="flex flex-col gap-4 min-w-0">
+    <div className="flex flex-col gap-5 min-w-0">
       <PageHeader icon={<Brain size={18} />} title="Three ways to find cancer before diagnosis"
-        info={<>Each model answers the same question at every monthly landmark — <i>will this GI-cohort patient be diagnosed with gastric cancer in the next 12 months?</i> — and is scored on a later, held-out time period.</>}
-        right={m0 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <StatusChip status="neutral" icon={false} size="md" label={<span className="tabular">Trained {date(m0.trained_at)}</span>} title={`Train window ${m0.train_window}`} />
-            {test && <StatusChip status="info" size="md" label={<span className="tabular">{test.n_pos.toLocaleString()} test cases · {fmt(100 * (prevalence ?? 0), 2)}% base rate</span>} title={`Train window ${m0.train_window}`} />}
-          </div>
-        ) : undefined} />
+        info={{ about: <>Each model answers the same question at every monthly landmark (will this GI-cohort patient be diagnosed with gastric cancer in the next 12 months?) and is scored on a later, held-out time period.</>,
+                notes: m0 ? `Train window ${m0.train_window}.` : undefined }}
+        eyebrow={m0 ? <span className="flex flex-wrap gap-x-4 tabular"><span>Trained {date(m0.trained_at)}</span>{test && <span>{test.n_pos.toLocaleString()} test cases</span>}{test && <span>{fmt(100 * (prevalence ?? 0), 2)}% base rate</span>}</span> : undefined} />
 
       <ModelCards models={models} ensemble={ensemble} thresholds={thresholds} />
 
       <BentoGrid>
         <GridItem span={{ lg: 6, xl: 4 }}>
-          {card("ROC curves", <Activity size={16} />, "Ranking: sensitivity against false-positive rate.",
+          {card("ROC curves", <Activity size={16} />, "Ranking: sensitivity against the false-positive rate.",
             "Receiver operating characteristic on the temporal test set. The area under it (AUROC) is the chance a random future case is ranked above a random non-case. Dashed diagonal = chance.",
             "roc", chart("roc", 280, [{ label: "Chance", color: "rgb(var(--fg-muted))", shape: "dash" }]))}
         </GridItem>
@@ -96,19 +92,17 @@ export default function ModelArena() {
         </GridItem>
         <GridItem span={{ lg: 6 }}>
           <Card title="What drives XGBoost" icon={<Sparkles size={16} />}
-            info={{ about: "Mean |SHAP| on test landmarks.", method: "Mean absolute SHAP value (contribution to the log-odds) of each feature over a sample of 5,000 test landmarks. HIV is included as a negative control: it has no effect in the data, so it should rank below 30." }}
-            actions={hiv?.rank ? <StatusChip status={hiv.rank > 30 ? "good" : "warning"} size="md" label={<span className="tabular">HIV control #{hiv.rank}</span>} title={hiv.rank > 30 ? "Negative control ranks below 30, as expected" : "Negative control expected to rank below 30"} /> : undefined}
-            detail={imp.data?.data?.length ? { tabs: chartDetailTabs({ table: <ImportanceTable rows={imp.data.data} /> }) } : undefined} detailLabel="View as table">
+            detail={imp.data?.data?.length ? { tabs: chartDetailTabs({ table: <ImportanceTable rows={imp.data.data} />, method: "Mean absolute SHAP value (contribution to the log-odds) of each feature over a sample of 5,000 test landmarks. HIV is included as a negative control: it has no effect in the data, so it should rank below 30." }), defaultTab: "table" } : undefined} detailLabel="Feature importance: view as table">
+            {hiv?.rank ? <p className="text-label font-normal text-muted -mt-1 mb-3 tabular">Mean |SHAP| on test landmarks. The HIV negative control ranks #{hiv.rank}{hiv.rank > 30 ? ", below 30 as expected" : "; it should rank below 30"}.</p> : null}
             {imp.isLoading ? <Loading h={340} /> : imp.error ? <ErrorNote error={imp.error} /> : !imp.data?.data?.length ? <Empty h={340}>No feature importance for this run.</Empty> :
               <ImportanceBars rows={imp.data.data} hiv={hiv} top={13} />}
           </Card>
         </GridItem>
         <GridItem span={12}>
           <Card title="Subgroup performance" icon={<Users size={16} />}
-            info={{ about: "Is the model equally good for everyone?", method: "AUROC and sensitivity at the HIGH threshold within each subgroup of the test set. Subgroups with fewer than 20 cases are marked; their estimates are noisy. Vertical tick = overall AUROC." }}
-            detail={sub.data?.data?.length ? { tabs: chartDetailTabs({ table: <DataTable rows={sub.data.data} columns={[{ key: "model_id", label: "Model" }, { key: "subgroup_var", label: "Variable" }, { key: "subgroup_value", label: "Subgroup" },
+            detail={sub.data?.data?.length ? { tabs: chartDetailTabs({ method: "Is the model equally good for everyone? AUROC and sensitivity at the HIGH threshold within each subgroup of the test set. Subgroups with fewer than 20 cases are marked; their estimates are noisy. The vertical tick is the overall AUROC.", table: <DataTable rows={sub.data.data} columns={[{ key: "model_id", label: "Model" }, { key: "subgroup_var", label: "Variable" }, { key: "subgroup_value", label: "Subgroup" },
               { key: "auroc", label: "AUROC", num: true, fmt: (v) => fmt(v, 3) }, { key: "sens", label: "Sensitivity", num: true, fmt: (v) => `${fmt(100 * v, 1)}%` }, { key: "ppv", label: "PPV", num: true, fmt: (v) => (v === null ? "—" : `${fmt(100 * v, 1)}%`) },
-              { key: "n_pos", label: "Cases", num: true }, { key: "n", label: "n", num: true }]} /> }) } : undefined} detailLabel="View as table">
+              { key: "n_pos", label: "Cases", num: true }, { key: "n", label: "n", num: true }]} /> }), defaultTab: "table" } : undefined} detailLabel="Subgroups: view as table">
             {sub.isLoading ? <Loading h={340} /> : sub.error ? <ErrorNote error={sub.error} /> :
               <SubgroupTable rows={sub.data?.data ?? []} models={ids} overall={overall} />}
           </Card>
@@ -129,7 +123,7 @@ function Training() {
           {[1, 2, 3].map((t) => (
             <GridItem key={t} span={{ md: 4 }}>
               <Card tone="tile" title={TIER_META[t].name} icon={<Brain size={15} />} iconTone="neutral" info={TIER_META[t].blurb}>
-                <StatusChip status="neutral" label={`Tier ${t} · pending`} />
+                <StatusChip status="neutral" label={`Tier ${t}, pending`} />
               </Card>
             </GridItem>
           ))}
