@@ -1,0 +1,20 @@
+/** v2 UI kit (plan §A2). Import from "@/components/ui". */
+export { Card, ICON_TONE, type CardProps, type CardDetail, type IconTone } from "./Card";
+export { MetricCard, StatTile, PairCard, DeltaChip, type MetricCardProps, type MetricDelta, type MetricValue, type StatTileProps, type PairCardProps, type PairSide } from "./MetricCard";
+export { GradientRangeBar, type GradientRangeBarProps, type RangeMarker } from "./GradientRangeBar";
+export { RiskScoreBar, type RiskScoreBarProps } from "./RiskScoreBar";
+export { StatusChip, StatusGlyph, type StatusChipProps, type StatusKind } from "./StatusChip";
+export { InfoHint, type InfoHintProps } from "./InfoHint";
+export { DetailModal, ChartDetail, chartDetailTabs, useDetailModal, type DetailModalProps, type DetailTab, type ChartDetailProps } from "./DetailModal";
+export { BentoGrid, GridItem, gridSpan, spanClasses, type BentoGridProps, type GridItemProps, type Span } from "./BentoGrid";
+export { PillTabs, Seg, type PillTabsProps, type PillTabItem, type SegProps } from "./PillTabs";
+export { IconRail, type IconRailProps, type RailItem } from "./IconRail";
+export { FloatingGlassCard, type FloatingGlassCardProps } from "./FloatingGlassCard";
+export { AnimatedNumber, type AnimatedNumberProps } from "./AnimatedNumber";
+export { Skeleton, Loading, type SkeletonProps } from "./Skeleton";
+export { PageTransition } from "./PageTransition";
+export { SectionHeader, PageHeader } from "./SectionHeader";
+export { DataTable, type Column } from "./DataTable";
+export { Sparkline } from "./Sparkline";
+export { BandChip, SeverityChip } from "./Status";
+export { ErrorNote } from "./Panel";
