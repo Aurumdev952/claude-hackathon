@@ -28,7 +28,7 @@ Disk used at scale 1.0 (measured):
 |---|---|
 | Generated data (`data/bulk`) | 3.3 GB (+0.5 GB temporary while generating) |
 | DuckDB work + serve databases (`data/analytics`) | 9–10.5 GB, plus 1–2 GB temporary spill during a pipeline run |
-| MySQL (`/var/lib/mysql`) | about 12 GB after the load |
+| MySQL (`/var/lib/mysql`) | about 12 GB after the load, then **+0.2 GB per simulated day** while `make up` runs (≈ 2 GB per hour at the default 5-minute tick) |
 | Python env + Node modules | 2.5 GB |
 
 ## 2. Install (one time, about 10 minutes)
@@ -119,6 +119,7 @@ make down      # stop all of them
 - The pipeline scheduler also runs every 5 minutes. It extracts the new rows, rebuilds the analytics, re-scores patients and publishes, in about 3 minutes once warm.
 - The first run after start takes about 1 minute longer, because the model code compiles.
 - The dashboard header shows the new **sim date** and **run #** without a reload.
+- Each simulated day adds about 0.2 GB to MySQL, so stop the loop with `make down` when you are not demoing.
 
 **Demo mode** (`make demo`, or `DEMO_MODE=true` in `.env`):
 
@@ -156,7 +157,7 @@ make e2e       # 7 Playwright journeys, including the 3D Case Analysis and alert
 | `make doctor`: MySQL not reachable / `Access denied for user 'es_admin'` | `sudo systemctl start mysql`, then re-run `bash scripts/setup_ubuntu.sh` (it re-applies the user and password from `.env`) |
 | `local_infile is OFF` / `Loading local data is disabled` | the config file is not active: `sudo install -m 644 config/mysql/early-signals.cnf /etc/mysql/mysql.conf.d/` and `sudo systemctl restart mysql` |
 | `No space left on device` during a pipeline run | DuckDB spills to `data/analytics/tmp`. Free disk, or lower `PIPELINE_MEMORY_LIMIT`. The failed batch never publishes, and the next run retries. Delete stale files in `data/analytics/tmp/` when nothing is running |
-| MySQL keeps growing while `make up` runs | the live loop inserts about 20k rows per simulated day. `make down` stops it; `make load` restores the clean history (and resets the simulator clock) |
+| MySQL keeps growing while `make up` runs | expected: about 0.2 GB per simulated day (D-35). Run the live loop for a demo, then `make down`. `make load` restores the clean 12 GB history and resets the simulator clock |
 | `make reproduce` stopped part-way | re-run just the failed step (`make bootstrap`, `make train`, `make load`), then `make verify` |
 | Dashboard panels fail to load / API returns `503 NOT_READY` ("No published analytics yet") | nothing is published yet: run `make bootstrap` (and `make train` for risk scores), or check `logs/pipeline.log` |
 | Port 8000 or 5173 already in use | `make down`, or stop the other process (`ss -ltnp \| grep -E ':8000\|:5173'`) |
