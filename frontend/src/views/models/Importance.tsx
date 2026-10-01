@@ -53,5 +53,5 @@ export function ImportanceBars({ rows, hiv, top = 15 }: { rows: Importance[]; hi
 
 export function ImportanceTable({ rows }: { rows: Importance[] }) {
   return <DataTable rows={rows} columns={[{ key: "rank", label: "#", num: true }, { key: "feature", label: "Feature", fmt: (v) => featureLabel(v) },
-    { key: "_col", label: "Column", fmt: (_, r) => <code className="text-fg-muted">{r.feature}</code> }, { key: "mean_abs_shap", label: "Mean |SHAP|", num: true, fmt: (v) => fmt(v, 4) }]} />;
+    { key: "_col", label: "Column", fmt: (_, r) => <code className="text-muted">{r.feature}</code> }, { key: "mean_abs_shap", label: "Mean |SHAP|", num: true, fmt: (v) => fmt(v, 4) }]} />;
 }

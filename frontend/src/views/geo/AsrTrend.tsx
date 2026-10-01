@@ -21,7 +21,7 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
   const m = useThemeMode();
   const k = ink(), S = SERIES[m];
   const rows = obs.filter((o) => o.asr !== null).sort((a, b) => a.year - b.year);
-  if (!rows.length) return <div className="text-xs text-fg-muted flex items-center justify-center" style={{ height }}>No rate data for this selection.</div>;
+  if (!rows.length) return <div className="text-xs text-muted flex items-center justify-center" style={{ height }}>No rate data for this selection.</div>;
   const reliable = rows.filter((o) => !flagged(o));
   // Axis follows the estimates, not runaway CIs: CIs past the top are clipped (shown as reaching the edge).
   const ref = reliable.length ? reliable : rows;
@@ -68,12 +68,12 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
         const o = rows.find((r) => r.year === y);
         if (!o) return "";
         const f = fit.find((r) => r.year === y);
-        const flags = [o.coverage_flag && "Low EMR coverage — rate unreliable", o.partial_year && "Year to date (annualised); excluded from joinpoint"].filter(Boolean);
+        const flags = [o.coverage_flag && "Low EMR coverage: the rate is unreliable", o.partial_year && "Year to date (annualised); excluded from joinpoint"].filter(Boolean);
         const evs = byYear(y);
         return `<div style="min-width:180px"><b>${y}</b><br/>${name}: <b>${fmt(o.asr)}</b> <span style="color:${k.muted}">(${fmt(o.lci)}–${fmt(o.uci)})</span>` +
           (o.cases !== undefined && o.cases !== null ? `<br/>Cases: ${o.cases}` : "") + (f ? `<br/>Joinpoint fit: ${fmt(f.asr)}` : "") +
-          flags.map((x) => `<br/><span style="color:${k.secondary}">⚑ ${x}</span>`).join("") +
-          evs.map((e) => `<br/><span style="color:${k.secondary}">▲ ${e.label}</span>`).join("") + "</div>";
+          flags.map((x) => `<br/><span style="color:${k.secondary}">${x}</span>`).join("") +
+          evs.map((e) => `<br/><span style="color:${k.secondary}">Endoscopy: ${e.label}</span>`).join("") + "</div>";
       },
     } as any,
     series: ([
