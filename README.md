@@ -43,22 +43,20 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
      - a table fallback and reduced-motion support.
 8. **Ask the Data**: natural-language questions → validated read-only SQL → answer, chart, table, SQL.
 
-## Quick start (native, what the build container verifies)
+## Quick start
 
-Prerequisites: Python 3.11 + [uv](https://docs.astral.sh/uv/), Node 22, MySQL 8 (for the live loop), ~60 GB disk for scale 1.0.
+**New machine (Ubuntu): follow [`SETUP.md`](SETUP.md).** It covers requirements, a one-time setup script, one command that rebuilds data, models and MySQL, and a results check against the verified build.
 
 ```bash
-cp .env.example .env            # set MySQL credentials
-make setup                      # uv sync + npm ci (+ ollama models if ollama is installed)
-make seed SCALE=0.05            # small dataset; `make seed-full` for 1.5M people (~5 min generate, ~1 h MySQL load)
-make bootstrap                  # DuckDB load from Parquet -> marts -> publish
-make train                      # 3 model tiers, then re-score + publish
+bash scripts/setup_ubuntu.sh    # one time: MySQL 8 + config, Node 22, uv, project packages, .env
+make doctor                     # check tools, RAM, disk, MySQL
+make reproduce                  # generate 1.5M people -> analytics -> 3 model tiers -> MySQL -> verify (~1.5 h)
 make up                         # simulator + pipeline scheduler + API (:8000) + dashboard (:5173)
 ```
 
 Open http://localhost:5173. Use the header switch for **Ministry** vs **Doctor** (pick a facility). API docs are at http://localhost:8000/api/v1/docs.
 
-Docker: `docker compose up -d --build` uses the same layout (see `docker-compose.yml`, SPEC §17.2). The development container had no Docker Hub access, so it was verified natively (D-02).
+Docker: `docker-compose.yml` describes the same services (SPEC §17.2). The development container had no Docker Hub access, so only the native path is verified (D-02).
 
 ### Demo mode
 
