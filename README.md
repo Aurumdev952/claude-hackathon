@@ -26,6 +26,8 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
 
 ### Dashboard views
 
+The UI uses HeroUI + Framer Motion on a light, card-based design (dark mode toggle in the top bar). Explanations sit behind ⓘ icons and details open in modals, so the screens show charts, numbers and titles.
+
 1. **National Overview**: KPIs with deltas and sparklines, national trend with joinpoints, mini 3D map.
 2. **Geo Explorer**: extruded district map (ASR / crude / SIR / LISA / HP testing / stage IV), hexbins, facilities, referral arcs, time slider.
 3. **Trends Lab**: multi-series ASR with CIs, joinpoint table, 3D "rate landscape", crude vs ASR.
@@ -41,7 +43,7 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
      - X-ray mode, layer toggles, click-to-fly camera, two-way hover between the lists and the body;
      - a timeline **replay** that relights the body month by month;
      - a table fallback and reduced-motion support.
-8. **Ask the Data**: natural-language questions → validated read-only SQL → answer, chart, table, SQL.
+8. **Agent** (`/agent`): chat with the clinical assistant (doctor role) or the ministry analyst (ministry role). Answers stream with markdown, chart widgets, patient cards and sandbox plots; messages can be edited, rewound and regenerated. See [AI agent and MCP](#ai-agent-and-mcp).
 
 ## Quick start
 
