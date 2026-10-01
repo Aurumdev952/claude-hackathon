@@ -1632,7 +1632,7 @@ Equivalent in spirit to the NCI Joinpoint program:
 
 ### 12.4 Survival analysis
 
-- **Time origin:** `dx_date`. **Event:** death. **Censoring:** data cutoff, or `last_contact_date + 90 days` if no contact for > 365 days (lost to follow-up).
+- **Time origin:** `dx_date`. **Event:** death. **Censoring:** date last known alive (`last_contact_date`, capped at the data cut-off) when no death is recorded (v1.1, D-34).
 - **Kaplan–Meier** (lifelines) by: stage, age band, sex, province, first-GI facility tier, HP status ever, diagnosis period (2015–2019 vs 2020+).
 - **Log-rank** tests; 1-year and 2-year survival with 95% CI.
 - **Cox PH:** `stage + age + sex + facility_tier + hp_tested` — report HRs; check proportional hazards (Schoenfeld); stratify by stage if violated.

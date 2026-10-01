@@ -11,7 +11,7 @@ class Patient:
                  "move_day", "district2", "emr_start", "hp", "tobacco", "alcohol", "alcohol_heavy", "salt", "smoked",
                  "family_hx", "nsaid", "atrophy_day", "hiv", "hiv_dx", "htn", "htn_dx", "dm", "dm_dx", "water", "fuel",
                  "occupation", "fruit_veg", "hb_base", "height", "bmi", "hot", "micro", "hp_erad_day", "initial_done",
-                 "hb_decline", "wt_loss", "cancer", "died_of", "death_recorded", "lifestyle_recorded", "death_enc")
+                 "hb_decline", "wt_loss", "cancer", "died_of", "death_recorded", "lifestyle_recorded", "death_enc", "death_traced")
 
     def __init__(self, P: dict, i: int):
         self.i = i
@@ -44,6 +44,7 @@ class Patient:
         self.death_recorded = False
         self.lifestyle_recorded = {}
         self.death_enc = False
+        self.death_traced = False
 
     # -- time-varying attributes --------------------------------------------------------
     def age(self, day: int) -> float:

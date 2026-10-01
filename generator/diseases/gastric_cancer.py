@@ -30,13 +30,13 @@ STAGE_CODE = {"I": 7190, "II": 7191, "III": 7192, "IV": 7193}
 LOC_CODE = {"cardia": 7120, "body": 7121, "antrum": 7122, "diffuse": 7123}
 LOC_DX = {"cardia": 2001, "body": 2002, "antrum": 2003, "diffuse": 2000}
 LAUREN_CODE = {"intestinal": 7140, "diffuse": 7141, "mixed": 7142}
-SURV_MEDIAN_M = {"I": 60, "II": 16, "III": 8, "IV": 4.0}   # D-06: tuned so 1-y survival hits §8.8/INS-4 targets
+SURV_MEDIAN_M = {"I": 60, "II": 22, "III": 12, "IV": 6.0}   # D-06/D-34: true 1-y survival ~30% (§8.8), INS-4 tier gap
 SURV_SHAPE = 1.5
 # INS-4 facility practice: patients who first present at low-testing-tier facilities reach curative care less often
 TIER_CURATIVE = {"low": 0.3, "medium": 0.8, "high": 0.9}
 TIER_BSC_IV = {"low": 0.75, "medium": 0.4, "high": 0.25}
 # D-31: facility practice also shows in follow-up care (symptom control, nutrition, timely re-admission)
-TIER_HR = {"low": 1.45, "medium": 1.0, "high": 0.9}
+TIER_HR = {"low": 1.45, "medium": 1.0, "high": 1.0}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
@@ -535,6 +535,10 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
         fday += rnd.randint(30, 95)
     if p.death > lost_at:
         p.death_recorded = True  # lost to follow-up: death (if any) never reaches the EMR
+    else:
+        # D-34: patients still in oncology follow-up are traced, so their deaths reach the EMR far more often than the
+        # general 80% (otherwise survival from the EMR is biased upward by deaths missing right after the last visit)
+        p.death_traced = True
 
 
 def _latent_record(p: Patient, cs: CaseState) -> dict:

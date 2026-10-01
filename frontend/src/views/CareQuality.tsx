@@ -145,7 +145,7 @@ function SurvivalPanel({ summary }: { summary: SurvSummary[] }) {
   return (
     <Panel title="Survival after diagnosis"
       subtitle={<span className="tabular">Kaplan-Meier · {int(total)} patients · shaded bands are 95% CIs{p !== null && p !== undefined ? <> · log-rank <b className="text-mist">{pval(p)}</b></> : null}</span>}
-      method="Kaplan-Meier estimates of overall survival from diagnosis, with Greenwood 95% confidence bands. The log-rank test compares the curves. Patients are censored at the end of follow-up; numbers at risk are shown under the axis."
+      method="Kaplan-Meier estimates of overall survival from diagnosis, with Greenwood 95% confidence bands. The log-rank test compares the curves. Patients without a recorded death are censored on the date they were last seen alive; numbers at risk are shown under the axis."
       actions={<Seg label="Group by" value={gv} onChange={setGv} options={(Object.keys(GROUPS) as GroupVar[]).map((g) => ({ value: g, label: GROUPS[g].label }))} />}
       table={rows.length ? <KmTable rows={rows} gv={gv} summary={sum} /> : undefined}>
       {km.isLoading ? <Loading h={380} /> : km.error ? <ErrorNote error={km.error} /> : !rows.length ? <Empty h={300}>No survival data for this grouping.</Empty> : (
