@@ -16,19 +16,33 @@ facilities:
   n_health_centres: 200
 gi:
   target_cohort_size: 50000
-  dyspepsia_incidence_adult: 0.06
+  dyspepsia_incidence_adult: 0.06     # true incidence (SPEC §8.6)
+  recorded_episode_rate: 0.0063       # episodes that reach a recorded GI visit; tuned to the 50k cohort target
 gastric_cancer:
-  # h0 calibrated so national ASR ~12/100k (world std) by 2024
-  h0_anchor_per_100k: {30: 0.5, 45: 5.0, 60: 25.0, 75: 60.0}
+  # SPEC §8.8 anchors (0.5/5/25/60 at 30/45/60/75) give median age at dx ~67 and young share ~7% in this pyramid,
+  # outside the §8.8 targets (median 58-62) and the ~21% young-onset share in §14.3. Flattened (D-04):
+  h0_anchor_per_100k: {30: 2.3, 45: 9.8, 60: 22.0, 75: 31.0}
   h0_multiplier: 1.0
-  rr: {male: 1.9, hp: 3.0, hp_eradicated_floor: 1.6, atrophy_im: 3.5,
+  rr: {male: 1.85, hp: 3.0, hp_eradicated_floor: 1.6, atrophy_im: 3.5,
        smoker_current: 1.6, smoker_former: 1.2, alcohol_heavy: 1.3,
        high_salt: 1.5, smoked_food: 1.4, family_hx: 2.5, hiv: 1.0}
   sojourn_mean_months: 18
+  # symptomatic-phase stage durations (gamma shape 2), months. SPEC says 5/5/6 but that cannot give both a
+  # 7-10 month diagnostic interval and 45-55% stage IV (D-06); tuned to the outcome targets.
+  stage_months: [4.0, 4.0, 4.5]
+  terminal_admission_prob: 0.75
+  untreated_iv_survival_months: 9
   prodrome_months: [6, 24]
-  pct_clinical_only: 0.12
+  pct_clinical_only: 0.04   # + terminal clinical diagnoses at DH -> ~12% probable overall
   pct_never_diagnosed: 0.06
   targets: {confirmed_cases: [2000, 3000], stage_iv_pct: [45, 55], national_asr_2024: 12}
+  # SPEC §8.8 targets conflict: ASR 12 in this young pyramid gives ~90 cases/yr at scale 1.0, while the case-count
+  # targets (2,000-3,000 confirmed; ~1 dx every 1-2 days; 402 cases/yr in §14.3) need ASR ~30-33.
+  # We calibrate to the case counts (statistical power for INS-1..8). See docs/decisions.md D-03.
+  calibration: {target_asr_2024: 32, diag_fraction: 0.85, onset_reference_year: 2022}
+  trend_lag_years: 2.0
+  rr_hp_young: 1.3
+  rr_male_young: 0.9
 insights:
   ins1: {enabled: true, districts: [WES-NYB, NOR-MUS, WES-RUT], hp_prev: 0.78,
          smoked_food_prev: 0.55, high_salt_prev: 0.55, residual_rr: 1.4,
