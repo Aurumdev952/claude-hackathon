@@ -93,6 +93,34 @@ make e2e             # Playwright journeys (API + Vite running)
 | `tests/api/test_nl2sql_benchmark.py` | §19.5: 20-question benchmark in template mode (≥ 18/20) |
 | `frontend/e2e/` | §19.6 journeys + the 3D case-analysis journey |
 
+### Verified results (scale 1.0: 1.5M people, history to 30 Jun 2026)
+
+What the build container measured on the final dataset:
+
+- **Tests:**
+  - `pytest tests`: 88 passed, 0 skipped. This covers realism, methods, insight recovery, leakage, API contract and NL→SQL.
+  - NL→SQL benchmark: **20/20** in template mode.
+  - Playwright: **7/7** journeys pass, including alert acknowledgement and the 3D case analysis.
+- **Epidemiology** (all planted insights recovered):
+  - National ASR 2024: 34.7 per 100,000 (95% CI 30.7–39.2).
+  - 2,283 incident cases (1,860 confirmed) in a GI cohort of 49,142 people.
+  - Under-50 trend: APC +7.3%/yr (CI 2.9–11.9) from 2017.
+  - LISA High-High cluster: Musanze, Rutsiro, Nyabihu, Ngororero, Gakenke.
+  - 1-year survival: 35% overall; low- vs high-testing facilities 24% vs 48% (log-rank p < 0.001).
+  - H. pylori eradication: HR 0.55 (0.41–0.75). HIV negative control: HR 0.74 (0.48–1.15), not significant, as expected.
+- **Models** (test period, 1,023 cases; [D-32](docs/decisions.md) explains why these exceed the SPEC guidance):
+
+| Model | AUROC | AUPRC | Sens @ 90% spec | Median lead time |
+|---|---|---|---|---|
+| Tier 1 points score | 0.883 | 0.364 | 67% | 3.5 mo |
+| Tier 2 XGBoost | 0.964 | 0.573 | 94% | 6.2 mo |
+| Tier 3 sequence (GRU) | 0.963 | 0.536 | 92% | 6.3 mo |
+| Ensemble (final band) | 0.970 | 0.594 | 95% | 6.2 mo |
+
+### Offline demo (no backend)
+
+`VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
+
 ## Data, privacy and licences
 
 - All people, facilities and statistics are synthetic. Facility names carry "(Synthetic)". District choices for the insights are illustrative only (SPEC §9).
