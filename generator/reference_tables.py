@@ -14,7 +14,8 @@ DATATYPES = [(1, "Numeric", "NM"), (2, "Coded", "CWE"), (3, "Text", "ST"), (4, "
 CLASS_ID = {"Test": 1, "Procedure": 2, "Drug": 3, "Diagnosis": 4, "Finding": 5, "Question": 7, "ConvSet": 10, "Misc": 11, "Symptom": 12}
 ENCOUNTER_TYPES = [(1, "ADULTINITIAL"), (2, "OPD_CONSULTATION"), (3, "ADULTRETURN"), (4, "LAB_RESULTS"), (5, "ENDOSCOPY"),
                    (6, "PATHOLOGY"), (7, "ONCOLOGY_INTAKE"), (8, "ADMISSION"), (9, "DISCHARGE"), (10, "PHARMACY_DISPENSE"),
-                   (11, "ANC / MCH"), (12, "HIV_FOLLOWUP"), (13, "NCD_FOLLOWUP"), (14, "DEATH")]
+                   (11, "ANC / MCH"), (12, "HIV_FOLLOWUP"), (13, "NCD_FOLLOWUP"), (14, "DEATH"),
+                   (15, "CARE_COORDINATION"), (16, "PATIENT_REPORTED"), (17, "CHW_HOME_VISIT")]  # 15-17: v3 (D-45)
 LOCALISED = {2100: [("rw", "Malariya"), ("fr", "Paludisme")], 2200: [("rw", "Kuribwa mu gifu"), ("fr", "Douleur épigastrique")],
              2014: [("fr", "Dyspepsie")], 2000: [("fr", "Cancer de l'estomac, sans précision")], 3100: [("fr", "Hémoglobine")],
              2205: [("rw", "Gutakaza ibiro")], 2203: [("fr", "Dysphagie")]}
