@@ -7,7 +7,7 @@ from pathlib import Path
 import polars as pl
 import pymysql
 
-from shared.config import mysql_params
+from shared.config import SIM_STATE_DIR, mysql_params
 
 from .writers import ALL_TABLES, COLUMNS, write_tsv
 
@@ -69,4 +69,7 @@ def load_all(bulk_dir: Path, ref: dict[str, pl.DataFrame], log=print):
         except pymysql.MySQLError:
             pass
     conn.close()
+    # the database is back at history end: a simulator clock left from an earlier run would skip that window
+    for f in ("state.json", "last_tick.json"):
+        (SIM_STATE_DIR / f).unlink(missing_ok=True)
     log(f"MySQL load complete in {time.time() - t0:.1f}s")
