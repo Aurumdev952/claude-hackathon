@@ -2,8 +2,11 @@
 
 - Not collected by `make test` (pyproject testpaths = ["tests"]) and marked `llm`.
 - Loads ../../.env without overriding the environment (OPENROUTER_API_KEY, AGENT_URL, EVAL_JUDGE_MODEL).
-- Skips when the agent (AGENT_URL) or the judge key is unavailable - unless EVAL_REQUIRE_AGENT=1 (set by
-  `make eval-agent`), in which case the run fails: an agent that cannot be evaluated is not ready.
+- Live preflight: agent /agent/health and the OpenRouter key's remaining credit. When either is unavailable the
+  suite is skipped - unless EVAL_REQUIRE_AGENT=1 (set by `make eval-agent`), then it FAILS: an agent that cannot be
+  evaluated is not ready. A judge that becomes unavailable mid-run (401/402/403) aborts the run and fails it.
+- EVAL_OFFLINE=1 replays fixtures/responses.json (real recorded answers) with the deterministic checks only; the
+  readiness test is skipped because no verdict is possible without the judge.
 """
 from __future__ import annotations
 
@@ -48,18 +51,19 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session")
 def eval_results():
-    from evals.agent import client
-    from evals.agent.runner import run_eval
+    """One evaluation per session. Live: preflight (agent health + OpenRouter key credit) then agent + judge.
+    EVAL_OFFLINE=1: replay fixtures/responses.json with the deterministic checks only."""
+    from evals.agent.runner import EvalAborted, offline, run_eval
 
+    if offline():
+        return run_eval()
     required = os.getenv("EVAL_REQUIRE_AGENT", "").lower() in ("1", "true", "yes")
-    problems = []
-    if not os.getenv("OPENROUTER_API_KEY"):
-        problems.append("OPENROUTER_API_KEY is not set (judge model)")
-    if not os.getenv("EVAL_REUSE_RESPONSES") and client.health() is None:
-        problems.append(f"agent not reachable at {client.agent_url()} (start it: make agent-dev)")
-    if problems:
-        msg = "; ".join(problems)
+    try:
+        res = run_eval()
+    except EvalAborted as e:
         if required:
-            pytest.fail(f"cannot evaluate the agent: {msg}", pytrace=False)
-        pytest.skip(msg)
-    return run_eval()
+            pytest.fail(f"EVAL ABORTED - cannot evaluate the agent: {e}", pytrace=False)
+        pytest.skip(f"cannot evaluate the agent: {e}")
+    if res["meta"].get("aborted"):
+        pytest.fail(f"EVAL ABORTED - {res['meta']['aborted']} (partial report: {res.get('paths', {}).get('md')})", pytrace=False)
+    return res

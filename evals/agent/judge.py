@@ -11,7 +11,8 @@ is what DeepEval documents for custom judges, made robust for schema-following:
 
 Configured from the environment:
   EVAL_JUDGE_MODEL       default deepseek/deepseek-v4-pro (must differ from AGENT_MODEL, the model under test)
-  EVAL_JUDGE_REASONING   off | low | medium | high (default low): OpenRouter `reasoning` effort for the judge
+  EVAL_JUDGE_REASONING   off | low | medium | high (default off): OpenRouter `reasoning` effort for the judge. "low" cost
+                         about $2.7 for 300 judge calls on deepseek-v4-pro (2026-10-01), mostly reasoning tokens.
   EVAL_JUDGE_CONCURRENCY default 12 concurrent judge requests
   EVAL_JUDGE_TIMEOUT_S   default 180 per request
   OPENROUTER_API_KEY     required; OPENROUTER_BASE_URL optional (default https://openrouter.ai/api/v1)
@@ -35,6 +36,34 @@ SYSTEM = (
     "You are a meticulous, impartial evaluator of an AI assistant for a gastric-cancer surveillance programme. "
     "Follow the instructions exactly. When a JSON format is requested, reply with ONE valid JSON object and nothing else."
 )
+
+
+class JudgeUnavailable(RuntimeError):
+    """The judge cannot be used at all (bad / exhausted key, no credit): abort instead of scoring every metric as failed."""
+
+
+FATAL_STATUS = (401, 402, 403)
+
+
+def openrouter_key_status(timeout_s: float = 10.0) -> dict:
+    """GET /api/v1/key (free): {ok, limit, limit_remaining, usage, error}. Used as a preflight before any model call."""
+    import httpx
+    key = os.getenv("OPENROUTER_API_KEY") or ""
+    if not key:
+        return {"ok": False, "error": "OPENROUTER_API_KEY is not set"}
+    base = (os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1").rstrip("/")
+    try:
+        r = httpx.get(f"{base}/key", headers={"Authorization": f"Bearer {key}"}, timeout=timeout_s)
+    except httpx.HTTPError as e:
+        return {"ok": False, "error": f"OpenRouter unreachable: {e.__class__.__name__}: {e}"}
+    if r.status_code != 200:
+        return {"ok": False, "error": f"OpenRouter key check HTTP {r.status_code}: {r.text[:200]}"}
+    d = (r.json() or {}).get("data") or {}
+    remaining = d.get("limit_remaining")
+    out = {"ok": True, "limit": d.get("limit"), "limit_remaining": remaining, "usage": d.get("usage")}
+    if remaining is not None and float(remaining) <= 0:
+        out.update(ok=False, error=f"OpenRouter key limit exhausted (limit ${d.get('limit')}, remaining ${remaining})")
+    return out
 
 
 def judge_model_name() -> str:
@@ -86,12 +115,13 @@ class OpenRouterJudge(DeepEvalBaseLLM):
         self.max_attempts = max_attempts
         self.timeout_s = float(os.getenv("EVAL_JUDGE_TIMEOUT_S") or 180)
         self.concurrency = int(os.getenv("EVAL_JUDGE_CONCURRENCY") or 12)
-        effort = (os.getenv("EVAL_JUDGE_REASONING") or "low").lower()
+        effort = (os.getenv("EVAL_JUDGE_REASONING") or "off").lower()
         self.extra_body: dict[str, Any] = {"usage": {"include": True}}
         if effort in ("off", "none", "false", "0"):
             self.extra_body["reasoning"] = {"enabled": False}
         elif effort in ("low", "medium", "high"):
             self.extra_body["reasoning"] = {"effort": effort}
+        self.fatal: Optional[str] = None
         self._sems: dict[int, asyncio.Semaphore] = {}
         self._lock = threading.Lock()
         self.calls = 0
@@ -177,6 +207,13 @@ class OpenRouterJudge(DeepEvalBaseLLM):
             return text or ""
         return schema.model_validate(extract_json(text))
 
+    def _check_fatal(self, e: Optional[Exception] = None) -> None:
+        if e is not None and isinstance(e, APIStatusError) and e.status_code in FATAL_STATUS:
+            with self._lock:
+                self.fatal = self.fatal or f"HTTP {e.status_code}: {str(e)[:300]}"
+        if self.fatal:
+            raise JudgeUnavailable(f"judge {self.model_id} unavailable: {self.fatal}")
+
     @staticmethod
     def _retryable(e: Exception) -> bool:
         if isinstance(e, APIStatusError):
@@ -187,12 +224,14 @@ class OpenRouterJudge(DeepEvalBaseLLM):
         feedback: list[str] = []
         last: Exception | None = None
         for attempt in range(self.max_attempts + 2):
+            self._check_fatal()
             try:
                 completion = await client.chat.completions.create(
                     messages=self._messages(prompt, schema, feedback), **self._kwargs(schema))
                 self._account(completion)
                 text = completion.choices[0].message.content if completion.choices else None
             except Exception as e:  # transport-level
+                self._check_fatal(e)
                 last = e
                 if not self._retryable(e) or attempt >= self.max_attempts + 1:
                     break
@@ -214,12 +253,14 @@ class OpenRouterJudge(DeepEvalBaseLLM):
         feedback: list[str] = []
         last: Exception | None = None
         for attempt in range(self.max_attempts + 2):
+            self._check_fatal()
             try:
                 completion = client.chat.completions.create(
                     messages=self._messages(prompt, schema, feedback), **self._kwargs(schema))
                 self._account(completion)
                 text = completion.choices[0].message.content if completion.choices else None
             except Exception as e:
+                self._check_fatal(e)
                 last = e
                 if not self._retryable(e) or attempt >= self.max_attempts + 1:
                     break
@@ -238,5 +279,5 @@ class OpenRouterJudge(DeepEvalBaseLLM):
         raise RuntimeError(f"judge {self.model_id} failed after retries: {last}")
 
     def usage(self) -> dict:
-        return {"model": self.model_id, "calls": self.calls, "failures": self.failures, "cost_usd": round(self.cost, 4),
+        return {"model": self.model_id, "fatal": self.fatal, "calls": self.calls, "failures": self.failures, "cost_usd": round(self.cost, 4),
                 "prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens}

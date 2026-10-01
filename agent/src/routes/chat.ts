@@ -54,9 +54,13 @@ export async function prepareHistory(ctx: AgentContext, body: z.infer<typeof Cha
   } else {
     if (!incoming || incoming.role !== "user") throw new ApiError(400, "INVALID_MESSAGE", "submit-message needs a user message");
     const existing = await repo.getMessage(conv.id, incoming.id);
+    const before = await repo.messages(conv.id);
+    // The title follows the first user message unless it was renamed: retitle when this message becomes (or replaces)
+    // the first message and the title is still "New conversation" or the auto title of the message it replaces.
+    const replacesAutoTitledFirst = !!existing && before[0]?.id === existing.id && conv.title === titleFrom(existing as never);
     if (existing) await repo.truncate(conv.id, incoming.id, false); // edited in place: drop everything after it
     await repo.upsertMessage(conv.id, { id: incoming.id, role: "user", parts: incoming.parts, metadata: incoming.metadata });
-    if (conv.title === "New conversation") await repo.update(conv.id, { title: titleFrom(incoming) });
+    if (conv.title === "New conversation" || replacesAutoTitledFirst) await repo.update(conv.id, { title: titleFrom(incoming) });
   }
   const history = (await repo.messages(conv.id)) as AgentUIMessage[];
   if (!history.length || history.at(-1)!.role !== "user") {
