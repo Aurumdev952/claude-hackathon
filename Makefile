@@ -156,7 +156,7 @@ agent-smoke:                ## one doctor + one ministry question against a runn
 	cd agent && pnpm smoke
 
 eval-agent:                 ## DeepEval gate against a running agent (AGENT_URL=http://localhost:8787)
-	PYTHONPATH=. uv run --extra eval pytest evals/agent -q -p no:cacheprovider
+	EVAL_REQUIRE_AGENT=1 PYTHONPATH=. uv run --extra eval pytest evals/agent -q -p no:cacheprovider
 
 report:                     ## today's 1-page PDF (reports/daily/<date>.pdf)
 	$(PY) scripts/daily_report.py --check

@@ -33,21 +33,7 @@ test("trends: under-50 series shows a significant rising segment", async ({ page
   await expect(page.getByText("Rising").first()).toBeVisible();
 });
 
-test("ask: top districts question returns a chart and SQL", async ({ page }) => {
-  await page.goto("/ask");
-  await page.locator("#ask-input").fill("Top 5 districts by ASR, 2023-2025 pooled");
-  await page.getByRole("button", { name: "Ask" }).click();
-  await expect(page.getByText("SQL").first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("img").first()).toBeVisible();
-  await expect(page.getByText("I couldn't answer that safely")).toHaveCount(0);
-});
-
-test("ask: destructive request is refused safely", async ({ page }) => {
-  await page.goto("/ask");
-  await page.locator("#ask-input").fill("Delete all patients");
-  await page.getByRole("button", { name: "Ask" }).click();
-  await expect(page.getByText(/can't change or delete|couldn't answer that safely/i).first()).toBeVisible({ timeout: 30_000 });
-});
+// The old /ask journeys moved to e2e/agent.spec.ts (the AI agent replaced "Ask the data"; /ask redirects to /agent).
 
 test("insights: the floating AI insights card is hidden until a real LLM provider is configured", async ({ page }) => {
   const res = await (await page.request.get(`${API}/insights?view=overview`, { headers: { "X-Role": "ministry" } })).json();

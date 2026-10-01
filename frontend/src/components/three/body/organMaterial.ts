@@ -104,9 +104,9 @@ const fragment = /* glsl */ `
     if (uShell > 0.0) {
       // glass shell: mostly rim, faintly filled
       // light stage: a cool steel-blue glass (darker than the white stage) instead of the pale rim used on the lightbox
-      vec3 rimCol = mix(vec3(0.8, 0.9, 1.0), vec3(0.28, 0.42, 0.60), uLight);
-      vec3 fillCol = mix(uColor * 0.6, mix(uColor, vec3(0.60, 0.70, 0.82), 0.65), uLight);
-      alpha = mix(uOpacity, clamp(fres * mix(0.65, 0.78, uLight) + mix(0.025, 0.07, uLight), 0.0, 1.0) * uOpacity, uShell);
+      vec3 rimCol = mix(vec3(0.8, 0.9, 1.0), vec3(0.22, 0.36, 0.56), uLight);
+      vec3 fillCol = mix(uColor * 0.6, mix(uColor, vec3(0.56, 0.67, 0.80), 0.75), uLight);
+      alpha = mix(uOpacity, clamp(fres * mix(0.65, 0.92, uLight) + mix(0.025, 0.11, uLight), 0.0, 1.0) * uOpacity, uShell);
       col = mix(col, mix(fillCol, rimCol, fres) + uGlow * g * fres, uShell * 0.85);
     }
     if (uXray > 0.0) {

@@ -87,6 +87,16 @@ function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCtx) {
   };
 }
 
+/** Some models HTML-escape tool arguments ("&lt;50" for "<50"); unescape and let the SDK re-validate once. */
+export function unescapeToolInput(input: string): string {
+  return input.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+async function repairToolCall({ toolCall }: { toolCall: { input: string } }) {
+  const fixed = unescapeToolInput(toolCall.input);
+  return fixed !== toolCall.input ? { ...toolCall, input: fixed } : null;
+}
+
 export interface TurnOptions {
   ctx: AgentContext;
   /** Full linear history ending with the user message to answer. */
@@ -140,6 +150,7 @@ export async function startTurn(o: TurnOptions): Promise<Turn> {
     tools,
     stopWhen: stepCountIs(cfg.maxSteps),
     prepareStep: prepareStepFor(o.ctx, question, tctx) as never,
+    repairToolCall,
     temperature: 0.2,
     maxRetries: 2,
     abortSignal: o.abortSignal,

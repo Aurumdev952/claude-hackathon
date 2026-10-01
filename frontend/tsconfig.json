@@ -14,7 +14,11 @@
     "noEmit": true,
     "types": ["vite/client"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": {
+      "@/*": ["src/*"],
+      "@agent/widgets": ["../agent/src/widgets/specs.ts"],
+      "zod": ["./node_modules/zod"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../agent/src/widgets"]
 }
