@@ -68,6 +68,9 @@ export function AsrPanel() {
         lineStyle: { width: emph ? 2.5 : 2, color: d.color }, itemStyle: { color: d.color }, emphasis: { disabled: true } } as any);
       out.push({ type: "line", name: `${d.key}::dashed`, data: dashed, showSymbol: false, connectNulls: false, z: 3,
         lineStyle: { width: 2, color: d.color, type: [4, 4] as any, opacity: 0.85 }, itemStyle: { color: d.color }, emphasis: { disabled: true } } as any);
+      const isolated = d.pts.filter((p, i) => v(p) !== null && !p.partial && (i === 0 || v(d.pts[i - 1]) === null) && (i === d.pts.length - 1 || v(d.pts[i + 1]) === null));
+      if (isolated.length) out.push({ type: "scatter", name: `${d.key}::iso`, data: isolated.map((p) => [p.year, p.v]), symbolSize: 6, z: 5, silent: true,
+        itemStyle: { color: d.color, borderColor: k.surface, borderWidth: 1.5 } } as any);
       const partial = d.pts.filter((p) => p.partial && v(p) !== null);
       if (partial.length) out.push({ type: "scatter", name: `${d.key}::partial`, data: partial.map((p) => [p.year, p.v]), symbol: "circle", symbolSize: 7, z: 6,
         itemStyle: { color: k.surface, borderColor: d.color, borderWidth: 2 }, silent: true } as any);
@@ -197,7 +200,7 @@ function EventRug({ events, y0, y1, names, onHover }: { events: EventRow[]; y0: 
                 const t = Math.max(0, (yearFrac(e.date) - y0) / (y1 - y0));
                 return (
                   <button key={i} className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 p-1 group focus:outline-none" style={{ left: `${t * 100}%` }}
-                          aria-label={`${row.label}: ${e.label}, ${e.date}`}
+                          aria-label={`${e.label}, ${e.date}`}
                           onMouseEnter={(x) => show(e, x.currentTarget)} onFocus={(x) => show(e, x.currentTarget)} onBlur={() => show(null)}>
                     <span className={`block ${row.shape === "dot" ? "w-[6px] h-[6px] rounded-full bg-fog/70" : "w-[7px] h-[7px] rotate-45 bg-mist"} group-hover:scale-150 group-focus-visible:scale-150 group-focus-visible:ring-2 ring-kivu transition-transform`} />
                   </button>

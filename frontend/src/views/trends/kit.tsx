@@ -70,7 +70,7 @@ export function whiskerSeries(name: string, rows: { a: number | string; lo: numb
   opts: { horizontal?: boolean; cap?: number; width?: number; xAxisIndex?: number; yAxisIndex?: number } = {}): CustomSeriesOption {
   const cap = opts.cap ?? 4;
   return {
-    type: "custom", name, silent: true, z: 2, xAxisIndex: opts.xAxisIndex ?? 0, yAxisIndex: opts.yAxisIndex ?? 0, tooltip: { show: false },
+    type: "custom", name, silent: true, z: 2, xAxisIndex: opts.xAxisIndex ?? 0, yAxisIndex: opts.yAxisIndex ?? 0, tooltip: { show: false }, clip: true,
     data: rows.filter((r) => r.lo !== null && r.hi !== null).map((r) => (opts.horizontal ? [r.lo, r.hi, r.a] : [r.a, r.lo, r.hi])),
     encode: opts.horizontal ? { x: [0, 1], y: 2 } : { x: 0, y: [1, 2] },
     renderItem: (_p: any, api: any) => {

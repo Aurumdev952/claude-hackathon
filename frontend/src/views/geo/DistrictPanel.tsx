@@ -40,8 +40,8 @@ export function DistrictPanel({ code, row, rank, n, spatial, facilities, events,
         <div className="flex items-end gap-4 mt-2">
           <div>
             <div className="text-[11px] text-fog">ASR · {period}</div>
-            <div className="text-[30px] font-bold leading-none mt-0.5">{fmt(row?.asr)}</div>
-            <div className="text-[11px] text-fog tabular mt-1">95% CI {fmt(row?.asr_lci)}–{fmt(row?.asr_uci)} per 100k</div>
+            <div className="text-[30px] font-bold leading-none mt-0.5">{row?.suppressed ? "<5 cases" : fmt(row?.asr)}</div>
+            <div className="text-[11px] text-fog tabular mt-1">{row?.suppressed ? "Suppressed for this period" : `95% CI ${fmt(row?.asr_lci)}–${fmt(row?.asr_uci)} per 100k`}</div>
           </div>
           <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-[11px] tabular ml-auto">
             <dt className="text-fog">Rank</dt><dd className="text-right font-semibold">#{rank ?? "—"} of {n}</dd>
@@ -52,7 +52,7 @@ export function DistrictPanel({ code, row, rank, n, spatial, facilities, events,
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2.5">
           <span className="chip bg-ridge2 text-mist"><span className="w-2 h-2 rounded-sm" style={{ background: rgbCss(lisaRgb(q)) }} aria-hidden />{LISA_LABEL[q] ?? q}{spatial?.lisa_p !== null && spatial?.lisa_p !== undefined && q !== "NS" ? ` · p ${fmt(spatial.lisa_p, 3)}` : ""}</span>
-          <span className="chip bg-ridge2 text-fog">Crude {fmt(row?.crude_rate)}</span>
+          {!row?.suppressed && <span className="chip bg-ridge2 text-fog">Crude {fmt(row?.crude_rate)}</span>}
           {row?.coverage_flag && <span className="chip bg-sorghum/15 text-sorghum">⚑ low EMR coverage</span>}
         </div>
       </header>

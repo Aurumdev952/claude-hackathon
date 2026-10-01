@@ -50,10 +50,13 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
     const pts = rows.filter((r) => r.outlier_flag !== "LOW_VOLUME" && r.hp_test_rate !== null);
     const lim = [...rows].filter((r) => r.n_dyspepsia >= 10).sort((a, b) => a.n_dyspepsia - b.n_dyspepsia);
     const target = 100 * (rows[0]?.target_rate ?? 0);
-    const xMax = Math.ceil((Math.max(...pts.map((p) => p.n_dyspepsia), 100) * 1.04) / 50) * 50;
+    const xMaxRaw = Math.max(...pts.map((p) => p.n_dyspepsia), 100);
+    const xMax = Math.ceil((xMaxRaw * 1.04) / 50) * 50;
     // label the most extreme outliers only (never a label on every point)
     const byZ = [...pts].sort((a, b) => zOf(a) - zOf(b));
-    const labelled = new Set([...byZ.slice(0, 3), ...byZ.slice(-3)].map((f) => f.location_id));
+    const selF = pts.find((p) => p.location_id === selected);
+    const near = (f: FacilityQ) => !!selF && Math.abs(f.n_dyspepsia - selF.n_dyspepsia) < xMaxRaw * 0.12 && Math.abs((f.hp_test_rate ?? 0) - (selF.hp_test_rate ?? 0)) < 0.08;
+    const labelled = new Set([...byZ.slice(0, 3), ...byZ.slice(-3)].filter((f) => !near(f)).map((f) => f.location_id));
     const limitLine = (key: keyof FacilityQ, name: string, dashed: boolean, label?: string) => ({
       name, type: "line", silent: true, showSymbol: false, z: 1,
       data: lim.map((r) => [r.n_dyspepsia, Math.max(0, Math.min(100, 100 * (r[key] as number)))]),

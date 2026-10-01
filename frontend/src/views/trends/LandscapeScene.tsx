@@ -135,7 +135,7 @@ function Frame({ years, ages, zTicks, youngFrom, H }: { years: number[]; ages: s
           <span className={`${lab} ${i < youngFrom ? "text-[#f2c06b]" : "text-[#8696a2]"}`}>{a}</span>
         </Html>
       ))}
-      <Html position={[W / 2 + 1.5, 0, (-D / 2 + youngEnd) / 2]} center zIndexRange={[5, 0]}>
+      <Html position={[W / 2 + 0.35, 0, (-D / 2 + youngEnd) / 2]} center style={{ transform: "translateX(calc(40% + 46px))" }} zIndexRange={[5, 0]}>
         <span className={`${lab} text-[#f2c06b] font-semibold uppercase tracking-[0.12em] text-[10px] border-l border-[#f2c06b]/60 pl-1.5`}>Under 50</span>
       </Html>
     </group>
