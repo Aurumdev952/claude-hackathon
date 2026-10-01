@@ -49,7 +49,8 @@ export function BodyStage({ data, bottomLeft }: { data: CaseData; bottomLeft?: R
         </Suspense>
       ) : null}
 
-      <div className="absolute inset-0 pointer-events-none p-3 flex flex-col gap-3">
+      {/* overlays sit above the organ labels (drei Html, z-index 0-20) so labels never cover the controls */}
+      <div className="absolute inset-0 z-[25] pointer-events-none p-3 flex flex-col gap-3">
         <div className="flex items-start gap-3">
           <PatientChip data={data} />
           <div className="flex-1" />
@@ -67,7 +68,7 @@ export function BodyStage({ data, bottomLeft }: { data: CaseData; bottomLeft?: R
         <ReplayBar data={data} />
       </div>
       <FocusBanner />
-      <a href="/models/CREDITS.md" target="_blank" rel="noreferrer" className="absolute bottom-[3px] right-4 whitespace-nowrap text-[9px] text-fg-muted/70 hover:text-fg z-10">
+      <a href="/models/CREDITS.md" target="_blank" rel="noreferrer" className="absolute bottom-[3px] right-4 whitespace-nowrap text-[9px] text-fg-muted/70 hover:text-fg z-30">
         Anatomy: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D, DBCLS (CC BY-SA 2.1 JP)
       </a>
       <DetailModal {...table.modalProps} title="Organ involvement" icon={<Table2 size={18} />} size="3xl"
@@ -136,7 +137,7 @@ function FocusBanner() {
   const hovered = useCaseUI((s) => s.hoveredOrgan);
   const text = label ?? (hovered ? labelOf(hovered) : null);
   return (
-    <div className="absolute top-[64px] left-1/2 -translate-x-1/2 z-10 pointer-events-none" role="status">
+    <div className="absolute top-[64px] left-1/2 -translate-x-1/2 z-30 pointer-events-none" role="status">
       <AnimatePresence>
         {text && (
           <motion.div key={text} initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }}
