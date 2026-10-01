@@ -14,7 +14,7 @@ PY := PYTHONPATH=. uv run python
 SNAP := data/snapshots/latest
 MYSQL_CLI = mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_ROOT_PASSWORD)
 .PHONY: setup seed seed-full load snapshot restore bootstrap pipeline-once train up down up-docker down-docker demo \
-        reset-demo test test-insights test-fast e2e frontend api sim lint generate doctor reproduce reproduce-no-mysql verify serve
+        reset-demo test test-insights test-fast e2e frontend api sim lint generate doctor reproduce reproduce-no-mysql verify serve dev-data agent-setup agent-dev agent-build agent-test agent-smoke eval-agent report validate-cases
 
 setup:                      ## toolchains + deps (run before the event, on good internet)
 	uv sync --all-extras
@@ -47,6 +47,11 @@ reproduce-no-mysql:         ## same, without MySQL (dashboard only, no live loop
 verify:                     ## published results vs the reference run (docs/reference_results.json), then all Python tests
 	$(PY) scripts/verify_results.py
 	PYTHONPATH=. uv run pytest
+
+dev-data:                   ## small MySQL-free dev dataset: generate (SCALE, default 0.1) -> bootstrap -> train (~15 min on 4 cores)
+	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1)
+	$(MAKE) bootstrap
+	$(MAKE) train
 
 generate:                   ## synthetic EMR at SCALE -> data/bulk (Parquet) + data/ground_truth.json, no MySQL
 	$(PY) -m generator --scale $(SCALE)
@@ -96,7 +101,8 @@ serve:                      ## API + dashboard only (no MySQL needed; logs in lo
 	mkdir -p logs
 	setsid nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
 	setsid nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
-	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs"
+	-test -d agent/node_modules && (setsid nohup $(MAKE) agent-dev > logs/agent.log 2>&1 & echo $$! > logs/agent.pid)
+	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs   agent: http://localhost:8787/agent/health"
 
 up:                         ## simulator + pipeline scheduler + API + frontend (native, background, logs in logs/); stop with make down
 	mkdir -p logs
@@ -132,6 +138,31 @@ test-insights:              ## ground-truth recovery only
 
 test-fast:
 	PYTHONPATH=. uv run pytest tests/pipeline tests/api
+
+agent-setup:                ## install the AI agent (agent/) and its Python sandbox venv
+	cd agent && pnpm install
+	uv sync --project agent/sandbox
+
+agent-dev:                  ## run the AI agent (Hono :8787) with reload
+	cd agent && pnpm dev
+
+agent-build:
+	cd agent && pnpm build
+
+agent-test:                 ## agent unit tests (guardrails, tools, repo, sandbox)
+	cd agent && pnpm test
+
+agent-smoke:                ## one doctor + one ministry question against a running agent (AGENT_URL)
+	cd agent && pnpm smoke
+
+eval-agent:                 ## DeepEval gate against a running agent (AGENT_URL=http://localhost:8787)
+	PYTHONPATH=. uv run --extra eval pytest evals/agent -q -p no:cacheprovider
+
+report:                     ## today's 1-page PDF (reports/daily/<date>.pdf)
+	$(PY) scripts/daily_report.py --check
+
+validate-cases:             ## newest HIGH-risk cases not yet validated, as JSON (used by /validate-risk)
+	$(PY) scripts/risk_validation.py cases --limit $(or $(N),5)
 
 e2e:                        ## Playwright journeys (API on :8000 and Vite on :5173 must be running)
 	cd frontend && npx playwright test
