@@ -15,6 +15,8 @@ MONTHS = list(range(-24, 0))   # events are strictly before the index date
 
 
 def _matched_sets(con, n_controls: int, seed: int = 42) -> pd.DataFrame:
+    """Incidence-density sampling with a 12-month lag: a control must stay free of a gastric cancer diagnosis for a year
+    after the index date, so patients already in their own prodrome are not counted as "controls" (D-27)."""
     cases = con.execute("""SELECT c.patient_id, c.dx_date AS idx, c.sex, p.birthdate, c.province_code, year(g.entry_date) AS ey
                            FROM core_gc_case c JOIN core_dim_patient p USING (patient_id) JOIN core_gi_cohort g USING (patient_id)
                            WHERE c.dx_date >= DATE '2016-06-01'""").df()
@@ -39,10 +41,10 @@ def _matched_sets(con, n_controls: int, seed: int = 42) -> pd.DataFrame:
         cbd = pd.Timestamp(c.birthdate)
         m = g[(g["patient_id"] != c.patient_id) & ((g["bd"] - cbd).abs() <= pd.Timedelta(days=int(5 * 365.25)))
               & (g["ey"] == c.ey) & (g["entry_date"] <= idx)
-              & (g["dx_date"].isna() | (g["dx_date"] > idx)) & (g["death_date"].isna() | (g["death_date"] > idx))]
+              & (g["dx_date"].isna() | (g["dx_date"] > idx + pd.Timedelta(days=365))) & (g["death_date"].isna() | (g["death_date"] > idx))]
         if len(m) < n_controls:  # relax the entry-year match when the risk set is small
             m = g[(g["patient_id"] != c.patient_id) & ((g["bd"] - cbd).abs() <= pd.Timedelta(days=int(5 * 365.25)))
-                  & (g["entry_date"] <= idx) & (g["dx_date"].isna() | (g["dx_date"] > idx))
+                  & (g["entry_date"] <= idx) & (g["dx_date"].isna() | (g["dx_date"] > idx + pd.Timedelta(days=365)))
                   & (g["death_date"].isna() | (g["death_date"] > idx))]
         if len(m) == 0:
             continue

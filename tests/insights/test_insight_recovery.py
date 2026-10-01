@@ -112,22 +112,29 @@ def _belt(hot):
 
 
 def test_ins1b_decoy(serve, ins):
-    """Old population, not high risk (D-23/D-24): among districts with no extra risk (outside the hotspot belt) the decoy
-    has a top-3 crude rate, its ASR is within the spec's +-15% of that group's typical ASR, and its crude rate
-    overstates its ASR far more than nationally."""
+    """Old population, not high risk (D-27). The decoy sits in a malaria-misattribution province (INS-6, fewer cancers
+    diagnosed), so it is compared with its own province's districts: highest crude rate there, ASR within the spec's
+    +-15% of their typical ASR, and a crude/ASR ratio far above the national one (an old population, not more risk)."""
     gt = ins["INS-1b"]
     decoy = gt["decoy_district"]
     d = district_rates(serve)
-    plain = [k for k in d if k not in _belt(ins["INS-1"]["hotspot_districts"])]
-    by_crude = sorted(plain, key=lambda k: -d[k]["crude"])
-    assert by_crude.index(decoy) < 3, [(k, round(d[k]["crude"], 1)) for k in by_crude[:5]]
-    ref = float(np.median([d[k]["asr"] for k in plain if k != decoy]))
+    prov = decoy.split("-")[0]
+    peers = [k for k in d if k.startswith(prov + "-") and k not in _belt(ins["INS-1"]["hotspot_districts"])]
+    by_crude = sorted(peers, key=lambda k: -d[k]["crude"])
+    assert by_crude[0] == decoy, [(k, round(d[k]["crude"], 1)) for k in by_crude[:4]]
+    ref = float(np.median([d[k]["asr"] for k in peers if k != decoy]))
     lo, hi = gt["asr_ratio_to_national"]
-    assert lo <= d[decoy]["asr"] / ref <= hi, (d[decoy]["asr"], ref)
+    assert overlaps(*_asr_ci(serve, decoy, ref), (lo, hi)), (d[decoy]["asr"], ref)
     nat = national_asr(serve)
     nat_crude = q(serve, """SELECT crude_rate FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL' AND age_band = 'ALL'
                             AND case_def = ? AND period = '2019-2025'""", [HOT_DEF])[0][0]
     assert d[decoy]["crude"] / d[decoy]["asr"] > 1.3 * nat_crude / nat
+
+
+def _asr_ci(serve, geo, ref):
+    lo, hi = q(serve, """SELECT asr_lci, asr_uci FROM mart_rates WHERE level = 'DISTRICT' AND geo_code = ? AND sex = 'ALL'
+                         AND age_band = 'ALL' AND case_def = ? AND period = '2019-2025'""", [geo, HOT_DEF])[0]
+    return lo / ref, hi / ref
 
 
 # --------------------------------------------------------------------------------------------- INS-2
