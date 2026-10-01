@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable } from "@/components/ui/Panel";
+import { DataTable } from "@/components/ui";
 import { fmt, int } from "@/lib/format";
 import { Legend, tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "./kit";
 import { PROVINCE, TIER_LABEL, type KmRow, type SurvSummary } from "./types";
@@ -121,7 +121,7 @@ export function RiskTable({ rows, gv, summary }: { rows: KmRow[]; gv: GroupVar; 
   };
   return (
     <div className="text-[11px] tabular" role="table" aria-label="Numbers at risk">
-      <div className="flex items-end border-b border-line/50 pb-1 mb-1 text-[10px] uppercase tracking-wider text-fog" role="row">
+      <div className="flex items-end border-b border-border/70 pb-1 mb-1 text-[10px] uppercase tracking-wider text-fg-muted" role="row">
         <div style={{ width: GRID.left }} className="shrink-0" role="columnheader">Number at risk</div>
         <div className="relative flex-1 h-3">{RISK_T.map((t) => (
           <span key={t} role="columnheader" className="absolute -translate-x-1/2" style={{ left: `${(t / MO / 60) * 100}%` }}>{Math.round(t / MO / 12) * 12}</span>))}</div>
@@ -136,10 +136,10 @@ export function RiskTable({ rows, gv, summary }: { rows: KmRow[]; gv: GroupVar; 
               <span className="w-3.5 h-[2px] rounded shrink-0" style={{ background: colors[g] }} aria-hidden /><span className="truncate">{name(g)}</span>
             </div>
             <div className="relative flex-1 h-full">{RISK_T.map((t) => (
-              <span key={t} role="cell" className="absolute top-0.5 -translate-x-1/2 text-mist" style={{ left: `${(t / MO / 60) * 100}%` }}>{at(g, t) ?? "—"}</span>))}</div>
+              <span key={t} role="cell" className="absolute top-0.5 -translate-x-1/2 text-fg" style={{ left: `${(t / MO / 60) * 100}%` }}>{at(g, t) ?? "—"}</span>))}</div>
             <div style={{ width: GRID.right }} className="shrink-0 grid grid-cols-2 text-right pl-3" role="cell">
               <span className="font-semibold">{s ? `${fmt(100 * s.surv_1y, 0)}%` : "—"}</span>
-              <span className="text-fog">{s?.median_surv_days ? `${fmt(s.median_surv_days / MO, 1)} mo` : "—"}</span>
+              <span className="text-fg-muted">{s?.median_surv_days ? `${fmt(s.median_surv_days / MO, 1)} mo` : "—"}</span>
             </div>
           </div>
         );

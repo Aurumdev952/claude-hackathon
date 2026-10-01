@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
-import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, GitCommitHorizontal } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
-import { ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { Card, chartDetailTabs, InfoHint, Loading, StatusChip } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import type { Joinpoint, Segment } from "@/api/types";
 import { fmt, int, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";
@@ -21,10 +22,10 @@ export function jpLabel(id: string, names: Record<string, string>) {
 }
 
 export function TrendChip({ s }: { s: Pick<Segment, "apc" | "significant"> }) {
-  if (!s.significant) return <span className="chip bg-ridge2 text-fog"><ArrowRight size={11} aria-hidden /> Not significant</span>;
+  if (!s.significant) return <StatusChip status="neutral" icon={<ArrowRight size={11} aria-hidden />} label="Not significant" />;
   return s.apc > 0
-    ? <span className="chip bg-sorghum/15 text-sorghum"><ArrowUpRight size={11} aria-hidden /> Rising</span>
-    : <span className="chip bg-tea/15 text-tea"><ArrowDownRight size={11} aria-hidden /> Falling</span>;
+    ? <StatusChip status="serious" icon={<ArrowUpRight size={11} aria-hidden />} label="Rising" />
+    : <StatusChip status="good" icon={<ArrowDownRight size={11} aria-hidden />} label="Falling" />;
 }
 
 export function JoinpointPanel() {
@@ -50,33 +51,44 @@ export function JoinpointPanel() {
     return [{ label: "National", ids: nat }, { label: "Provinces", ids: prov }, { label: "Districts", ids: dist }];
   }, [avail]);
 
+  const method = "ln(ASR) = β0 + β1·year + Σ δk·(year − τk)+, weighted least squares (weights 1/Var(ln ASR)). 0–2 joinpoints at integer years, exhaustive grid search, weighted BIC selects the model. APC = 100·(e^slope − 1) with t-based 95% CI; AAPC = duration-weighted mean slope over the last 10 years.";
+  const last = jp?.segments[jp.segments.length - 1];
   return (
-    <Panel
-      title="Joinpoint regression"
-      subtitle={<span className="flex items-center gap-2 flex-wrap">
-        <select className="bg-ridge2 border border-line rounded px-1.5 py-0.5 text-mist text-xs max-w-[260px]" value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Joinpoint series">
+    <Card
+      title="Joinpoint regression" icon={<GitCommitHorizontal size={16} />}
+      info={{ about: "Log-linear segments fitted to the annual ASR; the current partial year is excluded. Pick any fitted national, province or district series.", method,
+              notes: jp ? `${jp.n_joinpoints ?? 0} joinpoint${jp.n_joinpoints === 1 ? "" : "s"} selected by weighted BIC. * = 95% CI excludes 0.` : undefined }}
+      detail={jp ? { tabs: chartDetailTabs({ table: <SegTable jp={jp} />, method }), defaultTab: "table" } : undefined} detailLabel="View as table"
+      actions={
+        <select className="bg-surface-2 border border-border rounded-full pl-3 pr-2 h-8 text-fg text-xs max-w-[220px] outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer" value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Joinpoint series">
           {!fitted && <option value={sel}>{jpLabel(sel, names)} (not fitted)</option>}
           {groups.map((g) => <optgroup key={g.label} label={g.label}>{g.ids.map((id) => <option key={id} value={id}>{jpLabel(id, names)}</option>)}</optgroup>)}
         </select>
-        <span>Log-linear segments, annual ASR, current partial year excluded.</span>
-      </span>}
-      method="ln(ASR) = β0 + β1·year + Σ δk·(year − τk)+, weighted least squares (weights 1/Var(ln ASR)). 0–2 joinpoints at integer years, exhaustive grid search, weighted BIC selects the model. APC = 100·(e^slope − 1) with t-based 95% CI; AAPC = duration-weighted mean slope over the last 10 years."
-      table={jp ? <SegTable jp={jp} /> : undefined}
+      }
     >
       {!fitted && list.data ? (
-        <Empty h={300}>Joinpoint is fitted each run for national series (all ages, men, women, &lt;50, 50–64, 65+), every province and every district (all ages, confirmed + probable).<br />Pick one from the list above.</Empty>
+        <Empty h={300}><span className="inline-flex items-center gap-1">Not fitted for this series
+          <InfoHint content="Joinpoint is fitted each run for national series (all ages, men, women, <50, 50–64, 65+), every province and every district (all ages, confirmed + probable). Pick one from the list." label="About fitted series" /></span></Empty>
       ) : q.error ? <ErrorNote error={q.error} /> : !jp ? <Loading h={300} /> : (
         <>
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+            {jp.segments.map((sg) => (
+              <span key={sg.segment_no} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 border border-border/70 pl-2.5 pr-1 py-0.5 text-[12px] tabular"
+                    title={`${sg.start_year}–${sg.end_year}: APC ${signed(sg.apc, 1, "%")} [${fmt(sg.apc_lci, 1)}, ${fmt(sg.apc_uci, 1)}]`}>
+                <span className="text-fg-muted">{sg.start_year}–{String(sg.end_year).slice(2)}</span><b>{signed(sg.apc, 1, "%")}</b><TrendChip s={sg} />
+              </span>
+            ))}
+            {last && jp.aapc_last10.value !== null && <span className="text-micro text-fg-muted tabular ml-auto">AAPC 10 y <b className="text-fg">{signed(jp.aapc_last10.value, 1, "%")}</b></span>}
+          </div>
           <JpChart jp={jp} color={color} />
-          <div className="flex items-center gap-3 flex-wrap mt-1 mb-2">
-            <Key color={color} kind="dot" label="Observed ASR ± 95% CI" />
+          <div className="flex items-center gap-3 flex-wrap mt-1">
+            <Key color={color} kind="dot" label="Observed ± 95% CI" />
             <Key color={color} label="Fitted segments" />
             <Key color={pal.ink.muted} label="Joinpoint" />
           </div>
-          <SegTable jp={jp} />
         </>
       )}
-    </Panel>
+    </Card>
   );
 }
 
@@ -142,7 +154,7 @@ function JpChart({ jp, color }: { jp: Joinpoint; color: string }) {
       ],
     } as EChartsOption;
   }, [jp, color, pal]);
-  return <EChart option={option} height={250} ariaLabel={`Joinpoint fit for ${jp.series_id}`} />;
+  return <EChart option={option} height={318} ariaLabel={`Joinpoint fit for ${jp.series_id}`} />;
 }
 
 function niceCeil(v: number, cap: number) {
@@ -157,28 +169,28 @@ function SegTable({ jp }: { jp: Joinpoint }) {
   return (
     <table className="w-full text-xs tabular">
       <thead>
-        <tr className="text-fog border-b border-line">
+        <tr className="text-micro text-fg-muted border-b border-border">
           <th className="text-left font-semibold py-1.5 pr-2">Segment</th><th className="text-left font-semibold">Years</th>
           <th className="text-right font-semibold">APC</th><th className="text-right font-semibold pr-3">95% CI</th><th className="text-left font-semibold">Trend</th>
         </tr>
       </thead>
       <tbody>
         {jp.segments.map((s) => (
-          <tr key={s.segment_no} className="border-b border-line/40">
+          <tr key={s.segment_no} className="border-b border-border/70">
             <td className="py-1.5">{s.segment_no}</td><td>{s.start_year}–{s.end_year}</td>
             <td className="text-right font-semibold">{signed(s.apc, 1, "%")}</td>
-            <td className="text-right text-fog pr-3">[{fmt(s.apc_lci, 1)}, {fmt(s.apc_uci, 1)}]</td>
+            <td className="text-right text-fg-muted pr-3">[{fmt(s.apc_lci, 1)}, {fmt(s.apc_uci, 1)}]</td>
             <td><TrendChip s={s} /></td>
           </tr>
         ))}
-        <tr className="bg-ridge2/40">
+        <tr className="bg-surface-2">
           <td className="py-1.5 font-semibold" colSpan={2}>AAPC, last 10 years</td>
           <td className="text-right font-semibold">{signed(a.value, 1, "%")}</td>
-          <td className="text-right text-fog pr-3">[{fmt(a.lci, 1)}, {fmt(a.uci, 1)}]</td>
+          <td className="text-right text-fg-muted pr-3">[{fmt(a.lci, 1)}, {fmt(a.uci, 1)}]</td>
           <td>{a.value !== null && <TrendChip s={{ apc: a.value, significant: aSig }} />}</td>
         </tr>
       </tbody>
-      <caption className="caption-bottom text-left text-[10.5px] text-fog pt-1.5">
+      <caption className="caption-bottom text-left text-micro text-fg-muted pt-1.5">
         {jp.n_joinpoints ?? 0} joinpoint{jp.n_joinpoints === 1 ? "" : "s"} selected by weighted BIC. * 95% CI excludes 0.
       </caption>
     </table>

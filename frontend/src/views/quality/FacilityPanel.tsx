@@ -1,7 +1,10 @@
 import { useMemo } from "react";
+import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
+import { AnimatedNumber, DeltaChip, StatTile, StatusChip } from "@/components/ui";
+import { EASE } from "@/lib/motion";
 import { fmt, int, pct } from "@/lib/format";
-import { cleanName, usePalette } from "./kit";
+import { cleanName, Empty, usePalette } from "./kit";
 import { FACILITY_TYPE, PROVINCE, TIER_LABEL, type FacilityQ } from "./types";
 import { FlagChip, tierColor, type TierMode } from "./FunnelPlot";
 
@@ -21,51 +24,39 @@ export function FacilityPanel({ rows, selected, onSelect, tierMode }: {
   }, [rows]);
   return (
     <div className="flex flex-col gap-3 h-full">
-      <label className="flex flex-col gap-1 text-[11px] text-fog">
-        <span className="panel-title">Facility</span>
-        <select className="bg-ridge2 border border-line rounded-md px-2 py-1.5 text-sm text-mist w-full" value={selected ?? ""}
-                onChange={(e) => onSelect(Number(e.target.value))} aria-label="Select facility">
-          {!f && <option value="">Click a dot or choose…</option>}
-          {options.map((o) => <option key={o.location_id} value={o.location_id}>{cleanName(o.name)}</option>)}
-        </select>
-      </label>
-      {!f ? <div className="text-xs text-fog">Click any dot on the funnel plot to see that facility's testing and outcomes.</div> : (
-        <div className="flex flex-col gap-3 animate-rise" key={f.location_id}>
+      <select className="bg-surface-2 border border-border rounded-full px-3 h-9 text-[13px] text-fg w-full outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer" value={selected ?? ""}
+              onChange={(e) => onSelect(Number(e.target.value))} aria-label="Select facility">
+        {!f && <option value="">Click a dot or choose…</option>}
+        {options.map((o) => <option key={o.location_id} value={o.location_id}>{cleanName(o.name)}</option>)}
+      </select>
+      {!f ? <Empty h={200}>Click a dot on the funnel plot.</Empty> : (
+        <motion.div className="flex flex-col gap-3" key={f.location_id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }}>
           <div>
-            <h3 className="text-base font-semibold leading-tight">{cleanName(f.name)}</h3>
-            <div className="text-xs text-fog flex items-center gap-1 mt-0.5"><MapPin size={11} aria-hidden />
+            <h3 className="text-[16px] font-semibold leading-tight">{cleanName(f.name)}</h3>
+            <div className="text-micro text-fg-muted flex items-center gap-1 mt-0.5"><MapPin size={11} aria-hidden />
               {FACILITY_TYPE[f.facility_type] ?? f.facility_type} · {f.district_code} · {PROVINCE[f.province_code] ?? f.province_code}</div>
-            <div className="mt-2"><FlagChip flag={f.outlier_flag} /></div>
+            <div className="mt-2 flex flex-wrap gap-1.5"><FlagChip flag={f.outlier_flag} />{f.n_cases < 20 && <StatusChip status="neutral" label="Small numbers" title="Fewer than 20 cancers first presented here, so stage and interval figures are imprecise." />}</div>
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-semibold tabular">{pct(f.hp_test_rate, 0, 100)}</span>
-              <span className="text-xs text-fog">tested · {int(f.n_hp_tested)} of {int(f.n_dyspepsia)}</span>
+            <div className="flex items-baseline gap-1.5">
+              <AnimatedNumber value={f.hp_test_rate === null ? null : 100 * f.hp_test_rate} format={(n) => `${Math.round(n)}%`} className="text-display tabular" />
+              <span className="text-label text-fg-muted tabular">{int(f.n_hp_tested)} / {int(f.n_dyspepsia)} tested</span>
             </div>
-            <div className="text-xs text-fog">national {pct(f.target_rate, 0, 100)} · gap <b className="text-mist tabular">{f.hp_test_rate === null ? "—" : `${(100 * (f.hp_test_rate - f.target_rate)) > 0 ? "+" : ""}${fmt(100 * (f.hp_test_rate - f.target_rate), 0)} pts`}</b></div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <DeltaChip delta={{ text: f.hp_test_rate === null ? "—" : `${fmt(100 * (f.hp_test_rate - f.target_rate), 0)} pts vs national ${pct(f.target_rate, 0, 100)}`,
+                dir: f.hp_test_rate === null ? 0 : f.hp_test_rate > f.target_rate ? 1 : -1, tone: f.hp_test_rate === null ? "neutral" : f.hp_test_rate >= f.target_rate ? "good" : "bad" }} />
+            </div>
             <Bullet f={f} color={tierColor(f[tierMode], S, k.muted)} />
           </div>
-          <dl className="grid grid-cols-2 gap-2 text-xs">
-            <Fact k="Cancers first seen here" v={int(f.n_cases)} sub={f.n_cases < 20 ? "small numbers" : undefined} />
-            <Fact k="Stage IV (known stage)" v={f.pct_stage4 === null ? "—" : `${fmt(f.pct_stage4, 0)}%`} sub={`all facilities ${fmt(national.stage4, 0)}%`} />
-            <Fact k="Median diagnostic interval" v={f.median_diag_interval === null ? "—" : `${fmt(f.median_diag_interval / 30.44, 1)} mo`} sub={`facility median ${fmt((national.interval ?? 0) / 30.44, 1)} mo`} />
-            <Fact k="Testing tier" v={<span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: tierColor(f.tier, S, k.muted) }} />{f.tier ?? "—"}</span>}
-                  sub={f.derived_tier && f.derived_tier !== f.tier ? `observed tertile: ${f.derived_tier}` : "matches observed tertile"} />
-          </dl>
-          {f.n_cases < 20 && <p className="text-[11px] text-fog leading-snug">Fewer than 20 cancers first presented here, so stage and interval figures are imprecise.</p>}
-          <p className="text-[10px] text-fog leading-snug">{TIER_LABEL[f.tier ?? ""] ?? ""} facility · synthetic data.</p>
-        </div>
+          <div className="grid grid-cols-2 gap-2">
+            <StatTile label="Cancers first seen" value={f.n_cases} />
+            <StatTile label="Stage IV" value={f.pct_stage4 === null ? "—" : `${fmt(f.pct_stage4, 0)}%`} info={`Share of known-stage cancers. All facilities: ${fmt(national.stage4, 0)}%.`} />
+            <StatTile label="Diagnostic interval" value={f.median_diag_interval === null ? "—" : fmt(f.median_diag_interval / 30.44, 1)} unit="mo" info={`Median, first GI symptom → diagnosis. Facility median: ${fmt((national.interval ?? 0) / 30.44, 1)} mo.`} />
+            <StatTile label="Testing tier" value={<span className="inline-flex items-center gap-1.5 capitalize"><span className="w-2.5 h-2.5 rounded-full" style={{ background: tierColor(f.tier, S, k.muted) }} />{f.tier ?? "—"}</span>}
+                      info={`${TIER_LABEL[f.tier ?? ""] ?? "Unknown"} facility. ${f.derived_tier && f.derived_tier !== f.tier ? `Observed tertile: ${f.derived_tier}.` : "Matches the observed tertile."}`} />
+          </div>
+        </motion.div>
       )}
-    </div>
-  );
-}
-
-function Fact({ k, v, sub }: { k: string; v: React.ReactNode; sub?: string }) {
-  return (
-    <div className="rounded-lg bg-ridge2/50 border border-line/50 px-2.5 py-2">
-      <dt className="text-[10px] uppercase tracking-wider text-fog">{k}</dt>
-      <dd className="text-sm font-semibold tabular mt-0.5">{v}</dd>
-      {sub && <dd className="text-[10px] text-fog">{sub}</dd>}
     </div>
   );
 }
@@ -78,12 +69,12 @@ function Bullet({ f, color }: { f: FacilityQ; color: string }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full mt-2" style={{ height: H }} role="img"
          aria-label={`Testing rate ${pct(r, 0, 100)} against 95% limits ${pct(f.funnel_lower95, 0, 100)} to ${pct(f.funnel_upper95, 0, 100)}`}>
       <title>{`${pct(r, 1, 100)} vs national ${pct(f.target_rate, 1, 100)}; 95% limits ${pct(f.funnel_lower95, 1, 100)}–${pct(f.funnel_upper95, 1, 100)}, 99.8% limits ${pct(f.funnel_lower998, 1, 100)}–${pct(f.funnel_upper998, 1, 100)}`}</title>
-      <line x1={pad} x2={W - pad} y1={14} y2={14} stroke="rgb(var(--line))" strokeWidth={1} />
-      <rect x={x(f.funnel_lower998)} width={x(f.funnel_upper998) - x(f.funnel_lower998)} y={8} height={12} rx={2} fill="rgb(var(--fog))" opacity={0.18} />
-      <rect x={x(f.funnel_lower95)} width={x(f.funnel_upper95) - x(f.funnel_lower95)} y={8} height={12} rx={2} fill="rgb(var(--fog))" opacity={0.28} />
-      <line x1={x(f.target_rate)} x2={x(f.target_rate)} y1={5} y2={23} stroke="rgb(var(--mist))" strokeWidth={1.5} />
-      <circle cx={x(r)} cy={14} r={5} fill={color} stroke="rgb(var(--ridge))" strokeWidth={2} />
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => <text key={t} x={x(t)} y={H - 3} fontSize={9} fill="rgb(var(--fog))" textAnchor={t === 0 ? "start" : t === 1 ? "end" : "middle"}>{t * 100}%</text>)}
+      <line x1={pad} x2={W - pad} y1={14} y2={14} stroke="rgb(var(--border))" strokeWidth={1} />
+      <rect x={x(f.funnel_lower998)} width={x(f.funnel_upper998) - x(f.funnel_lower998)} y={8} height={12} rx={2} fill="rgb(var(--fg-muted))" opacity={0.18} />
+      <rect x={x(f.funnel_lower95)} width={x(f.funnel_upper95) - x(f.funnel_lower95)} y={8} height={12} rx={2} fill="rgb(var(--fg-muted))" opacity={0.28} />
+      <line x1={x(f.target_rate)} x2={x(f.target_rate)} y1={5} y2={23} stroke="rgb(var(--fg))" strokeWidth={1.5} />
+      <circle cx={x(r)} cy={14} r={5} fill={color} stroke="rgb(var(--surface))" strokeWidth={2} />
+      {[0, 0.25, 0.5, 0.75, 1].map((t) => <text key={t} x={x(t)} y={H - 3} fontSize={9} fill="rgb(var(--fg-muted))" textAnchor={t === 0 ? "start" : t === 1 ? "end" : "middle"}>{t * 100}%</text>)}
     </svg>
   );
 }

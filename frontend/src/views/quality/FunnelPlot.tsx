@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AlertOctagon, AlertTriangle, ArrowUpCircle, CheckCircle2, CircleDashed, MinusCircle } from "lucide-react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable } from "@/components/ui/Panel";
+import { DataTable, StatusChip, type StatusKind } from "@/components/ui";
 import { STATUS } from "@/lib/viz";
 import { fmt, int, pct } from "@/lib/format";
 import { Legend, cleanName, tooltip, ttHead, ttNote, ttRow, usePalette, xAxis, yAxis } from "./kit";
@@ -31,14 +31,10 @@ export const FLAG: Record<string, { label: string; short: string; status?: keyof
   LOW_VOLUME: { label: "Too few dyspepsia patients (< 10) to judge", short: "Low volume", Icon: CircleDashed },
 };
 
-export function FlagChip({ flag }: { flag: string }) {
+const FLAG_STATUS: Record<string, StatusKind> = { LOW_OUTLIER: "critical", low: "warning", within: "neutral", high: "good", HIGH_OUTLIER: "good", LOW_VOLUME: "neutral" };
+export function FlagChip({ flag, short = false }: { flag: string; short?: boolean }) {
   const f = FLAG[flag] ?? FLAG.within;
-  const c = f.status ? STATUS[f.status] : undefined;
-  return (
-    <span className="chip" style={c ? { background: `${c}22`, color: c, boxShadow: `inset 0 0 0 1px ${c}55` } : undefined}>
-      <f.Icon size={11} aria-hidden /> <span className={c ? "" : "text-fog"}>{f.label}</span>
-    </span>
-  );
+  return <StatusChip status={FLAG_STATUS[flag] ?? "neutral"} icon={<f.Icon size={11} aria-hidden />} label={short ? f.short : f.label} title={f.label} />;
 }
 
 /** SPEC §12.7 funnel plot: HP testing proportion vs dyspepsia volume, exact binomial 95% / 99.8% limits around the national rate. */
@@ -139,7 +135,7 @@ export function FunnelTable({ rows, onSelect }: { rows: FacilityQ[]; onSelect: (
   const sorted = [...rows].sort((a, b) => (a.hp_test_rate ?? 0) - (b.hp_test_rate ?? 0));
   return (
     <DataTable rows={sorted} columns={[
-      { key: "name", label: "Facility", fmt: (v, r) => <button className="text-left hover:text-kivu hover:underline" onClick={() => onSelect(r.location_id)}>{cleanName(v)}</button> },
+      { key: "name", label: "Facility", fmt: (v, r) => <button className="text-left hover:text-accent hover:underline" onClick={() => onSelect(r.location_id)}>{cleanName(v)}</button> },
       { key: "district_code", label: "District" },
       { key: "tier", label: "Tier" },
       { key: "derived_tier", label: "Derived", fmt: (v) => v ?? "—" },

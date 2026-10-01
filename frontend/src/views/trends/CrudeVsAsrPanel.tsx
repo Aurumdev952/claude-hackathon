@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel, Seg } from "@/components/ui/Panel";
+import { Scale } from "lucide-react";
+import { AnimatedNumber, Card, chartDetailTabs, DataTable, DeltaChip, Loading, Seg } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
 import { useFilters } from "@/state/filters";
-import { bandSeries, Key, tipHead, tipNote, tipRow, usePalette, chartBase } from "./kit";
+import { bandSeries, Empty, Key, tipHead, tipNote, tipRow, usePalette, chartBase } from "./kit";
 import { AGE_LABEL, SEX_LABEL, useNationalRates } from "./api";
 
 type Row = { year: number; cases: number; py: number; asr: number; lci: number; uci: number; low: boolean };
@@ -98,53 +100,57 @@ export function CrudeVsAsrPanel() {
   }, [rows, view, by, pal]);
 
   const ratio = (a?: number, b?: number) => (a && b ? b / a : null);
+  const method = "Recorded cases only exist where a facility is live on the EMR, so counts grow as facilities go live. The ASR divides by person-years in the catchment of live facilities and standardises age, which removes the roll-out artefact. Indexed view: every measure divided by its base-year value (log scale so equal ratios look equal). Current partial year excluded.";
+  const table = <DataTable columns={[{ key: "year", label: "Year", num: true }, { key: "cases", label: "Cases", num: true, fmt: int }, { key: "py", label: "Person-years", num: true, fmt: int },
+    { key: "asr", label: "ASR", num: true, fmt: (v) => fmt(v, 1) }, { key: "ci", label: "95% CI", num: true }, { key: "low", label: "Coverage", fmt: (v) => (v ? "low" : "") }]}
+    rows={rows.map((r) => ({ ...r, ci: `${fmt(r.lci, 1)}–${fmt(r.uci, 1)}` }))} />;
   return (
-    <Panel
-      title="Crude counts vs age-standardised rate"
-      subtitle={<>National{who ? ` · ${who}` : ""}. Recorded cases follow the EMR roll-out; the rate per person-year does not.</>}
-      method="Recorded cases only exist where a facility is live on the EMR, so counts grow as facilities go live. The ASR divides by person-years in the catchment of live facilities and standardises age, which removes the roll-out artefact. Indexed view: every measure divided by its base-year value (log scale so equal ratios look equal). Current partial year excluded."
-      actions={<div className="flex items-center gap-2">
+    <Card
+      title="Crude counts vs age-standardised rate" icon={<Scale size={16} />}
+      info={{ about: <>National{who ? ` · ${who}` : ""}. Recorded cases follow the EMR roll-out; the rate per person-year does not.</>, method,
+              notes: "Counting raw cases would have told a scary but false story: the extra cases are new facilities joining the EMR, not more cancer." }}
+      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
+      actions={<>
+        {view === "index" && years.length > 1 && (
+          <label className="flex items-center gap-1.5 text-label text-fg-muted">Base
+            <select className="bg-surface-2 border border-border rounded-full pl-2.5 pr-1.5 h-8 text-fg text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer" value={by} onChange={(e) => setBaseYear(+e.target.value)} aria-label="Base year">
+              {years.slice(0, -1).map((y) => <option key={y}>{y}</option>)}
+            </select>
+          </label>
+        )}
         <Seg label="View" value={view} onChange={setView} options={[{ value: "index", label: "Indexed" }, { value: "multiples", label: "Small multiples" }]} />
-      </div>}
-      table={<DataTable columns={[{ key: "year", label: "Year", num: true }, { key: "cases", label: "Cases", num: true, fmt: int }, { key: "py", label: "Person-years", num: true, fmt: int },
-        { key: "asr", label: "ASR", num: true, fmt: (v) => fmt(v, 1) }, { key: "ci", label: "95% CI", num: true }, { key: "low", label: "Coverage", fmt: (v) => (v ? "low" : "") }]}
-        rows={rows.map((r) => ({ ...r, ci: `${fmt(r.lci, 1)}–${fmt(r.uci, 1)}` }))} />}
+      </>}
     >
-      {q.error ? <ErrorNote error={q.error} /> : !option ? (q.isLoading ? <Loading h={260} /> : <div className="text-xs text-fog p-6">No full years in the selected period.</div>) : (
-        <div className="grid grid-cols-[1fr_210px] gap-4 items-start">
-          <div>
-            <EChart option={option} height={260} ariaLabel="Recorded cases, person-years and age-standardised rate indexed to a base year" />
+      {q.error ? <ErrorNote error={q.error} /> : !option ? (q.isLoading ? <Loading h={260} /> : <Empty h={260}>No full years in the selected period.</Empty>) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_230px] gap-5 items-start">
+          <div className="min-w-0">
+            <EChart option={option} height={280} ariaLabel="Recorded cases, person-years and age-standardised rate indexed to a base year" />
             <div className="flex items-center gap-3 flex-wrap mt-1">
               <Key color={C.cases} kind={view === "index" ? "line" : "box"} label="Recorded cases" />
               <Key color={C.py} kind={view === "index" ? "line" : "box"} label="Person-years on EMR" />
               <Key color={C.asr} label="ASR ± 95% CI" />
-              {view === "index" && years.length > 1 && (
-                <label className="ml-auto text-[11px] text-fog flex items-center gap-1.5">Base year
-                  <select className="bg-ridge2 border border-line rounded px-1 py-0.5 text-mist" value={by} onChange={(e) => setBaseYear(+e.target.value)}>
-                    {years.slice(0, -1).map((y) => <option key={y}>{y}</option>)}
-                  </select>
-                </label>
-              )}
             </div>
           </div>
-          <aside className="flex flex-col gap-2.5 text-xs border-l border-line/50 pl-4 py-1">
-            <div className="panel-title">{by} → {cmpYear}</div>
+          <aside className="flex flex-col gap-2" aria-label={`Change ${by} to ${cmpYear}`}>
+            <div className="text-label font-medium text-fg-muted tabular">{by} → {cmpYear}</div>
             <Ratio label="Recorded cases" color={C.cases} v={ratio(b0?.cases, b1?.cases)} />
             <Ratio label="Person-years on EMR" color={C.py} v={ratio(b0?.py, b1?.py)} />
             <Ratio label="Age-standardised rate" color={C.asr} v={ratio(b0?.asr, b1?.asr)} />
-            <p className="text-[11.5px] text-fog leading-relaxed">Counting raw cases would have told a scary but false story: the extra cases are new facilities joining the EMR, not more cancer.</p>
           </aside>
         </div>
       )}
-    </Panel>
+    </Card>
   );
 }
 
 function Ratio({ label, color, v }: { label: string; color: string; v: number | null }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 text-fog text-[11px]"><span className="w-3 h-[3px] rounded-full" style={{ background: color }} aria-hidden />{label}</div>
-      <div className="text-lg font-bold leading-tight">{v === null ? "—" : `×${fmt(v, v >= 10 ? 0 : 1)}`}<span className="text-[11px] font-normal text-fog ml-1.5">{v === null ? "" : v >= 1 ? `+${int((v - 1) * 100)}%` : `−${int((1 - v) * 100)}%`}</span></div>
+    <div className="rounded-tile bg-surface-2 border border-border/70 px-3 py-2">
+      <div className="flex items-center gap-1.5 text-micro text-fg-muted"><span className="w-3 h-[3px] rounded-full" style={{ background: color }} aria-hidden />{label}</div>
+      <div className="flex items-baseline gap-1.5 mt-0.5">
+        {v === null ? <span className="text-[20px] font-semibold">—</span> : <AnimatedNumber value={v} format={(n) => `×${fmt(n, v >= 10 ? 0 : 1)}`} className="text-[20px] font-semibold tracking-tight tabular" />}
+        {v !== null && <DeltaChip delta={{ text: v >= 1 ? `+${int((v - 1) * 100)}%` : `−${int((1 - v) * 100)}%`, dir: v > 1.02 ? 1 : v < 0.98 ? -1 : 0, tone: "neutral" }} />}
+      </div>
     </div>
   );
 }

@@ -27,7 +27,7 @@ export function KpiStrip({ items }: { items: KpiDef[] }) {
             status={k.partial ? { status: "warning", label: "YTD" } : k.id === "await" && !k.missing?.startsWith("Not") ? { status: "critical", label: "HIGH band" } : null}
             spark={k.spark.length > 1 ? k.spark.map((p) => p.value) : undefined} sparkColor={SERIES[m][0]}
             info={{ about: k.missing ?? k.sub, notes: [k.delta?.note && `Change ${k.delta.note}.`, k.partial && "Current year is year-to-date (annualised where noted).", k.scope].filter(Boolean).join(" ") || undefined }}
-            detail={k.spark.length > 1 ? { children: <KpiDetail k={k} />, size: "2xl", subtitle: k.sub } : undefined}
+            detail={k.spark.length > 1 ? { title: k.label, children: <KpiDetail k={k} />, size: "2xl", subtitle: k.sub } : undefined}
             className="h-full"
           />
         </GridItem>

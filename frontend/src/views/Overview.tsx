@@ -184,7 +184,7 @@ export default function Overview() {
             range={!crude && lastSeg ? { value: lastSeg.apc, min: -10, max: 10, thresholds: [0], label: "Annual percent change, −10% to +10%",
               markers: [{ value: lastSeg.apc_lci, label: "95% CI lower" }, { value: lastSeg.apc_uci, label: "95% CI upper" }], minLabel: "−10%", maxLabel: "+10%" } : undefined}
             info={{ about: !crude && lastSeg ? `Annual percent change ${lastSeg.start_year}–${lastSeg.end_year}, 95% CI ${fmt(lastSeg.apc_lci)} to ${fmt(lastSeg.apc_uci)}.` : "Joinpoint is fitted on age-standardised rates only.", method: trendMethod }}
-            detail={!crude && jp.data ? { children: <SegmentList segments={jp.data.segments} aapc={jp.data.aapc_last10} />, size: "xl" } : undefined} />
+            detail={!crude && jp.data ? { title: "Joinpoint segments", children: <SegmentList segments={jp.data.segments} aapc={jp.data.aapc_last10} />, size: "xl" } : undefined} />
         </GridItem>
       </BentoGrid>
     </div>

@@ -1,4 +1,6 @@
-import { Award, CircleDashed } from "lucide-react";
+import type { ReactNode } from "react";
+import { Award, Calculator, CircleDashed, GitBranch, Layers, Workflow } from "lucide-react";
+import { AnimatedNumber, BentoGrid, Card, GradientRangeBar, GridItem, StatTile, StatusChip } from "@/components/ui";
 import { fmt, int } from "@/lib/format";
 import { usePalette } from "../quality/kit";
 import { TIER_META, type Metrics, type RegistryModel, type Thresholds } from "./types";
@@ -25,114 +27,86 @@ function bestTier(models: RegistryModel[], k: Key): number | null {
 export function ModelCards({ models, ensemble, thresholds }: { models: RegistryModel[]; ensemble?: Partial<Record<"val" | "test", Metrics>>; thresholds: Thresholds }) {
   const best = Object.fromEntries((Object.keys(BETTER) as Key[]).map((k) => [k, bestTier(models, k)])) as Record<Key, number | null>;
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
-        {[1, 2, 3].map((t) => {
-          const m = models.find((x) => x.tier === t);
-          return m ? <Card key={t} m={m} best={best} /> : <Missing key={t} tier={t} />;
-        })}
-      </div>
-      {ensemble?.test && <EnsembleStrip e={ensemble.test} thresholds={thresholds} />}
-    </div>
+    <BentoGrid>
+      {[1, 2, 3].map((t) => {
+        const m = models.find((x) => x.tier === t);
+        return <GridItem key={t} span={{ lg: 4 }}>{m ? <TierCard m={m} best={best} /> : <Missing tier={t} />}</GridItem>;
+      })}
+      {ensemble?.test && <GridItem span={12}><EnsembleStrip e={ensemble.test} thresholds={thresholds} /></GridItem>}
+    </BentoGrid>
   );
 }
 
-function Card({ m, best }: { m: RegistryModel; best: Record<Key, number | null> }) {
+const TIER_ICON: Record<number, ReactNode> = { 1: <Calculator size={16} />, 2: <GitBranch size={16} />, 3: <Workflow size={16} />, 0: <Layers size={16} /> };
+
+function TierCard({ m, best }: { m: RegistryModel; best: Record<Key, number | null> }) {
   const { series: S } = usePalette();
   const meta = TIER_META[m.tier];
   const t = m.metrics.test;
   const v = m.metrics.val;
   const g = GUIDE[m.tier];
   const c = S[meta.slot];
-  const cell = (k: Key, label: string, value: string, sub?: string) => (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wider text-fog whitespace-nowrap truncate">{label}</div>
-      <div className="text-base font-semibold tabular leading-tight flex items-center gap-1.5">{value}
-        {best[k] === m.tier && <BestTag />}</div>
-      {sub && <div className="text-[10px] text-fog leading-tight">{sub}</div>}
-    </div>
-  );
+  const lbl = (k: Key, text: string) => <span className="inline-flex items-center gap-1">{text}{best[k] === m.tier && <BestTag />}</span>;
   return (
-    <article className="panel p-4 flex flex-col gap-3 relative overflow-hidden animate-rise" aria-label={`${meta.name} model`}>
+    <Card aria-label={`${meta.name} model`} className="overflow-hidden"
+      title={<span className="inline-flex items-center gap-2">{meta.name}<span className="w-2 h-2 rounded-full" style={{ background: c }} aria-hidden /></span>} titleText={meta.name}
+      icon={TIER_ICON[m.tier]}
+      info={{ about: meta.blurb, notes: <>Test set: {int(t?.n_pos)} cases / {int((t?.n_pos ?? 0) + (t?.n_neg ?? 0))} landmarks{v?.auroc !== null && v?.auroc !== undefined ? ` · validation AUROC ${fmt(v.auroc, 3)}` : ""}. Guidance ranges are SPEC §13.8 expectations, not targets. The award icon marks the best of the three tiers.</> }}
+      actions={<StatusChip status="neutral" icon={false} label={<span className="tabular">Tier {m.tier} · v{m.version}</span>} title={m.model_id} />}>
       <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: c }} aria-hidden />
-      <header>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.14em] text-fog font-semibold">Tier {m.tier}</span>
-          <span className="flex-1" />
-          <span className="text-[10px] text-fog tabular" title={m.model_id}>v{m.version}</span>
-        </div>
-        <h3 className="text-lg font-bold leading-tight flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} aria-hidden />{meta.name}</h3>
-        <p className="text-[11px] text-fog leading-snug mt-0.5">{meta.blurb}</p>
-      </header>
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-4">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-fog flex items-center gap-1.5">AUROC {best.auroc === m.tier && <BestTag />}</div>
-          <div className="text-4xl font-semibold tabular leading-none mt-0.5">{fmt(t?.auroc, 3)}</div>
+          <div className="text-micro text-fg-muted">{lbl("auroc", "AUROC")}</div>
+          <AnimatedNumber value={t?.auroc ?? null} decimals={3} className="text-display tabular" />
         </div>
-        <div className="flex-1 pb-1"><RangeBar value={t?.auroc ?? null} guide={g?.auroc} color={c} /></div>
-      </div>
-      <div className="grid grid-cols-3 gap-x-3 gap-y-2.5 border-t border-line/50 pt-3">
-        {cell("auprc", "AUPRC", fmt(t?.auprc, 3), g ? `guide ${g.auprc[0]}–${g.auprc[1]}` : undefined)}
-        {cell("brier", "Brier", fmt(t?.brier, 4), m.tier === 1 ? "on rescaled score" : t?.ece !== null && t?.ece !== undefined ? `ECE ${fmt(t.ece, 4)}` : undefined)}
-        {cell("sens_at_spec90", "Sensitivity", t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`, "at 90% specificity")}
-        {cell("nns_at_top2pct", "NNS @ top 2%", fmt(t?.nns_at_top2pct, 1), t?.ppv_at_top2pct ? `PPV ${fmt(100 * t.ppv_at_top2pct, 1)}%` : undefined)}
-        {cell("median_lead_time_days", "Median lead", t?.median_lead_time_days === null || t?.median_lead_time_days === undefined ? "—" : `${fmt(t.median_lead_time_days / MO, 1)} mo`, g ? `guide ${g.lead[0]}–${g.lead[1]} mo` : undefined)}
-        <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-fog whitespace-nowrap">Flagged ≥ 3 mo</div>
-          <div className="text-base font-semibold tabular leading-tight">{t?.pct_flagged_ge_90d === null || t?.pct_flagged_ge_90d === undefined ? "—" : `${fmt(t.pct_flagged_ge_90d, 0)}%`}</div>
-          <div className="text-[10px] text-fog leading-tight">of test-period cases</div>
+        <div className="flex-1 pb-1">
+          <GradientRangeBar value={t?.auroc ?? null} min={0.5} max={1} reverse thresholds={g ? g.auroc : []} label={`AUROC on a 0.5 (chance) to 1.0 scale${g ? `, guidance ${g.auroc[0]}–${g.auroc[1]}` : ""}`}
+                            minLabel="0.5" maxLabel="1.0" format={(n) => fmt(n, 2)} />
         </div>
       </div>
-      <footer className="text-[10px] text-fog tabular border-t border-line/50 pt-2 flex flex-wrap gap-x-3 items-center">
-        <span>test {int(t?.n_pos)} cases / {int((t?.n_pos ?? 0) + (t?.n_neg ?? 0))} landmarks</span>
-        {v?.auroc !== null && v?.auroc !== undefined && <span>val AUROC {fmt(v.auroc, 3)}</span>}
-        <span className="flex-1" /><span className="inline-flex items-center gap-1"><Award size={10} aria-hidden />= best of 3</span>
-      </footer>
-    </article>
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        <StatTile label={lbl("auprc", "AUPRC")} value={fmt(t?.auprc, 3)} info={g ? `Guidance ${g.auprc[0]}–${g.auprc[1]}` : undefined} />
+        <StatTile label={lbl("brier", "Brier")} value={fmt(t?.brier, 4)} info={m.tier === 1 ? "On the rescaled points score" : t?.ece !== null && t?.ece !== undefined ? `Expected calibration error ${fmt(t.ece, 4)}` : undefined} />
+        <StatTile label={lbl("sens_at_spec90", "Sensitivity")} value={t?.sens_at_spec90 === null || t?.sens_at_spec90 === undefined ? "—" : `${fmt(100 * t.sens_at_spec90, 0)}%`} info="At 90% specificity" />
+        <StatTile label={lbl("nns_at_top2pct", "NNS top 2%")} value={fmt(t?.nns_at_top2pct, 1)} info={`Number needed to scope at the top 2%${t?.ppv_at_top2pct ? `; PPV ${fmt(100 * t.ppv_at_top2pct, 1)}%` : ""}`} />
+        <StatTile label={lbl("median_lead_time_days", "Median lead")} value={t?.median_lead_time_days === null || t?.median_lead_time_days === undefined ? "—" : fmt(t.median_lead_time_days / MO, 1)} unit="mo" info={g ? `Guidance ${g.lead[0]}–${g.lead[1]} months` : undefined} />
+        <StatTile label="Flagged ≥ 3 mo" value={t?.pct_flagged_ge_90d === null || t?.pct_flagged_ge_90d === undefined ? "—" : `${fmt(t.pct_flagged_ge_90d, 0)}%`} info="Share of test-period cases flagged HIGH at least 3 months before diagnosis" />
+      </div>
+    </Card>
   );
 }
 
 function BestTag() {
-  return <span className="inline-flex items-center text-mist" title="Best of the three tiers"><Award size={12} aria-hidden /><span className="sr-only">best of the three tiers</span></span>;
-}
-
-/** AUROC on a 0.5 (chance) → 1.0 scale with the SPEC guidance range shaded. */
-function RangeBar({ value, guide, color }: { value: number | null; guide?: [number, number]; color: string }) {
-  const x = (v: number) => `${Math.max(0, Math.min(1, (v - 0.5) / 0.5)) * 100}%`;
-  return (
-    <div className="relative h-7" title={guide ? `SPEC guidance ${guide[0]}–${guide[1]}` : undefined}>
-      <div className="absolute inset-x-0 top-2 h-1.5 rounded-full bg-ridge2" />
-      {guide && <div className="absolute top-2 h-1.5 bg-fog/35 rounded-sm" style={{ left: x(guide[0]), width: `calc(${x(guide[1])} - ${x(guide[0])})` }} />}
-      {value !== null && <div className="absolute top-[3px] w-3.5 h-3.5 rounded-full -translate-x-1/2 border-2 border-ridge" style={{ left: x(value), background: color }} />}
-      <div className="absolute inset-x-0 top-[18px] flex justify-between text-[9px] text-fog tabular"><span>0.5 chance</span>{guide && <span>guide {guide[0]}–{guide[1]}</span>}<span>1.0</span></div>
-    </div>
-  );
+  return <span className="inline-flex items-center text-tone-warning" title="Best of the three tiers"><Award size={11} aria-hidden /><span className="sr-only">best of the three tiers</span></span>;
 }
 
 function Missing({ tier }: { tier: number }) {
   const meta = TIER_META[tier];
   return (
-    <article className="panel p-4 flex flex-col gap-2 border-dashed opacity-80">
-      <span className="text-[10px] uppercase tracking-[0.14em] text-fog font-semibold">Tier {tier}</span>
-      <h3 className="text-lg font-bold text-fog">{meta.name}</h3>
-      <p className="text-[11px] text-fog">{meta.blurb}</p>
-      <div className="flex-1 flex items-center gap-2 text-xs text-fog"><CircleDashed size={14} /> Not available in this training run{tier === 3 ? " — the ensemble falls back to XGBoost alone (SPEC §13.9)." : "."}</div>
-    </article>
+    <Card tone="outline" className="border-dashed" title={meta.name} icon={TIER_ICON[tier]} iconTone="neutral"
+          info={<>{meta.blurb} Not available in this training run{tier === 3 ? " — the ensemble falls back to XGBoost alone (SPEC §13.9)." : "."}</>}
+          actions={<StatusChip status="neutral" icon={false} label={`Tier ${tier}`} />}>
+      <div className="flex-1 grid place-items-center py-6"><StatusChip status="neutral" size="md" icon={<CircleDashed size={12} />} label="Not trained this run" /></div>
+    </Card>
   );
 }
 
 function EnsembleStrip({ e, thresholds }: { e: Metrics; thresholds: Thresholds }) {
   const { series: S } = usePalette();
   return (
-    <div className="panel px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs">
-      <span className="flex items-center gap-2 font-semibold"><span className="w-2.5 h-2.5 rounded-full" style={{ background: S[TIER_META[0].slot] }} aria-hidden />Final risk band · ensemble</span>
-      <span className="tabular"><span className="text-fog">AUROC</span> <b>{fmt(e.auroc, 3)}</b></span>
-      <span className="tabular"><span className="text-fog">AUPRC</span> <b>{fmt(e.auprc, 3)}</b></span>
-      <span className="tabular"><span className="text-fog">Sens @ 90% spec</span> <b>{e.sens_at_spec90 === null ? "—" : `${fmt(100 * e.sens_at_spec90, 0)}%`}</b></span>
-      <span className="tabular"><span className="text-fog">NNS @ top 2%</span> <b>{fmt(e.nns_at_top2pct, 1)}</b></span>
-      <span className="tabular"><span className="text-fog">Median lead</span> <b>{e.median_lead_time_days ? `${fmt(e.median_lead_time_days / MO, 1)} mo` : "—"}</b></span>
-      <span className="flex-1" />
-      {thresholds && <span className="text-fog tabular">HIGH = top 2% (p ≥ {fmt(100 * thresholds.high_cut, 2)}%) · MEDIUM = next 8% (p ≥ {fmt(100 * thresholds.medium_cut, 2)}%)</span>}
-    </div>
+    <Card title={<span className="inline-flex items-center gap-2">Final risk band · ensemble<span className="w-2 h-2 rounded-full" style={{ background: S[TIER_META[0].slot] }} aria-hidden /></span>} titleText="Final risk band · ensemble"
+          icon={TIER_ICON[0]} info={TIER_META[0].blurb}
+          actions={thresholds ? <div className="hidden md:flex items-center gap-1.5">
+            <StatusChip status="critical" label={<span className="tabular">HIGH top 2% · p ≥ {fmt(100 * thresholds.high_cut, 2)}%</span>} />
+            <StatusChip status="warning" label={<span className="tabular">MEDIUM next 8% · p ≥ {fmt(100 * thresholds.medium_cut, 2)}%</span>} />
+          </div> : undefined}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        <StatTile label="AUROC" value={fmt(e.auroc, 3)} />
+        <StatTile label="AUPRC" value={fmt(e.auprc, 3)} />
+        <StatTile label="Sensitivity" value={e.sens_at_spec90 === null ? "—" : `${fmt(100 * e.sens_at_spec90, 0)}%`} info="At 90% specificity" />
+        <StatTile label="NNS top 2%" value={fmt(e.nns_at_top2pct, 1)} info="Number needed to scope at the top 2%" />
+        <StatTile label="Median lead" value={e.median_lead_time_days ? fmt(e.median_lead_time_days / MO, 1) : "—"} unit="mo" />
+      </div>
+    </Card>
   );
 }
