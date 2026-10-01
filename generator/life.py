@@ -62,7 +62,7 @@ def run_chunk(chunk_idx: int, lo: int, hi: int) -> dict:
                 cause = p.died_of
                 if p.cancer is not None and p.cancer.dx_day is None and p.died_of is None:
                     cause = None
-                record_death(p, ctx, rec, rnd, cause=cause)
+                record_death(p, ctx, rec, rnd, cause=cause, p_record=0.95 if p.death_traced else 0.8)
             rec.truncate_patient(min(p.death, SIM_END) * MIN_PER_DAY + 1439)
         if p.pid in rec.first_enc:
             patients[p.pid] = p

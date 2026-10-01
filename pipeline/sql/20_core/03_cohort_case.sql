@@ -87,9 +87,10 @@ SELECT b.patient_id, b.case_status, b.dx_date, b.age_at_dx,
        date_diff('day', CAST(g.first_gi AS DATE), b.dx_date) AS diag_interval_days,
        (mal.patient_id IS NOT NULL) AS malaria_or_worm_attrib_12m,
        b.death_date, b.last_encounter_date AS last_contact_date,
+       -- D-34: without a recorded death a patient is censored on the date last known alive (last EMR contact), not at
+       -- the data cut-off: deaths that never reach the EMR would otherwise count as survival
        CASE WHEN b.death_date IS NOT NULL THEN b.death_date
-            WHEN b.last_encounter_date < DATE '{{sim_date}}' - INTERVAL 365 DAY THEN CAST(b.last_encounter_date + INTERVAL 90 DAY AS DATE)
-            ELSE DATE '{{sim_date}}' END AS end_date,
+            ELSE least(coalesce(b.last_encounter_date, b.dx_date), DATE '{{sim_date}}') END AS end_date,
        st.intent AS treatment_intent
 FROM base b
 LEFT JOIN ref_district d ON d.district_code = coalesce(b.dc_at, b.dc_now)
