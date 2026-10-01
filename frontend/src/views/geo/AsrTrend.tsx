@@ -19,7 +19,7 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
   const m = useThemeMode();
   const k = ink(), S = SERIES[m];
   const rows = obs.filter((o) => o.asr !== null).sort((a, b) => a.year - b.year);
-  if (!rows.length) return <div className="text-xs text-fog flex items-center justify-center" style={{ height }}>No rate data for this selection.</div>;
+  if (!rows.length) return <div className="text-xs text-fg-muted flex items-center justify-center" style={{ height }}>No rate data for this selection.</div>;
   const reliable = rows.filter((o) => !flagged(o));
   // Axis follows the estimates, not runaway CIs: CIs past the top are clipped (shown as reaching the edge).
   const ref = reliable.length ? reliable : rows;
@@ -142,18 +142,18 @@ export function annotationsFor(events: { date: string; event_type: string; label
 export function SegmentList({ segments, aapc }: { segments: Segment[]; aapc?: { value: number | null; lci: number | null; uci: number | null } | null }) {
   return (
     <table className="w-full text-[11px] tabular">
-      <thead><tr className="text-fog"><th className="text-left font-semibold py-1">Segment</th><th className="text-right font-semibold">APC</th><th className="text-right font-semibold">95% CI</th><th className="text-right font-semibold">Sig.</th></tr></thead>
+      <thead><tr className="text-micro text-fg-muted"><th className="text-left font-medium py-1">Segment</th><th className="text-right font-semibold">APC</th><th className="text-right font-semibold">95% CI</th><th className="text-right font-semibold">Sig.</th></tr></thead>
       <tbody>
         {segments.map((s) => (
-          <tr key={s.segment_no} className="border-t border-line/40">
+          <tr key={s.segment_no} className="border-t border-border/70">
             <td className="py-1">{s.start_year}–{s.end_year}</td>
             <td className="text-right font-semibold">{signed(s.apc, 1, "%")}</td>
-            <td className="text-right text-fog">{fmt(s.apc_lci)} to {fmt(s.apc_uci)}</td>
-            <td className="text-right">{s.significant ? "yes" : <span className="text-fog">no</span>}</td>
+            <td className="text-right text-fg-muted">{fmt(s.apc_lci)} to {fmt(s.apc_uci)}</td>
+            <td className="text-right">{s.significant ? "yes" : <span className="text-fg-muted">no</span>}</td>
           </tr>
         ))}
         {aapc && aapc.value !== null && (
-          <tr className="border-t border-line/40"><td className="py-1 text-fog">AAPC (10 y)</td><td className="text-right font-semibold">{signed(aapc.value, 1, "%")}</td><td className="text-right text-fog">{fmt(aapc.lci)} to {fmt(aapc.uci)}</td><td /></tr>
+          <tr className="border-t border-border/70"><td className="py-1 text-fg-muted">AAPC (10 y)</td><td className="text-right font-semibold">{signed(aapc.value, 1, "%")}</td><td className="text-right text-fg-muted">{fmt(aapc.lci)} to {fmt(aapc.uci)}</td><td /></tr>
         )}
       </tbody>
     </table>
