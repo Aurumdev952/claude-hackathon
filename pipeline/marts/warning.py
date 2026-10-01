@@ -228,7 +228,12 @@ def _warning_summary(con, sets, subj, gi, hbsum, hbn):
         warnings.simplefilter("ignore")
         hbv = np.where(hbn > 0, hbsum / np.maximum(hbn, 1), np.nan)
         n_hb = (hbn[:, 12:25] > 0).sum(axis=1)
-        drop = np.nanmax(hbv[:, 12:25], axis=1) - np.nanmin(hbv[:, 12:25], axis=1)
+        # decline = largest fall from an earlier value to a later one in the last 12 months (a rise is not a decline)
+        win = np.where(np.isnan(hbv[:, 12:25]), -np.inf, hbv[:, 12:25])
+        run_max = np.maximum.accumulate(win, axis=1)
+        later = np.where(np.isnan(hbv[:, 13:25]), np.inf, hbv[:, 13:25])
+        drop = np.max(run_max[:, :-1] - later, axis=1)
+        drop = np.where(np.isfinite(drop), drop, np.nan)
     ge3 = gi.sum(axis=1) >= 3
     hb_ok = n_hb >= 2
     missed = con.execute("""

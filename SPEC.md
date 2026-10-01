@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.0 |
+| Document version | 1.1 (v1.0 + Appendix V1.1: Doctor Case Analysis 3D; deviations in `docs/decisions.md`) |
 | Status | Build-ready (frozen contracts: §6, §7, §11, §14) |
 | Build window | 3 days (agentic engineering) |
 | Demo target | Local laptop, Docker Compose, fully offline capable |
@@ -2699,3 +2699,58 @@ bands:
 ---
 
 *End of specification v1.0*
+
+
+---
+
+## Appendix V1.1 — Doctor Case Analysis (3D)
+
+**Why:** a doctor reviewing a flagged or diagnosed patient needs the whole picture in one place: what was recorded, where in the body it points, and how it evolved. V7b adds this as a full-screen view under the Doctor Workspace (`/doctor/case/:patientId`).
+
+### A.1 API — `GET /patients/{id}/case?months=36` (doctor role, own facility; 404 otherwise)
+
+| Field | Content |
+|---|---|
+| `header` | `pt_patient` row + district/province/home facility names |
+| `risk` | `pt_risk` row (3 tiers, ensemble band, top SHAP reasons) or `null` |
+| `alerts` | Alerts for the patient with live status from `app_state` |
+| `tumour` | Diagnosed cases only: lesion location/size, T/N/M, stage, Lauren, grade, intent, and `spread {t_level, lymph_node_groups, metastasis_sites, region}`; `null` otherwise |
+| `suspected` | Undiagnosed: `{organ_id: "stomach", region, score, region_scores}` from region-tagged symptoms/diagnoses |
+| `conditions[]` | Per (category, concept): `label, category, organ_ids, weight, region, first_ts, last_ts, count, certainty, is_alarm, months_since_last, severity` with severity = min(1, weight × e^(−months since last / 12) × (1 + 0.15·ln count) × 1.2 if abnormal) |
+| `organs[]` | `organ_id, label, score = max severity of its conditions, conditions[]` |
+| `vitals[]`, `labs[]` | `latest, latest_ts, abnormal, change_pct_12m, slope_per_month, n, series[]` (coded labs: latest result only) |
+| `medications`, `endoscopies[]` | PPI / eradication / iron / antimalarial / anthelminthic course counts; endoscopy impressions |
+| `events[]` | Time-ordered timeline in the window with `organ_ids, weight, region` (drives the replay) |
+| `window`, `notes`, `body_map` | Window bounds, case notes, organ labels + stomach regions |
+
+`config/body_map.yaml` maps every concept to organ ids. Organ ids are the node names in `frontend/public/models/body.meshopt.glb`. The pipeline publishes `pt_timeline.organ_ids/organ_weight/region` and `pt_tumour` (D-21).
+
+### A.2 View
+
+- **Left:** header, tumour & spread card (or suspected-region card), risk card, alert actions, "Explain this case", case notes.
+- **Centre:** 3D body (Z-Anatomy, CC BY-SA 4.0), with:
+  - layer toggles (skin / muscles / skeleton / organs) and X-ray mode;
+  - click-to-fly camera and a live physiology HUD;
+  - a legend and a "View as table" fallback.
+- **Right:** conditions grouped by organ (two-way hover/focus link with the body), vitals & labs with sparklines and 12-month change, medicines and endoscopy.
+- **Bottom:** replay bar with swimlanes. Play, pause or scrub through the window; the body re-renders each organ's state at the playhead, using the same severity formula as the API.
+
+### A.3 Visual encodings
+
+| Data | 3D encoding |
+|---|---|
+| Organ involvement | Fresnel glow + pulse, amber → laterite with score (also printed on labels and in the list, so never colour-only) |
+| Replayed event | Short flash on its organs |
+| Tumour (diagnosed) | Irregular animated mass at the endoscopic location, sized by lesion size (else T stage); see-through pass so it is never hidden |
+| N stage | 3 / 6 / 10 lit perigastric node stations (N1 / N2 / N3) |
+| M1 | Metastases at liver and peritoneum anchors with flowing spread arcs |
+| Suspected region (flagged) | Concentric "search" rings on the stomach region, not a tumour |
+| Pulse / respiratory rate | Heart beat (lub-dub) / lung breathing at the recorded rate |
+| Haemoglobin | Blood colour in the vessels pales as Hb falls |
+| Weight change | Body outline thins |
+| Temperature ≥ 37.5 °C | Warm skin rim |
+
+**Motion:** §16.1's "one orchestrated motion" rule has one exception, this view:
+- an intro scan sweeps head → feet, turning the skin to glass and revealing the organs;
+- `prefers-reduced-motion` turns off the scan, heart beat, breathing and pulses.
+The 3D stage stays dark in both themes, like an imaging viewer.

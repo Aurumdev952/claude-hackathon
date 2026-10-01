@@ -120,9 +120,15 @@ def _duplicates(out: dict, rate: float, rnd: random.Random, log: dict):
     rec["encs"] = [(e[0], e[1], dup_of[e[2]], *e[3:]) if e[0] in moved_enc else e for e in rec["encs"]]
     rec["obs"] = [(o[0], dup_of[o[1]], *o[2:]) if o[3] in moved_enc else o for o in rec["obs"]]
     rec["orders"] = [(o[0], o[1], o[2], dup_of[o[3]], *o[4:]) if o[4] in moved_enc else o for o in rec["orders"]]
-    first = {}
+    first, first_any = {}, {}
     for e in rec["encs"]:
-        first[e[2]] = min(first.get(e[2], 10**12), e[5])
+        first_any[e[2]] = min(first_any.get(e[2], 10**12), e[5])
+        if not e[6]:  # mis-dated noise encounters (future / before birth) must not set the record's creation date
+            first[e[2]] = min(first.get(e[2], 10**12), e[5])
+    for o in rec["obs"]:  # obs keep their true time, so they bound the creation date when every encounter is mis-dated
+        if o[1] >= 900_000_000:
+            first[o[1]] = min(first.get(o[1], first_any.get(o[1], 10**12)), o[5])
+    first = {**first_any, **first}
     by_pid = {r[0]: r for r in pers["person"]}
     names = {r[0]: r for r in pers["person_name"]}
     addrs = [r for r in pers["person_address"] if r[0] in dup_of]

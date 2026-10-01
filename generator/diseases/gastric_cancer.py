@@ -36,6 +36,9 @@ SURV_SHAPE = 1.5
 TIER_CURATIVE = {"low": 0.5, "medium": 0.85, "high": 1.0}
 TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
+# D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
+# alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
+CANCER_REFER_MULT = {"low": 0.45, "medium": 0.75, "high": 0.85}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -189,7 +192,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     cs.durs = [rnd.gammavariate(2.0, m / 2.0) * speed for m in sm]
     cs.clinical_only = rnd.random() < gc["pct_clinical_only"]
     cs.ramp = rnd.random() < 0.70
-    cs.ppi_repeat = rnd.random() < 0.55
+    cs.ppi_repeat = rnd.random() < 0.47
     cs.alarm_late = rnd.random() < 0.55
     cs.hb_drop = rnd.random() < 0.60
     cs.wt_loss = rnd.random() < 0.45
@@ -288,8 +291,9 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             cs.misattrib += 1
             if cs.first_mis_day is None:
                 cs.first_mis_day = day
-            suppress_until = day + rnd.randint(210, 330)
-            anchor = 0.25  # clinician now attributes symptoms to malaria/worms: less likely to refer later
+            sd = ins6.get("suppress_days", [210, 330])
+            suppress_until = day + rnd.randint(int(sd[0]), int(sd[1]))
+            anchor = float(ins6.get("anchor_after", 0.25))  # clinician now attributes symptoms to malaria/worms: refers later
             if rnd.random() < 0.65:
                 if rnd.random() < 0.5:
                     rec.coded(enc, t + 70, loc, C.MAL_RDT, C.POS if rnd.random() < 0.3 else C.NEG)
@@ -316,6 +320,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             p_ref = min(0.45, (0.052 + 0.018 * cs.n_visits) * TIER_MULT[tier]) * anchor
             if ctx.district_endoscopy(dcode, day):
                 p_ref = min(0.6, p_ref * 1.5)  # on-site endoscopy lowers the bar for referring dyspepsia early (INS-5)
+        p_ref *= CANCER_REFER_MULT[tier]
         if stage == "IV":
             p_ref = min(0.95, p_ref + 0.15)
         if ctx.district_endoscopy(dcode, day):
@@ -353,7 +358,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
                 cs.refused += 1
         # ---- next visit
         tau = (day - cs.symptom_start) / 30.44
-        lam = (0.5 + 0.7 * min(1.0, tau / 9)) if cs.ramp else 0.5
+        lam = (0.42 + 0.68 * min(1.0, tau / 9)) if cs.ramp else 0.42
         if stage == "IV":
             lam *= 1.5
         day += max(7, int(rnd.expovariate(lam) * 30.44))
