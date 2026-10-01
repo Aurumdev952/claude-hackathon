@@ -38,7 +38,7 @@ TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
-CANCER_REFER_MULT = {"low": 1.0, "medium": 1.3, "high": 1.4}
+CANCER_REFER_MULT = {"low": 1.15, "medium": 1.5, "high": 1.4}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -291,7 +291,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
         # decided once per case (D-28): re-rolling at every visit let the anaemic patients who escaped it be exactly the
         # fast-referred ones (survivor selection), which hid the delay at the median
         if (ins6["enabled"] and (hb_drop_seen or pallor) and p.province_at(day) in ins6["provinces"]
-                and cs.mis_prone and cs.misattrib == 0):
+                and cs.mis_prone and day >= suppress_until):   # prone patients are relabelled each time anaemia is seen again
             misattributed = True
             cs.misattrib += 1
             if cs.first_mis_day is None:
@@ -314,7 +314,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
         if day < suppress_until or misattributed:
             p_ref = 0.0
         elif alarms and age >= 45:
-            p_ref = TIER_REFER[tier] * 0.7 * (0.3 + 0.7 * anchor)
+            p_ref = TIER_REFER[tier] * 0.55 * (0.3 + 0.7 * anchor)
         elif alarms:
             p_ref = TIER_REFER[tier] * 0.45 * (0.3 + 0.7 * anchor)
         elif anaemic_seen and age >= 40:
