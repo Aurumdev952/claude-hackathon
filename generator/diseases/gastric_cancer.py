@@ -46,6 +46,14 @@ RECUR_3Y = {"I": 0.10, "II": 0.30, "III": 0.40, "IV": 0.50}
 TOTAL_GASTRECTOMY_LOC = {"cardia", "body", "diffuse"}   # antrum -> distal (subtotal) gastrectomy
 
 
+P_CURATIVE = {"I": 0.85, "II": 0.70, "III": 0.45, "IV": 0.03}
+
+
+def p_curative(stage: str, tier: str) -> float:
+    """Probability of curative-intent treatment at diagnosis (INS-4: lower where the first GI visit was low tier)."""
+    return P_CURATIVE[stage] * TIER_CURATIVE[tier]
+
+
 def case_seed(cfg: dict, pid: int) -> int:
     """Per-case seed for survivorship draws (stored in the latent record so a case can be re-simulated)."""
     return (int(cfg.get("seed", 42)) * 1_000_003 + int(pid)) * 31 + 7
@@ -503,7 +511,7 @@ def _oncology(p, ctx, rec, cs: CaseState, day: int, T, N, M, rnd):
 def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None, t=None, loc=None):
     stage = cs.stage
     tier = ctx.tier(cs.first_gi_loc) if cs.first_gi_loc else "medium"
-    p_cur = {"I": 0.85, "II": 0.70, "III": 0.45, "IV": 0.03}[stage] * TIER_CURATIVE[tier] if curative_possible else 0.0
+    p_cur = p_curative(stage, tier) if curative_possible else 0.0
     if rnd.random() < p_cur:
         intent, hr = 7200, 0.6
     elif stage == "IV" and rnd.random() < TIER_BSC_IV[tier]:
