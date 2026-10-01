@@ -38,9 +38,29 @@ def _reuse(goldens: list[dict], path: str) -> dict[str, client.AgentResponse]:
     return out
 
 
+PROGRESS = Path(__file__).resolve().parent / "results" / "progress.log"
+
+
+def _progress(msg: str) -> None:
+    """Live progress (pytest captures stdout): tail -f evals/agent/results/progress.log"""
+    try:
+        PROGRESS.parent.mkdir(parents=True, exist_ok=True)
+        with PROGRESS.open("a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except OSError:
+        pass
+
+
 async def _judge_all(goldens, responses, judge):
+    done = 0
+
     async def one(g):
-        return g["id"], await evaluate_golden(g, responses[g["id"]], judge)
+        nonlocal done
+        checks = await evaluate_golden(g, responses[g["id"]], judge)
+        done += 1
+        failed = [f"{c.group}:{c.name}" for c in checks if c.applicable and c.passed is False]
+        _progress(f"judged {done}/{len(goldens)} {g['id']} failed={failed or '-'} judge_calls={judge.calls}")
+        return g["id"], checks
     return dict(await asyncio.gather(*[one(g) for g in goldens]))
 
 
@@ -55,9 +75,12 @@ def run_eval(write: bool = True) -> dict:
     if agent_model and judge_name.split(":")[0] == agent_model:
         raise RuntimeError(f"EVAL_JUDGE_MODEL ({judge_name}) must differ from the model under test ({agent_model})")
 
+    PROGRESS.unlink(missing_ok=True)
+    _progress(f"start: {len(goldens)} goldens, agent {client.agent_url()} ({agent_model}), judge {judge_name}")
     reuse = os.getenv("EVAL_REUSE_RESPONSES")
     responses = _reuse(goldens, reuse) if reuse else client.ask_many(goldens, int(os.getenv("EVAL_AGENT_CONCURRENCY") or 4))
     t_agent = time.time() - t0
+    _progress(f"agent phase done in {t_agent:.0f}s; failed calls: {[k for k, r in responses.items() if not r.ok] or '-'}")
 
     judge = OpenRouterJudge()
     checks = asyncio.run(_judge_all(goldens, responses, judge))
