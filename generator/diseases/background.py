@@ -300,7 +300,7 @@ def simulate_background(p: Patient, ctx: Ctx, rec: Recorder, w0: int, w1: int, r
     day = w0
     while day < w1:
         seg_end = min(w1, day + 365)
-        rate = visit_rate(p.age(day))
+        rate = visit_rate(p.age(day)) * float(ctx.cfg["population"].get("background_visit_factor", 1.0))
         n = _poisson(rate * (seg_end - day) / 365.25, rnd)
         for _ in range(n):
             acute_visit(p, ctx, rec, rnd.randint(day, seg_end - 1), rnd)

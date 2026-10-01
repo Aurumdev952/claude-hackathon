@@ -1,0 +1,21 @@
+"""Mart builders (SPEC §11.4-11.5). Order matters: rates feed joinpoint/spatial/kpis."""
+from __future__ import annotations
+
+import time
+
+
+def build_all(con, sim_time, log=print):
+    from . import clinical, cohort, facility, patient, points, rates, warning
+    steps = [
+        ("rates", rates.build_rates), ("joinpoint", rates.build_joinpoint), ("spatial", rates.build_spatial),
+        ("stage_mix", clinical.build_stage_mix), ("characteristics", clinical.build_characteristics),
+        ("survival", clinical.build_survival), ("cox", clinical.build_cox),
+        ("warning", warning.build_warning), ("facility", facility.build_facility_quality),
+        ("cohort_funnel", cohort.build_cohort_funnel), ("data_quality", cohort.build_data_quality),
+        ("events", cohort.build_events), ("patients", patient.build_patient_tables), ("points", points.build_points),
+        ("kpis", cohort.build_kpis),
+    ]
+    for name, fn in steps:
+        t = time.time()
+        fn(con, sim_time, log)
+        log(f"    - {name:16s} {time.time() - t:5.1f}s")

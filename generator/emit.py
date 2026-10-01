@@ -94,7 +94,8 @@ class Recorder:
             return None
         oid = self.obs(enc, t, loc, C.DIAGNOSIS, coded=dx_concept)
         self.obs(enc, t, loc, C.DX_CERTAINTY, coded=C.CONFIRMED if confirmed else C.PRESUMED, group=oid)
-        self.obs(enc, t, loc, C.DX_ORDER, coded=C.PRIMARY if primary else C.SECONDARY, group=oid)
+        if not primary:  # DIAGNOSIS ORDER is optional in OpenMRS; absent = primary
+            self.obs(enc, t, loc, C.DX_ORDER, coded=C.SECONDARY, group=oid)
         return oid
 
     def complaint(self, enc, t, loc, concept, weeks=None):

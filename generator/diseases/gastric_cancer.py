@@ -33,9 +33,9 @@ LAUREN_CODE = {"intestinal": 7140, "diffuse": 7141, "mixed": 7142}
 SURV_MEDIAN_M = {"I": 60, "II": 20, "III": 10, "IV": 4.5}   # D-06: tuned so 1-y survival hits §8.8/INS-4 targets
 SURV_SHAPE = 1.5
 # INS-4 facility practice: patients who first present at low-testing-tier facilities reach curative care less often
-TIER_CURATIVE = {"low": 0.6, "medium": 0.85, "high": 1.0}
-TIER_BSC_IV = {"low": 0.55, "medium": 0.4, "high": 0.25}
-TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.0}
+TIER_CURATIVE = {"low": 0.5, "medium": 0.85, "high": 1.0}
+TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
+TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -314,6 +314,8 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             p_ref = min(0.45, TIER_REFER[tier] * 0.3 + 0.01 * cs.n_visits) * anchor
         else:
             p_ref = min(0.45, (0.052 + 0.018 * cs.n_visits) * TIER_MULT[tier]) * anchor
+            if ctx.district_endoscopy(dcode, day):
+                p_ref = min(0.6, p_ref * 1.5)  # on-site endoscopy lowers the bar for referring dyspepsia early (INS-5)
         if stage == "IV":
             p_ref = min(0.95, p_ref + 0.15)
         if ctx.district_endoscopy(dcode, day):
@@ -340,7 +342,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
                 if in_district:
                     p_done, delay = 0.93, rnd.randint(14, 42)
                 elif ins5["enabled"] and dcode == ins5["district"]:
-                    p_done, delay = 0.42, rnd.randint(35, 112)
+                    p_done, delay = ins5.get("pre_access_referral_completion", 0.2), rnd.randint(35, 112)
                 else:
                     p_done, delay = 0.72, rnd.randint(28, 98)
                 endo_day = day + delay
@@ -356,7 +358,10 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             lam *= 1.5
         day += max(7, int(rnd.expovariate(lam) * 30.44))
 
-    if cs.dx_day is None and untreated_death < min(p.death, SIM_END) and rnd.random() < gc.get("terminal_admission_prob", 0.75):
+    term_p = gc.get("terminal_admission_prob", 0.75)
+    if ins5["enabled"] and p.district_at(untreated_death) == ins5["district"] and not ctx.district_endoscopy(ins5["district"], untreated_death):
+        term_p = ins5.get("pre_access_terminal_dx", term_p)  # INS-5: no local endoscopy -> many die undiagnosed
+    if cs.dx_day is None and untreated_death < min(p.death, SIM_END) and rnd.random() < term_p:
         # terminal admission: most patients are finally worked up in hospital in their last weeks
         tday = max(cs.symptom_start + 7, untreated_death - rnd.randint(10, 50))
         cs.route = "terminal"
@@ -377,6 +382,9 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
 def _hospital_workup(p: Patient, ctx: Ctx, rec: Recorder, cs: CaseState, day: int, rnd: random.Random, alarms, anaemic):
     dcode = p.district_at(day)
     site = ctx.district_endoscopy(dcode, day)
+    ins5 = ctx.cfg["insights"]["ins5"]
+    if ins5["enabled"] and dcode == ins5["district"] and not site and rnd.random() > ins5.get("pre_access_workup_dx", 1.0):
+        return  # INS-5: work-up inconclusive without endoscopy access
     if site and rnd.random() < 0.8 and not cs.clinical_only:
         _diagnose(p, ctx, rec, cs, day + rnd.randint(2, 10), site, alarms, anaemic, rnd)
     elif not site and rnd.random() < 0.7 and not cs.clinical_only:
