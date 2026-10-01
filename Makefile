@@ -94,20 +94,20 @@ sim:
 
 serve:                      ## API + dashboard only (no MySQL needed; logs in logs/)
 	mkdir -p logs
-	nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
-	nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
+	setsid nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
+	setsid nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
 	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs"
 
-up:                         ## simulator + pipeline scheduler + API + frontend (native, background, logs in logs/)
+up:                         ## simulator + pipeline scheduler + API + frontend (native, background, logs in logs/); stop with make down
 	mkdir -p logs
-	nohup $(PY) -m simulator.tick $(if $(filter true,$(DEMO_MODE)),--demo,) > logs/sim.log 2>&1 & echo $$! > logs/sim.pid
-	nohup $(PY) -m pipeline.scheduler > logs/pipeline.log 2>&1 & echo $$! > logs/pipeline.pid
-	nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
-	nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
+	setsid nohup env $(PY) -m simulator.tick $(if $(filter true,$(DEMO_MODE)),--demo,) > logs/sim.log 2>&1 & echo $$! > logs/sim.pid
+	setsid nohup env $(PY) -m pipeline.scheduler > logs/pipeline.log 2>&1 & echo $$! > logs/pipeline.pid
+	setsid nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
+	setsid nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
 	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs"
 
 down:
-	-for p in logs/*.pid; do kill $$(cat $$p) 2>/dev/null; rm -f $$p; done
+	-for p in logs/*.pid; do kill -- -$$(cat $$p) 2>/dev/null || kill $$(cat $$p) 2>/dev/null; rm -f $$p; done   # whole process group (make -> uvicorn/vite)
 
 up-docker:
 	docker compose up -d --build
