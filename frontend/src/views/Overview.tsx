@@ -70,7 +70,7 @@ export default function Overview() {
       { id: "s4", label: "Stage IV at diagnosis", value: fmt(s4, 0), unit: "%", partial, sub: "of cases with a known stage",
         delta: s4D === null ? null : { text: `${signed(s4D, 1)} pts ${vs}`, dir: dir(s4D), tone: tone(s4D, false, 2) },
         spark: spark(sp.pct_stage_iv ?? []), format: (v) => `${fmt(v, 0)}%`, scope },
-      { id: "di", label: "Median diagnostic interval", value: int(di), unit: "days", partial, sub: di !== null ? `≈ ${fmt(di / 30.44, 1)} months, first GI symptom → dx` : undefined,
+      { id: "di", label: "Median time to diagnosis", value: int(di), unit: "days", partial, sub: di !== null ? `≈ ${fmt(di / 30.44, 1)} months, first GI symptom → dx` : undefined,
         delta: diD === null ? null : { text: `${signed(diD, 0)} d ${vs}`, dir: dir(diD), tone: tone(diD, false, 7) },
         spark: spark(sp.median_diag_interval_days ?? []), format: (v) => `${int(v)} days`, scope },
       { id: "hp", label: "H. pylori testing rate", value: hp === null ? "—" : fmt(100 * hp, 0), unit: "%", partial, sub: "of dyspepsia patients tested",
@@ -124,7 +124,7 @@ export default function Overview() {
                  </div>) : undefined}>
           {(jp.isLoading || rq.isLoading) ? <Loading h={300} /> : (rq.error && !jp.data) ? <ErrorNote error={rq.error} /> : (
             <>
-              <AsrTrend obs={obs} fitted={fit} segments={segs} events={ann.endo} emrSpan={ann.emrSpan} height={318} unit="" name={crude ? "Crude rate" : "Observed ASR"}
+              <AsrTrend obs={obs} fitted={fit} segments={segs} events={ann.endo} emrSpan={ann.emrSpan} height={356} unit="" name={crude ? "Crude rate" : "Observed ASR"}
                         ariaLabel={`National ${crude ? "crude" : "age-standardised"} rate trend, ${sub}`} />
               <div className="text-[11px] text-fog mt-1 leading-snug">
                 {crude ? "Crude rates are not age-adjusted; switch the filter bar to Age-standardised for the joinpoint model." :

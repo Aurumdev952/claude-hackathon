@@ -43,7 +43,7 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
   const byYear = (y: number) => ev.filter((e) => Math.floor(e.x) === y);
 
   const L = compact ? { obs: name === "Observed ASR" ? "ASR" : name, ci: "95% CI", fit: "Joinpoint", flag: "Low cov./YTD", endo: "Endoscopy" }
-                    : { obs: name, ci: "95% CI", fit: "Joinpoint fit", flag: "Low EMR coverage or year-to-date", endo: "Endoscopy unit opened" };
+                    : { obs: name, ci: "95% CI", fit: "Joinpoint fit", flag: "Low coverage / YTD", endo: "Endoscopy opened" };
   const b = base();
   const opt: EChartsOption = {
     ...b,
