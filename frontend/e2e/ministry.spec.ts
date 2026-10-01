@@ -48,3 +48,12 @@ test("ask: destructive request is refused safely", async ({ page }) => {
   await page.getByRole("button", { name: "Ask" }).click();
   await expect(page.getByText(/can't change or delete|couldn't answer that safely/i).first()).toBeVisible({ timeout: 30_000 });
 });
+
+test("insights: the AI insight rail is hidden until a real LLM provider is configured", async ({ page }) => {
+  const res = await (await page.request.get(`${API}/insights?view=overview`, { headers: { "X-Role": "ministry" } })).json();
+  await page.goto("/");
+  await expect(page.getByRole("list", { name: "Headline indicators" }).getByRole("listitem").first()).toBeVisible();
+  const rail = page.getByRole("complementary", { name: "AI insights" });
+  if (res.provider === "template") await expect(rail).toHaveCount(0);
+  else await expect(rail).toBeVisible();
+});

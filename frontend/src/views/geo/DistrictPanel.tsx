@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Sparkles, X } from "lucide-react";
 import type { Insight, MapRow } from "@/api/types";
-import { useInsights } from "@/api/hooks";
+import { aiInsightCards, useInsights } from "@/api/hooks";
 import { ErrorNote, Loading } from "@/components/ui/Panel";
 import { useThemeMode } from "@/components/charts/EChart";
 import { fmt, int } from "@/lib/format";
@@ -26,7 +26,7 @@ export function DistrictPanel({ code, row, rank, n, spatial, facilities, events,
   const fac = facilities.filter((f) => f.district_code === code).sort((a, b) => b.n_cases - a.n_cases || b.n_dyspepsia - a.n_dyspepsia).slice(0, 5);
   const q = row?.lisa_quadrant ?? spatial?.lisa_quadrant ?? "NS";
   const ratio = row?.asr && national ? row.asr / national : null;
-  const card = pickInsight(ins.data?.data ?? [], row, spatial, ratio, q);
+  const card = pickInsight(aiInsightCards(ins.data) ?? [], row, spatial, ratio, q);
   return (
     <aside className={`${HUD} absolute top-3 right-3 bottom-3 w-[372px] z-20 flex flex-col overflow-hidden animate-rise`} aria-label={`${row?.name ?? code} district details`}>
       <header className="px-4 pt-3.5 pb-3 border-b border-line/50">

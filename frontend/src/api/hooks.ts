@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { get, qs } from "./client";
+import { type Envelope, get, qs } from "./client";
 import { useFilters } from "@/state/filters";
 import { useRole } from "@/state/role";
 import type { Insight, Kpis } from "./types";
@@ -12,6 +12,9 @@ export const useInsights = (view: string) => {
   const role = useRole((s) => s.role);
   return useQuery({ queryKey: ["kpis", "insights", view, role], queryFn: () => get<Insight[]>(`/insights?view=${view}`) });
 };
+/** Insight cards are shown only when a real LLM provider is configured; template-mode cards stay hidden until then. */
+export const aiInsightCards = (env: Envelope<Insight[]> | undefined): Insight[] | null =>
+  env && env.provider !== "template" ? env.data : null;
 export function useJoinpoint(seriesId: string) {
   return useQuery({ queryKey: ["trends", "jp", seriesId], queryFn: () => get<any>(`/trends/joinpoint${qs({ series_id: seriesId })}`) });
 }
