@@ -21,6 +21,7 @@ export default defineConfig({
           three: ["three", "@react-three/fiber", "@react-three/drei", "@react-three/postprocessing", "postprocessing"],
           deck: ["@deck.gl/core", "@deck.gl/layers", "@deck.gl/aggregation-layers", "@deck.gl/react"],
           echarts: ["echarts", "echarts-for-react"],
+          ui: ["@heroui/react", "framer-motion"],
         },
       },
     },

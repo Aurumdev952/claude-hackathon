@@ -3,6 +3,8 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import type { CustomSeriesOption } from "echarts";
 import { ink, mode, SERIES } from "@/lib/viz";
 import { base, useThemeMode } from "@/components/charts/EChart";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { PageHeader } from "@/components/ui/SectionHeader";
 
 export type XY = { x: number; lo: number | null; hi: number | null };
 
@@ -100,38 +102,20 @@ export const tipRow = (color: string | null, label: string, value: string, extra
 };
 export const tipNote = (t: string) => `<div style="color:${ink().muted};font-size:10.5px;margin-top:4px;max-width:260px;white-space:normal">${t}</div>`;
 
-/** Headline figure (proportional numerals, same sans; see dataviz anti-patterns). */
+/** Headline figure → v2 MetricCard (the sub-line moves into the ⓘ). Signature unchanged. */
 export function StatTile({ label, value, unit, sub, tone, icon }: { label: string; value: ReactNode; unit?: string; sub?: ReactNode; tone?: "warn" | "ok" | "neutral"; icon?: ReactNode }) {
-  const bar = tone === "warn" ? "before:bg-sorghum" : tone === "ok" ? "before:bg-tea" : "before:bg-kivu";
-  return (
-    <div className={`panel relative overflow-hidden px-4 py-3 before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-r ${bar}`}>
-      <div className="panel-title flex items-center gap-1.5">{icon}{label}</div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className="text-[26px] font-bold leading-none tracking-tight">{value}</span>
-        {unit && <span className="text-xs text-fog">{unit}</span>}
-      </div>
-      {sub && <div className="text-[11.5px] text-fog mt-1 leading-snug">{sub}</div>}
-    </div>
-  );
+  return <MetricCard label={label} value={value} unit={unit} info={sub} icon={icon} iconTone={tone === "warn" ? "warning" : tone === "ok" ? "success" : "accent"} />;
 }
 
+/** Page header → v2 PageHeader (lede moves into the ⓘ). Signature unchanged. */
 export function ViewHeader({ eyebrow, title, lede, right }: { eyebrow: string; title: string; lede: ReactNode; right?: ReactNode }) {
-  return (
-    <header className="flex items-end gap-4 flex-wrap">
-      <div className="min-w-0 flex-1">
-        <div className="panel-title text-kivu">{eyebrow}</div>
-        <h1 className="text-[22px] font-bold tracking-tight leading-tight mt-0.5">{title}</h1>
-        <p className="text-[13px] text-fog mt-1 max-w-[760px] leading-relaxed">{lede}</p>
-      </div>
-      {right}
-    </header>
-  );
+  return <PageHeader eyebrow={eyebrow} title={title} lede={lede} right={right} />;
 }
 
 /** Legend key (shape follows the mark: line, band, dot). */
 export function Key({ color, label, kind = "line", dashed }: { color: string; label: ReactNode; kind?: "line" | "dot" | "band" | "box"; dashed?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-fog whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-fg-muted whitespace-nowrap">
       {kind === "line" && <span className="inline-block w-4 h-0" style={{ borderTop: `2px ${dashed ? "dashed" : "solid"} ${color}` }} aria-hidden />}
       {kind === "dot" && <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} aria-hidden />}
       {kind === "band" && <span className="inline-block w-4 h-2.5 rounded-sm" style={{ background: alpha(color.startsWith("#") ? color : "#8696a2", 0.25) }} aria-hidden />}
@@ -142,7 +126,7 @@ export function Key({ color, label, kind = "line", dashed }: { color: string; la
 }
 
 export function Empty({ h = 200, children }: { h?: number; children: ReactNode }) {
-  return <div className="flex items-center justify-center text-center text-xs text-fog px-6" style={{ height: h }}>{children}</div>;
+  return <div className="flex items-center justify-center text-center text-xs text-fg-muted px-6 rounded-tile bg-surface-2/60" style={{ height: h }}>{children}</div>;
 }
 
 export const yearFrac = (d: string) => {

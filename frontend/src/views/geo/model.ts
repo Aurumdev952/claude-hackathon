@@ -53,8 +53,9 @@ export const METRICS: Record<MetricKey, MetricDef> = {
 export const METRIC_ORDER: MetricKey[] = ["asr", "crude_rate", "sir", "lisa_quadrant", "hp_test_rate", "pct_stage4"];
 
 /** Single-hue blue for coverage metrics (higher = better), dim -> bright on dark, light -> dark on light. */
-const BLUE_DARK = ["#1e3244", "#22466a", "#285b8c", "#3274ad", "#468fcb", "#6eaddf", "#a3cdef"];
-const BLUE_LIGHT = ["#e3eef8", "#c2d9ef", "#98bde2", "#6c9fd0", "#4783bd", "#2d67a1", "#1c4a7c"];
+/** Re-anchored to the v2 accent hue (#3F6FE8 / #4C7EF0); single hue, monotone lightness. */
+const BLUE_DARK = ["#16213a", "#1b2c55", "#233e7a", "#2f55a6", "#4c7ef0", "#7fa2f5", "#b5c9fa"];
+const BLUE_LIGHT = ["#e8efff", "#c6d6fb", "#9db7f4", "#7398ee", "#4f7be6", "#2f5bd6", "#1e3a8a"];
 
 function interp(ramp: string[], t: number): RGB {
   const r = ramp.map(hexToRgb);
@@ -92,12 +93,12 @@ export function lisaRgb(q: string | null | undefined): RGB {
 /** Scene chrome that follows the theme (text stays in ink tokens; the map surface is part of the console). */
 export function theme() {
   return mode() === "dark"
-    ? { land: [58, 72, 86] as RGB, landBase: [35, 46, 58] as RGB, edge: [230, 236, 238, 46] as RGBA, outline: [230, 236, 238, 150] as RGBA,
-        halo: [62, 124, 168, 60] as RGBA, grid: [230, 236, 238, 16] as RGBA, label: [230, 236, 238, 255] as RGBA, labelBg: [17, 24, 32, 215] as RGBA,
-        muted: [138, 150, 162, 255] as RGBA, suppressed: [72, 82, 92] as RGB, focus: [242, 190, 92, 255] as RGBA, ring: [27, 36, 48, 255] as RGBA }
-    : { land: [206, 214, 219] as RGB, landBase: [226, 231, 234] as RGB, edge: [27, 36, 48, 50] as RGBA, outline: [27, 36, 48, 150] as RGBA,
-        halo: [46, 104, 146, 45] as RGBA, grid: [27, 36, 48, 18] as RGBA, label: [27, 36, 48, 255] as RGBA, labelBg: [255, 255, 255, 225] as RGBA,
-        muted: [88, 102, 114, 255] as RGBA, suppressed: [196, 202, 206] as RGB, focus: [176, 112, 10, 255] as RGBA, ring: [255, 255, 255, 255] as RGBA };
+    ? { land: [40, 52, 76] as RGB, landBase: [24, 33, 52] as RGB, edge: [230, 234, 242, 46] as RGBA, outline: [230, 234, 242, 150] as RGBA,
+        halo: [76, 126, 240, 60] as RGBA, grid: [230, 234, 242, 16] as RGBA, label: [230, 234, 242, 255] as RGBA, labelBg: [18, 26, 43, 220] as RGBA,
+        muted: [148, 163, 184, 255] as RGBA, suppressed: [62, 74, 98] as RGB, focus: [251, 191, 36, 255] as RGBA, ring: [11, 18, 32, 255] as RGBA }
+    : { land: [214, 221, 232] as RGB, landBase: [232, 236, 243] as RGB, edge: [15, 23, 42, 46] as RGBA, outline: [15, 23, 42, 140] as RGBA,
+        halo: [63, 111, 232, 45] as RGBA, grid: [15, 23, 42, 16] as RGBA, label: [15, 23, 42, 255] as RGBA, labelBg: [255, 255, 255, 230] as RGBA,
+        muted: [100, 116, 139, 255] as RGBA, suppressed: [200, 207, 218] as RGB, focus: [180, 83, 9, 255] as RGBA, ring: [255, 255, 255, 255] as RGBA };
 }
 
 export const isLowCoverage = (r: Pick<MapRow, "coverage_flag">) => !!r.coverage_flag;

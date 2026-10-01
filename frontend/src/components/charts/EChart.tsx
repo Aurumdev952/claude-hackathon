@@ -13,23 +13,32 @@ export function useThemeMode() {
   return m;
 }
 
-/** Shared chart chrome: recessive grid/axes, text in ink tokens (never series colour), crosshair tooltip. */
+const prefersReducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** Shared chart chrome: recessive grid/axes, text in ink tokens (never series colour), rounded crosshair tooltip.
+ * Animations are switched off when the user prefers reduced motion. */
 export function base(): EChartsOption {
   const k = ink();
+  const reduce = prefersReducedMotion();
+  const dark = mode() === "dark";
   return {
     backgroundColor: "transparent",
-    textStyle: { fontFamily: '"Public Sans Variable", system-ui, sans-serif', color: k.secondary, fontSize: 11 },
+    textStyle: { fontFamily: '"Inter Variable", Inter, system-ui, sans-serif', color: k.secondary, fontSize: 11 },
     grid: { left: 44, right: 16, top: 28, bottom: 32, containLabel: false },
     tooltip: {
-      trigger: "axis", backgroundColor: k.surface, borderColor: k.axis, borderWidth: 1,
-      textStyle: { color: k.primary, fontSize: 12 }, axisPointer: { type: "line", lineStyle: { color: k.axis } },
-      extraCssText: "box-shadow: 0 8px 24px -12px rgba(0,0,0,.6); border-radius: 8px;",
+      trigger: "axis", backgroundColor: k.surface, borderColor: k.border, borderWidth: 1, padding: [8, 12],
+      textStyle: { color: k.primary, fontSize: 12, fontFamily: '"Inter Variable", Inter, system-ui, sans-serif' },
+      axisPointer: { type: "line", lineStyle: { color: k.axis, type: "dashed" } },
+      extraCssText: `box-shadow: ${dark ? "0 16px 40px rgba(0,0,0,.55)" : "0 12px 32px rgba(16,24,40,.14)"}; border-radius: 12px;`,
     },
     legend: { top: 0, right: 0, textStyle: { color: k.secondary, fontSize: 11 }, icon: "roundRect", itemWidth: 10, itemHeight: 4 },
     xAxis: { axisLine: { lineStyle: { color: k.axis } }, axisTick: { show: false }, axisLabel: { color: k.muted }, splitLine: { show: false } },
     yAxis: { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: k.muted }, splitLine: { lineStyle: { color: k.grid } },
              nameTextStyle: { color: k.muted, fontSize: 10, align: "left" } },
-    animationDuration: 500,
+    animation: !reduce,
+    animationDuration: reduce ? 0 : 700,
+    animationEasing: "cubicOut",
+    animationDurationUpdate: reduce ? 0 : 400,
   };
 }
 
