@@ -89,3 +89,11 @@ export const getRatesTrend = defineTool({
 export function round(v: unknown, d = 2): number | null {
   return typeof v === "number" && Number.isFinite(v) ? Math.round(v * 10 ** d) / 10 ** d : null;
 }
+
+/** Rounds floats for readability (2 decimals, 4 below 1) - keeps numbers the model quotes identical to the tool output. */
+export function roundDeep<T>(o: T): T {
+  if (typeof o === "number") return (Number.isInteger(o) ? o : Math.abs(o) < 1 ? Math.round(o * 1e4) / 1e4 : Math.round(o * 100) / 100) as T;
+  if (Array.isArray(o)) return o.map(roundDeep) as T;
+  if (o && typeof o === "object") return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, roundDeep(v)])) as T;
+  return o;
+}

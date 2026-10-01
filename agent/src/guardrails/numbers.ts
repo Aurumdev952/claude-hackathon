@@ -4,7 +4,9 @@ const NUM_RE = /(?<![\w.])-?\d+(?:[.,]\d+)*(?:\.\d+)?/g;
 
 export function numbersIn(text: string): number[] {
   const out: number[] = [];
-  for (const m of text.match(NUM_RE) ?? []) {
+  // typographic minus -> ASCII; the conventional "95% CI" / "95% confidence" label is not a data value
+  const t = text.replace(/\u2212/g, "-").replace(/\b95\s?%\s?(CI|confidence|credible|interval)/gi, " $1");
+  for (const m of t.match(NUM_RE) ?? []) {
     const s = m.replace(/,/g, "");
     if (!/^-?\d+(\.\d+)?$/.test(s)) continue; // Python float() rejects e.g. "1.2.3"
     out.push(Number(s));
@@ -42,14 +44,18 @@ export function unsupportedNumbers(answer: string, allowed: unknown[], tol = 0.0
   return numbersIn(answer).filter((n) => !supported(n, pool, tol));
 }
 
-/** Every finite number inside a JSON-like value (tool outputs -> the pool of allowed numbers). */
+/**
+ * Every finite number inside a JSON-like value (tool outputs -> the pool of allowed numbers). Negative values also add
+ * their magnitude: prose carries the sign in words ("fell 39%", "declined 3.2% a year").
+ */
 export function collectNumbers(obj: unknown, out: number[] = [], depth = 0): number[] {
   if (depth > 12) return out;
   if (typeof obj === "number") {
     if (Number.isFinite(obj)) out.push(obj);
+    if (obj < 0 && Number.isFinite(obj)) out.push(-obj);
   } else if (typeof obj === "string") {
     // numbers embedded in strings (e.g. alert summaries "probability 12.3%") are grounded too
-    if (obj.length < 400) for (const n of numbersIn(obj)) out.push(n);
+    if (obj.length < 400) for (const n of numbersIn(obj)) out.push(n, Math.abs(n));
   } else if (Array.isArray(obj)) {
     for (const v of obj) collectNumbers(v, out, depth + 1);
   } else if (obj && typeof obj === "object") {

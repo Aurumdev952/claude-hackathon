@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { SERVE } from "../db/duck.js";
 import { suppressSmallCells } from "../guardrails/suppress.js";
+import { roundDeep } from "./rates.js";
 import { defineTool } from "./types.js";
 
 const SPARK = ["cases", "cases_annualised", "national_asr", "pct_stage_iv", "median_diag_interval_days", "hp_testing_rate_dyspepsia", "young_onset_share"];
@@ -22,14 +23,14 @@ export const getKpis = defineTool({
     const y = year ?? (rows[rows.length - 1].year as number);
     const row = rows.find((r) => r.year === y);
     if (!row) return { ok: false, error: `No KPIs for year ${y}`, years: rows.map((r) => r.year) };
-    const series = suppressSmallCells(rows.map((r) => Object.fromEntries([["year", r.year], ["partial_year", r.partial_year], ...SPARK.map((k) => [k, r[k] ?? null])])));
+    const series = roundDeep(suppressSmallCells(rows.map((r) => Object.fromEntries([["year", r.year], ["partial_year", r.partial_year], ...SPARK.map((k) => [k, r[k] ?? null])]))));
     const lastFull = [...rows].reverse().find((r) => !r.partial_year)?.year ?? null;
     return {
       ok: true,
       year: y,
       partial_year: !!row.partial_year,
       last_full_year: lastFull,
-      kpis: { ...row, national_asr_ci: [row.national_asr_lci, row.national_asr_uci] },
+      kpis: roundDeep({ ...row, national_asr_ci: [row.national_asr_lci, row.national_asr_uci] }),
       units: {
         national_asr: "per 100,000 (WHO world standard)", pct_stage_iv: "% of cases with known stage",
         hp_testing_rate_dyspepsia: "fraction 0-1", young_onset_share: "fraction 0-1", median_diag_interval_days: "days",
