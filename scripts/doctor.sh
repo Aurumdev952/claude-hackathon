@@ -33,7 +33,8 @@ if [[ $SKIP_MYSQL != 1 ]]; then
 from generator.loader import connect
 try:
     c = connect(None).cursor()
-    c.execute("SELECT coalesce(sum(data_length + index_length), 0) / 1024 FROM information_schema.tables WHERE table_schema = 'openmrs'")
+    # allocated tablespace size = bytes on disk (information_schema.tables sizes come from stale statistics)
+    c.execute("SELECT coalesce(sum(ALLOCATED_SIZE), 0) / 1024 FROM information_schema.INNODB_TABLESPACES WHERE NAME LIKE 'openmrs/%'")
     print(int(c.fetchone()[0]))
 except Exception:
     print(0)
