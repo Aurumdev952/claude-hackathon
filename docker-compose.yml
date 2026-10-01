@@ -3,7 +3,7 @@ services:
   mysql:
     image: mysql:8.0
     command: ["--local-infile=1", "--innodb-buffer-pool-size=4G", "--max-allowed-packet=256M",
-              "--innodb-flush-log-at-trx-commit=2"]
+              "--innodb-flush-log-at-trx-commit=2", "--innodb-fill-factor=80"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: openmrs
