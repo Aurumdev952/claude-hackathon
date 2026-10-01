@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import type { EChartsOption } from "echarts";
-import { ink, mode } from "@/lib/viz";
+import { FONT_STACK, ink, mode } from "@/lib/viz";
 
 export function useThemeMode() {
   const [m, setM] = useState(mode());
@@ -15,26 +15,29 @@ export function useThemeMode() {
 
 const prefersReducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-/** Shared chart chrome: recessive grid/axes, text in ink tokens (never series colour), rounded crosshair tooltip.
- * Animations are switched off when the user prefers reduced motion. */
+/** Shared chart chrome (design v3): dotted split lines, no axis lines or ticks, muted 12px Urbanist labels, a white
+ * tooltip card (radius 16, the one soft shadow). Text wears ink tokens, never a series colour. Animations are switched
+ * off when the user prefers reduced motion. */
 export function base(): EChartsOption {
   const k = ink();
   const reduce = prefersReducedMotion();
   const dark = mode() === "dark";
   return {
     backgroundColor: "transparent",
-    textStyle: { fontFamily: '"Inter Variable", Inter, system-ui, sans-serif', color: k.secondary, fontSize: 11 },
+    textStyle: { fontFamily: FONT_STACK, color: k.secondary, fontSize: 12 },
     grid: { left: 44, right: 16, top: 28, bottom: 32, containLabel: false },
     tooltip: {
-      trigger: "axis", backgroundColor: k.surface, borderColor: k.border, borderWidth: 1, padding: [8, 12],
-      textStyle: { color: k.primary, fontSize: 12, fontFamily: '"Inter Variable", Inter, system-ui, sans-serif' },
-      axisPointer: { type: "line", lineStyle: { color: k.axis, type: "dashed" } },
-      extraCssText: `box-shadow: ${dark ? "0 16px 40px rgba(0,0,0,.55)" : "0 12px 32px rgba(16,24,40,.14)"}; border-radius: 12px;`,
+      trigger: "axis", backgroundColor: k.surface, borderColor: dark ? k.border : "transparent", borderWidth: dark ? 1 : 0, padding: [10, 14],
+      textStyle: { color: k.primary, fontSize: 13, fontFamily: FONT_STACK },
+      axisPointer: { type: "line", lineStyle: { color: k.axis, type: [2, 3], width: 1 } },
+      extraCssText: `box-shadow: ${dark ? "0 16px 48px rgba(0,0,0,.5)" : "0 16px 48px rgba(21,23,28,.12)"}; border-radius: 16px;`,
     },
-    legend: { top: 0, right: 0, textStyle: { color: k.secondary, fontSize: 11 }, icon: "roundRect", itemWidth: 10, itemHeight: 4 },
-    xAxis: { axisLine: { lineStyle: { color: k.axis } }, axisTick: { show: false }, axisLabel: { color: k.muted }, splitLine: { show: false } },
-    yAxis: { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: k.muted }, splitLine: { lineStyle: { color: k.grid } },
-             nameTextStyle: { color: k.muted, fontSize: 10, align: "left" } },
+    legend: { top: 0, right: 0, textStyle: { color: k.secondary, fontSize: 12, fontFamily: FONT_STACK }, icon: "circle", itemWidth: 8, itemHeight: 8, itemGap: 16 },
+    xAxis: { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: k.muted, fontSize: 12, fontFamily: FONT_STACK, margin: 12 },
+             splitLine: { show: false }, nameTextStyle: { color: k.muted, fontSize: 12 } },
+    yAxis: { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: k.muted, fontSize: 12, fontFamily: FONT_STACK },
+             splitLine: { lineStyle: { color: k.grid, type: [1, 4], width: 1 } },
+             nameTextStyle: { color: k.muted, fontSize: 12, align: "left" } },
     animation: !reduce,
     animationDuration: reduce ? 0 : 700,
     animationEasing: "cubicOut",

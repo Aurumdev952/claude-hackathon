@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { cardEnter, stagger } from "@/lib/motion";
+import { CARD_STAGGER, cardEnter, stagger } from "@/lib/motion";
 import { MotionScopeContext } from "./motionScope";
 
 type Bp = "base" | "sm" | "md" | "lg" | "xl" | "2xl";
@@ -47,13 +47,13 @@ export type BentoGridProps = {
   style?: CSSProperties;
 };
 
-/** 12-column bento grid (plan §A2) with a staggered entrance for its GridItems / Cards. */
-export function BentoGrid({ children, className = "", step = 0.06, as = "div", role, style, ...rest }: BentoGridProps) {
+/** 12-column grid (gap 20) whose cards fade in 40 ms apart: the page's one load moment. */
+export function BentoGrid({ children, className = "", step = CARD_STAGGER, as = "div", role, style, ...rest }: BentoGridProps) {
   const reduce = useReducedMotion();
   const M = motion[as] as typeof motion.div;
   return (
     <MotionScopeContext.Provider value="grid">
-      <M className={`grid grid-cols-12 gap-4 min-w-0 ${className}`} variants={stagger(step)} initial={reduce ? false : "hidden"} animate="show"
+      <M className={`grid grid-cols-12 gap-5 min-w-0 ${className}`} variants={stagger(step)} initial={reduce ? false : "hidden"} animate="show"
          role={role} aria-label={rest["aria-label"]} style={style}>
         {children}
       </M>

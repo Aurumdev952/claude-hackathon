@@ -81,7 +81,7 @@ export function TimeSlider({ periods, idx, onIdx, mode, onMode, playing, onPlay,
   const label = (p: Period) => (compact ? `’${String(p.end).slice(2)}` : p.type === "YEAR" ? String(p.end) : `${String(p.start).slice(2)}–${String(p.end).slice(2)}`);
   return (
     <div className={`${HUD} !rounded-[18px] px-3 py-2 flex items-center gap-3`} role="group" aria-label="Time slider">
-      <button className="w-9 h-9 rounded-full bg-cta-gradient text-white flex items-center justify-center shrink-0 shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.7)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 disabled:opacity-40"
+      <button className="w-9 h-9 rounded-full bg-signal-strong text-signal-on flex items-center justify-center shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 disabled:opacity-40"
               onClick={onPlay} aria-label={playing ? "Pause" : "Play through years"} disabled={!periodic || periods.length < 2}>
         {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
       </button>

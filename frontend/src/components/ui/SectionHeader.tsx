@@ -12,9 +12,9 @@ export function SectionHeader({ title, icon, info, actions, right, className = "
 }) {
   return (
     <div className={`flex items-center gap-3 min-w-0 ${className}`}>
-      {icon && <span className="w-9 h-9 shrink-0 rounded-full bg-accent-soft text-accent grid place-items-center" aria-hidden>{icon}</span>}
+      {icon && <span className="w-9 h-9 shrink-0 rounded-full border border-hairline text-ink grid place-items-center [&_svg]:w-[17px] [&_svg]:h-[17px]" aria-hidden>{icon}</span>}
       <div className="flex items-center gap-0.5 min-w-0">
-        <H className="text-[19px] leading-7 font-semibold tracking-tight text-fg truncate">{title}</H>
+        <H className="text-[20px] leading-7 font-semibold tracking-[-0.01em] text-ink truncate">{title}</H>
         {info ? <InfoHint {...infoProps(info, title, `About ${typeof title === "string" ? title : "this section"}`)} /> : null}
       </div>
       {right && <div className="flex-1 min-w-0">{right}</div>}
@@ -24,20 +24,21 @@ export function SectionHeader({ title, icon, info, actions, right, className = "
   );
 }
 
-/** Page title row: optional eyebrow, title, lede moved into ⓘ, right-side actions. */
+/** Page title row: title (28/34), lede moved into ⓘ, right-side actions. `eyebrow` is rendered as a small muted line
+ * under the title (v3 bans eyebrows above headings). */
 export function PageHeader({ title, eyebrow, info, lede, actions, right, icon, className = "" }: {
   title: ReactNode; eyebrow?: ReactNode; info?: Info; lede?: ReactNode; actions?: ReactNode; right?: ReactNode; icon?: ReactNode; className?: string;
 }) {
   const hint = info ?? lede;
   return (
     <header className={`flex items-center gap-4 flex-wrap min-w-0 ${className}`}>
-      {icon && <span className="w-10 h-10 shrink-0 rounded-tile bg-surface border border-border shadow-tile text-accent grid place-items-center" aria-hidden>{icon}</span>}
+      {icon && <span className="w-10 h-10 shrink-0 rounded-full border border-hairline bg-surface text-ink grid place-items-center [&_svg]:w-[18px] [&_svg]:h-[18px]" aria-hidden>{icon}</span>}
       <div className={`min-w-0 flex-1 ${icon ? "max-sm:basis-[calc(100%-56px)]" : "max-sm:basis-full"}`}>
-        {eyebrow && <div className="text-label font-medium text-accent">{eyebrow}</div>}
         <div className="flex items-center gap-0.5 min-w-0">
-          <h1 className="text-h1 text-fg sm:truncate max-sm:text-[19px] max-sm:leading-6">{title}</h1>
+          <h1 className="text-h1 text-ink sm:truncate max-sm:text-[22px] max-sm:leading-7">{title}</h1>
           {hint ? <InfoHint {...infoProps(hint, title, `About ${typeof title === "string" ? title : "this page"}`)} placement="bottom-start" /> : null}
         </div>
+        {eyebrow && <div className="text-label text-muted mt-0.5">{eyebrow}</div>}
       </div>
       {right && <div className="max-w-full min-w-0 overflow-x-auto scrollbar-none -my-1 py-1">{right}</div>}
       {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}

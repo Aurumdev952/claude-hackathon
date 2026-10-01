@@ -224,7 +224,7 @@ export function forestOption(spec: Forest, S: string[], k: Ink) {
         }
         const row = spec.data[j];
         children.push({ type: "text", style: { x: params.coordSys.x + params.coordSys.width + 12, y, text: `${cellText(row, spec.estimateKey)} (${cellText(row, spec.lciKey)}–${cellText(row, spec.uciKey)})`,
-          fill: k.secondary, font: '500 11px "Inter Variable", Inter, sans-serif', verticalAlign: "middle" } });
+          fill: k.secondary, font: '500 12px "Urbanist Variable", Urbanist, sans-serif', verticalAlign: "middle" } });
         return { type: "group", children };
       },
     },

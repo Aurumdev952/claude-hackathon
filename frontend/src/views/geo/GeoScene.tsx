@@ -144,7 +144,7 @@ export function GeoScene(p: SceneProps) {
     const ticks = [29, 29.5, 30, 30.5].map((lo) => ({ pos: [lo, -2.98], text: `${lo.toFixed(1)}°E` }))
       .concat([-1.5, -2.0, -2.5].map((la) => ({ pos: [28.66, la], text: `${Math.abs(la).toFixed(1)}°S` })));
     layers.push(new TextLayer({ id: "graticule-labels", data: ticks, getPosition: (d: any) => d.pos, getText: (d: any) => d.text, getSize: 10, getColor: t.muted,
-      fontFamily: '"Inter Variable", Inter, system-ui, sans-serif', characterSet: "0123456789.°ES", updateTriggers: { getColor: tm } }));
+      fontFamily: '"Urbanist Variable", Urbanist, system-ui, sans-serif', characterSet: "0123456789.°ES", updateTriggers: { getColor: tm } }));
   }
   layers.push(new GeoJsonLayer({ id: "halo", data: p.provinces, filled: false, stroked: true, getLineColor: t.halo, lineWidthUnits: "pixels", getLineWidth: mini ? 5 : 9, updateTriggers: { getLineColor: tm } }));
   layers.push(new GeoJsonLayer({ id: "plinth", data: p.provinces, filled: true, stroked: true, getFillColor: [...t.landBase, 255], getLineColor: t.outline, lineWidthUnits: "pixels", getLineWidth: 1.2, updateTriggers: { getFillColor: tm, getLineColor: tm } }));
@@ -229,7 +229,7 @@ export function GeoScene(p: SceneProps) {
     layers.push(new TextLayer({
       id: "labels", data: feats, getText: (f: any) => f.properties.name, getPosition: (f: any) => [f.properties.centroid[0], f.properties.centroid[1], heightOf(f.properties.district_code) * rise + 600] as [number, number, number],
       getSize: mini ? 11 : 12, getColor: t.label, background: true, getBackgroundColor: t.labelBg, backgroundPadding: [5, 3, 5, 3],
-      fontFamily: '"Inter Variable", Inter, system-ui, sans-serif', fontWeight: 600, getPixelOffset: [0, -10], characterSet: "auto",
+      fontFamily: '"Urbanist Variable", Urbanist, system-ui, sans-serif', fontWeight: 600, getPixelOffset: [0, -10], characterSet: "auto",
       getTextAnchor: "middle", getAlignmentBaseline: "bottom", parameters: { depthCompare: "always" } as any,
       updateTriggers: { getPosition: [rise, updateKey, dataKey], getColor: tm, getBackgroundColor: tm },
     }));

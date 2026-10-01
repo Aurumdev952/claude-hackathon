@@ -26,31 +26,32 @@ export type DetailModalProps = {
   footer?: ReactNode;
 };
 
-/** Detail modal (plan §A2): HeroUI Modal with blur backdrop, spring entrance, focus trap, Esc to close. */
+/** Detail modal (design v3): white, radius 24, one soft shadow, dimmed backdrop (no heavy blur), quick fade + scale,
+ * focus trap, Esc to close. */
 export function DetailModal({ isOpen, onOpenChange, onClose, title, icon, subtitle, info, size = "4xl", tabs, defaultTab, children, footer }: DetailModalProps) {
   const portal = usePortalContainer();
   return (
-    <Modal isOpen={isOpen} portalContainer={portal} onOpenChange={onOpenChange} onClose={onClose} size={size} backdrop="blur" placement="center" scrollBehavior="inside"
+    <Modal isOpen={isOpen} portalContainer={portal} onOpenChange={onOpenChange} onClose={onClose} size={size} backdrop="opaque" placement="center" scrollBehavior="inside"
            motionProps={modalMotion as any}
            classNames={{
-             base: "rounded-modal bg-surface border border-border shadow-float max-h-[88vh]",
-             backdrop: "bg-[rgb(11_18_32/0.28)] backdrop-blur-[6px]",
-             header: "px-6 pt-5 pb-1 flex items-start gap-3 pr-14",
-             body: "px-6 pt-2 pb-6",
-             footer: "px-6 pb-5 pt-0",
-             closeButton: "top-4 right-4 rounded-full text-fg-muted hover:bg-fg/5 active:bg-fg/10",
+             base: "rounded-modal bg-surface shadow-float max-h-[88vh] dark:border dark:border-hairline",
+             backdrop: "bg-[rgb(21_23_28/0.32)]",
+             header: "px-7 pt-6 pb-2 flex items-center gap-3 pr-16",
+             body: "px-7 pt-2 pb-7",
+             footer: "px-7 pb-6 pt-0",
+             closeButton: "top-5 right-5 w-9 h-9 rounded-full border border-hairline text-ink hover:bg-tile active:bg-tile-hover",
            }}>
       <ModalContent>
         {() => (
           <>
             <ModalHeader>
-              {icon && <span className="w-9 h-9 shrink-0 rounded-tile bg-accent-soft text-accent grid place-items-center">{icon}</span>}
+              {icon && <span className="w-9 h-9 shrink-0 rounded-full border border-hairline text-ink grid place-items-center [&_svg]:w-[17px] [&_svg]:h-[17px]" aria-hidden>{icon}</span>}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  <h2 className="text-h1 text-fg truncate">{title}</h2>
+                  <h2 className="text-[22px] leading-[28px] font-semibold tracking-[-0.01em] text-ink truncate">{title}</h2>
                   {info && <InfoHint content={info} label={`About ${typeof title === "string" ? title : "this view"}`} />}
                 </div>
-                {subtitle && <div className="text-label text-fg-muted font-normal mt-0.5">{subtitle}</div>}
+                {subtitle && <div className="text-label text-muted mt-0.5">{subtitle}</div>}
               </div>
             </ModalHeader>
             <ModalBody>{children ?? (tabs?.length ? <TabbedBody tabs={tabs} defaultTab={defaultTab} /> : null)}</ModalBody>
@@ -77,13 +78,13 @@ export type ChartDetailProps = { chart?: ReactNode; table?: ReactNode; method?: 
 export function chartDetailTabs({ chart, table, method, notes }: Omit<ChartDetailProps, "defaultTab">): DetailTab[] {
   const out: DetailTab[] = [];
   if (chart) out.push({ key: "chart", label: "Chart", icon: <BarChart3 size={13} aria-hidden />, content: chart });
-  if (table) out.push({ key: "table", label: "Table", icon: <Table2 size={13} aria-hidden />, content: <div className="overflow-auto max-h-[60vh] rounded-tile border border-border">{table}</div> });
+  if (table) out.push({ key: "table", label: "Table", icon: <Table2 size={13} aria-hidden />, content: <div className="overflow-auto max-h-[60vh] rounded-tile bg-surface">{table}</div> });
   if (method || notes) out.push({
     key: "method", label: "Method", icon: <BookOpen size={13} aria-hidden />,
     content: (
-      <div className="max-w-[720px] text-[13px] leading-relaxed text-fg/90 flex flex-col gap-3">
+      <div className="max-w-[680px] text-[14px] leading-[22px] text-ink/90 flex flex-col gap-3">
         {method && <div>{method}</div>}
-        {notes && <div className="text-fg-muted">{notes}</div>}
+        {notes && <div className="text-muted">{notes}</div>}
       </div>
     ),
   });

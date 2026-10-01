@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { pageVariants } from "@/lib/motion";
 
-/** Route fade / slide-up (plan §A2). Keyed by pathname only, so filter changes in the query string never replay it.
+/** Route fade (design v3: no slide). Keyed by pathname only, so filter changes in the query string never replay it.
  * Enter-only (no exit hold), so lazy routes and e2e timings are unaffected. */
 export function PageTransition({ children, className = "" }: { children: ReactNode; className?: string }) {
   const { pathname } = useLocation();

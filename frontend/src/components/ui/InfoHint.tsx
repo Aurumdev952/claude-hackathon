@@ -30,14 +30,14 @@ export function InfoHint({ content, about, method, notes, title, label = "More i
   if (!sections.length) return null;
   const trigger = (
     <Button isIconOnly size="sm" variant="light" radius="full" aria-label={label}
-            className={`min-w-7 w-7 h-7 text-fg-muted data-[hover=true]:text-fg data-[hover=true]:bg-fg/5 ${className}`}>
+            className={`min-w-7 w-7 h-7 text-muted data-[hover=true]:text-ink data-[hover=true]:bg-tile ${className}`}>
       <Info size={size} aria-hidden />
     </Button>
   );
   if (mode === "tooltip") {
     return (
-      <Tooltip content={<div className="max-w-[260px] text-xs leading-relaxed">{sections.map(([, v]) => v)[0]}</div>} placement={placement} delay={150} closeDelay={60} portalContainer={portal}
-               classNames={{ content: "bg-surface text-fg border border-border shadow-float rounded-tile px-3 py-2" }}>
+      <Tooltip content={<div className="max-w-[280px] text-[13px] leading-[19px]">{sections.map(([, v]) => v)[0]}</div>} placement={placement} delay={150} closeDelay={60} portalContainer={portal}
+               classNames={{ content: "bg-surface text-ink shadow-float rounded-tile px-3.5 py-2.5 dark:border dark:border-hairline" }}>
         {trigger}
       </Tooltip>
     );
@@ -45,16 +45,16 @@ export function InfoHint({ content, about, method, notes, title, label = "More i
   const single = sections.length === 1 && sections[0][0] === "About";
   return (
     <Popover placement={placement} showArrow offset={8} backdrop="transparent" portalContainer={portal}
-             classNames={{ content: "p-0 bg-surface border border-border shadow-float rounded-tile", base: "before:bg-surface" }}>
+             classNames={{ content: "p-0 bg-surface shadow-float rounded-card dark:border dark:border-hairline", base: "before:bg-surface" }}>
       <PopoverTrigger>{trigger}</PopoverTrigger>
       <PopoverContent>
-        <div className="w-[320px] max-w-[86vw] px-4 py-3.5 text-[12.5px] leading-relaxed text-fg">
-          {has(title) && <div className="text-title mb-1.5">{title}</div>}
-          <div className="flex flex-col gap-2.5">
+        <div className="w-[340px] max-w-[86vw] px-6 py-5 text-[14px] leading-[21px] text-ink">
+          {has(title) && <div className="text-title mb-2">{title}</div>}
+          <div className="flex flex-col gap-3">
             {sections.map(([h, v]) => (
               <section key={h}>
-                {!single && <h4 className="text-micro font-semibold uppercase tracking-wide text-fg-muted mb-0.5">{h}</h4>}
-                <div className="text-fg/90">{v}</div>
+                {!single && <h4 className="text-label text-muted mb-0.5">{h}</h4>}
+                <div className="text-ink/90">{v}</div>
               </section>
             ))}
           </div>

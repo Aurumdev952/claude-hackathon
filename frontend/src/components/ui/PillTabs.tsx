@@ -22,8 +22,10 @@ export type PillTabsProps<K extends string = string> = {
   items: PillTabItem<K>[];
   selectedKey: K;
   onSelectionChange?: (key: K) => void;
-  /** light = grey track + white pill; navy = white track + navy pill (top nav); glass = frosted track over a stage. */
-  variant?: "light" | "navy" | "glass";
+  /** light = grey track + ink pill (white text), for controls inside cards; surface = white track + grey pill with ink
+   * text, the quiet look for controls sitting on the page background (filter row); navy = no track, plain text tabs + ink pill (top nav);
+   * glass = grey track + white pill (quiet, e.g. over a stage). */
+  variant?: "light" | "surface" | "navy" | "glass";
   size?: "sm" | "md";
   ariaLabel: string;
   fullWidth?: boolean;
@@ -35,26 +37,33 @@ export type PillTabsProps<K extends string = string> = {
 
 const LOOK = {
   light: {
-    tabList: "bg-surface-2 border border-border",
-    cursor: "bg-surface dark:bg-content3 shadow-tile",
+    tabList: "bg-tile",
+    cursor: "bg-ink dark:bg-ink shadow-none",
     /** Selected background drawn on the tab itself when HeroUI drops the cursor (disableAnimation / reduced motion). */
-    still: "data-[selected=true]:bg-surface dark:data-[selected=true]:bg-content3 data-[selected=true]:shadow-tile",
-    text: "text-fg-muted group-data-[selected=true]:text-fg group-data-[hover-unselected=true]:text-fg",
-    count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-accent-soft group-data-[selected=true]:text-accent",
+    still: "data-[selected=true]:bg-ink",
+    text: "text-muted group-data-[selected=true]:text-ink-on group-data-[hover-unselected=true]:text-ink",
+    count: "bg-ink/5 text-muted group-data-[selected=true]:bg-ink-on/20 group-data-[selected=true]:text-ink-on",
+  },
+  surface: {
+    tabList: "bg-surface",
+    cursor: "bg-tile-hover dark:bg-tile-hover shadow-none",
+    still: "data-[selected=true]:bg-tile-hover",
+    text: "text-muted group-data-[selected=true]:text-ink group-data-[selected=true]:font-semibold group-data-[hover-unselected=true]:text-ink",
+    count: "bg-ink/5 text-muted",
   },
   navy: {
-    tabList: "bg-surface border border-border shadow-tile",
-    cursor: "bg-nav dark:bg-nav shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
-    still: "data-[selected=true]:bg-nav dark:data-[selected=true]:bg-nav data-[selected=true]:shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
-    text: "text-fg-muted group-data-[selected=true]:text-nav-fg group-data-[hover-unselected=true]:text-fg",
-    count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-nav-fg/20 group-data-[selected=true]:text-nav-fg",
+    tabList: "bg-transparent",
+    cursor: "bg-ink dark:bg-ink shadow-none",
+    still: "data-[selected=true]:bg-ink",
+    text: "text-muted group-data-[selected=true]:text-ink-on group-data-[hover-unselected=true]:text-ink",
+    count: "bg-ink/5 text-muted group-data-[selected=true]:bg-ink-on/20 group-data-[selected=true]:text-ink-on",
   },
   glass: {
-    tabList: "glass shadow-tile",
-    cursor: "bg-accent dark:bg-accent shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.6)]",
-    still: "data-[selected=true]:bg-accent dark:data-[selected=true]:bg-accent",
-    text: "text-fg-muted group-data-[selected=true]:text-white group-data-[hover-unselected=true]:text-fg",
-    count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-white/25 group-data-[selected=true]:text-white",
+    tabList: "bg-tile",
+    cursor: "bg-surface dark:bg-hairline shadow-none",
+    still: "data-[selected=true]:bg-surface dark:data-[selected=true]:bg-hairline",
+    text: "text-muted group-data-[selected=true]:text-ink group-data-[hover-unselected=true]:text-ink",
+    count: "bg-ink/5 text-muted group-data-[selected=true]:bg-signal-soft group-data-[selected=true]:text-signal-text",
   },
 } as const;
 
@@ -78,9 +87,9 @@ export function PillTabs<K extends string = string>({ items, selectedKey, onSele
       disabledKeys={items.filter((i) => i.isDisabled).map((i) => i.key)}
       classNames={{
         base: className,
-        tabList: `p-1 gap-0.5 ${look.tabList}`,
-        tab: `${size === "sm" ? "h-7 px-3" : "h-9 px-4"} data-[focus-visible=true]:outline-accent ${still ? look.still : ""} ${tabClassName}`,
-        tabContent: `${look.text} font-medium ${size === "sm" ? "text-xs" : "text-[13px]"} transition-colors`,
+        tabList: `${variant === "navy" ? "p-0 gap-1" : "p-1 gap-0.5"} ${look.tabList}`,
+        tab: `${size === "sm" ? "h-8 px-3.5" : "h-10 px-4"} data-[focus-visible=true]:outline-signal data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 ${still ? look.still : ""} ${tabClassName}`,
+        tabContent: `${look.text} font-medium ${size === "sm" ? "text-[13px]" : "text-[14px]"} transition-colors`,
         cursor: look.cursor,
         panel: `px-0 pt-3 pb-0 ${panelClassName}`,
       }}
@@ -113,24 +122,24 @@ export type SegProps<T extends string> = {
   onChange: (v: T) => void;
   label: string;
   size?: "sm" | "md";
-  variant?: "light" | "glass";
+  variant?: "light" | "surface" | "glass";
   className?: string;
 };
 
 /** Segmented control with the PillTabs look but the original `Seg` semantics (role="group" + aria-pressed buttons),
- * so existing views and e2e selectors keep working. Sliding pill via a shared layoutId. */
+ * so existing views and e2e selectors keep working. Grey track; light = ink pill, glass = white pill. Sliding pill via a
+ * shared layoutId. */
 export function Seg<T extends string>({ value, options, onChange, label, size = "sm", variant = "light", className = "" }: SegProps<T>) {
   const id = useId();
-  const track = variant === "glass" ? "glass" : "bg-surface-2 border border-border";
-  const pill = variant === "glass" ? "bg-accent" : "bg-surface shadow-tile dark:bg-content3";
+  const pill = variant === "glass" ? "bg-surface dark:bg-hairline" : variant === "surface" ? "bg-tile-hover" : "bg-ink";
   return (
-    <div className={`inline-flex items-center gap-0.5 rounded-full p-0.5 ${track} ${className}`} role="group" aria-label={label}>
+    <div className={`inline-flex items-center gap-0.5 rounded-full p-1 ${variant === "surface" ? "bg-surface" : "bg-tile"} ${className}`} role="group" aria-label={label}>
       {options.map((o) => {
         const on = o.value === value;
         return (
           <button key={o.value} type="button" aria-pressed={on} title={o.title} onClick={() => onChange(o.value)}
-                  className={`relative rounded-full ${size === "sm" ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-[13px]"} font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                    ${on ? (variant === "glass" ? "text-white" : "text-fg") : "text-fg-muted hover:text-fg"}`}>
+                  className={`relative rounded-full ${size === "sm" ? "h-7 px-3 text-[13px]" : "h-8 px-4 text-[14px]"} font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
+                    ${on ? (variant === "light" ? "text-ink-on" : "text-ink font-semibold") : "text-muted hover:text-ink"}`}>
             {on && <motion.span layoutId={`seg-${id}`} className={`absolute inset-0 rounded-full ${pill}`} transition={SPRING} aria-hidden />}
             <span className="relative whitespace-nowrap">{o.label}</span>
           </button>

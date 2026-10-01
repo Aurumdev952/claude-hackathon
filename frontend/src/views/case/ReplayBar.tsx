@@ -62,7 +62,7 @@ export function ReplayBar({ data }: { data: CaseData }) {
     <div className="glass rounded-[18px] shadow-float px-3 pt-2.5 pb-2 flex flex-col gap-1.5 pointer-events-auto" aria-label="Timeline replay">
       <div className="flex items-center gap-2 flex-wrap">
         <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={play} aria-label={playing ? "Pause replay" : "Play replay"}
-                       className="h-8 pl-2.5 pr-3.5 rounded-full bg-cta-gradient text-white text-[12px] font-semibold inline-flex items-center gap-1.5 shadow-[0_6px_16px_-8px_rgb(var(--accent)/0.8)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2">
+                       className="h-8 pl-2.5 pr-3.5 rounded-full bg-signal-strong text-signal-on text-[12px] font-semibold inline-flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2">
           {playing ? <Pause size={13} aria-hidden /> : <Play size={13} aria-hidden />}
           {playing ? "Pause" : replayT === null ? `Replay ${data.window.months} months` : "Play"}
         </motion.button>
