@@ -68,21 +68,21 @@ export function SystemRail({ data, className = "" }: { data: CaseData; className
   const item = (key: string, label: string, Icon: LucideIcon, on: boolean, dot: boolean, onPress: () => void) => (
     <li key={key}>
       <Tooltip content={label} placement="right" delay={200} closeDelay={0} offset={10} portalContainer={portal}
-               classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
-        <button type="button" onClick={onPress} aria-label={label} aria-pressed={on}
-                className="group relative w-9 h-9 grid place-items-center rounded-[11px] transition-colors hover:bg-fg/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
-          {on && <motion.span layoutId="system-rail-active" className="absolute inset-0 rounded-[11px] bg-nav shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.6)]" transition={SPRING} aria-hidden />}
-          <Icon size={17} className={`relative transition-colors ${on ? "text-nav-fg" : "text-fg-muted group-hover:text-fg"}`} aria-hidden />
-          {dot && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-serious ring-2 ring-surface" aria-hidden />}
+               classNames={{ content: "bg-ink text-ink-on text-[12px] font-medium px-2.5 py-1 rounded-full" }}>
+        <button type="button" onClick={onPress} aria-label={dot ? `${label}, involved` : label} aria-pressed={on}
+                className="group relative w-10 h-10 grid place-items-center rounded-full transition-colors hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+          {on && <motion.span layoutId="system-rail-active" className="absolute inset-0 rounded-full bg-ink" transition={SPRING} aria-hidden />}
+          <Icon size={17} className={`relative transition-colors ${on ? "text-ink-on" : "text-muted group-hover:text-ink"}`} aria-hidden />
+          {dot && <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ring-2 ${on ? "bg-ink-on ring-ink" : "bg-ink ring-surface"}`} aria-hidden />}
         </button>
       </Tooltip>
     </li>
   );
   return (
-    <nav aria-label="Body systems" className={`glass rounded-[16px] shadow-tile p-1 ${className}`}>
+    <nav aria-label="Body systems" className={`overlay-surface rounded-full p-1 ${className}`}>
       <ul className="flex flex-col items-center gap-0.5">
         {item("all", "Whole body", PersonStanding, false, false, () => pick(null))}
-        <li aria-hidden className="w-5 h-px bg-border my-0.5" />
+        <li aria-hidden className="w-5 h-px bg-hairline my-1" />
         {SYSTEMS.map((s) => {
           const organs = organsIn(data, s.key);
           const involved = organs.some((o) => (scores[o] ?? 0) >= 0.3);

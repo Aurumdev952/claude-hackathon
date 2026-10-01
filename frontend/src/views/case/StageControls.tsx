@@ -21,14 +21,15 @@ export function useFullscreen(target: React.RefObject<HTMLElement>) {
   return [on, toggle] as const;
 }
 
+/** 40px round white button with a hairline (design v3 overlay control); active = ink fill. */
 function RoundBtn({ label, onPress, children, active }: { label: string; onPress: () => void; children: React.ReactNode; active?: boolean }) {
   const portal = usePortalContainer();
-  const gesture = useGesture({ scale: 1.06 }, { scale: 0.92 });
+  const gesture = useGesture({}, { scale: 0.94 });
   return (
-    <Tooltip content={label} placement="left" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
+    <Tooltip content={label} placement="left" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-ink text-ink-on text-[12px] font-medium px-2.5 py-1 rounded-full" }}>
       <motion.button type="button" onClick={onPress} aria-label={label} {...gesture}
-                     className={`w-10 h-10 rounded-full grid place-items-center glass shadow-tile focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
-                                 ${active ? "!bg-accent text-white" : "text-fg hover:!bg-surface"}`}>
+                     className={`w-10 h-10 rounded-full grid place-items-center border transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
+                                 ${active ? "bg-ink border-ink text-ink-on" : "bg-surface border-hairline text-ink hover:bg-tile"}`}>
         {children}
       </motion.button>
     </Tooltip>

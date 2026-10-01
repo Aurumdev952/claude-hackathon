@@ -2,10 +2,10 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { Dna, MousePointer2 } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
-import { Card, chartDetailTabs, Loading, Seg, StatusChip } from "@/components/ui";
+import { Card, chartDetailTabs, Loading, Seg } from "@/components/ui";
 import { ErrorNote } from "@/components/ui/ErrorNote";
 import { detectWebGL } from "@/components/three/body/util";
-import { SERIES } from "@/lib/viz";
+import { CATEGORICAL } from "@/lib/viz";
 import { int } from "@/lib/format";
 import { chartBase, Empty, tipHead, tipRow, usePalette, useReducedMotion } from "../trends/kit";
 import { JourneyRow, KINDS, useJourney } from "./api";
@@ -23,9 +23,9 @@ export function HelixPanel() {
   const reduced = useReducedMotion();
   const events = q.data?.data ?? [];
   const nCases = useMemo(() => new Set(events.map((e) => e.case_index)).size, [events]);
-  // The 3D stage is a dark lightbox in both themes, so it always uses the dark-surface slots.
-  const stageColor = useMemo(() => Object.fromEntries(KINDS.map((k, i) => [k.id, SERIES.dark[i]])), []);
-  const themeColor = useMemo(() => Object.fromEntries(KINDS.map((k, i) => [k.id, pal.series[i]])), [pal]);
+  // seven event kinds: the validated categorical palette (fixed order); the 3D stage follows the theme
+  const themeColor = useMemo(() => Object.fromEntries(KINDS.map((k, i) => [k.id, CATEGORICAL[pal.mode][i]])), [pal]);
+  const stageColor = themeColor;
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     events.forEach((e) => { c[e.kind] = (c[e.kind] ?? 0) + 1; });
@@ -44,10 +44,10 @@ export function HelixPanel() {
 
   const table = (
     <table className="w-full text-[11px] tabular">
-      <caption className="text-left text-label text-fg-muted mb-1.5">Events per month before diagnosis, {nCases} sampled cases</caption>
-      <thead className="sticky top-0 bg-surface-2"><tr><th className="text-left py-1.5 px-1.5 text-fg-muted font-medium">Month</th>{KINDS.map((k) => <th key={k.id} className="text-right px-1.5 text-fg-muted font-medium">{k.label}</th>)}<th className="text-right px-1.5 text-fg-muted font-medium">Total</th></tr></thead>
+      <caption className="text-left text-label text-muted mb-1.5">Events per month before diagnosis, {nCases} sampled cases</caption>
+      <thead className="sticky top-0 bg-tile"><tr><th className="text-left py-2 px-2 text-muted font-medium">Month</th>{KINDS.map((k) => <th key={k.id} className="text-right px-2 text-muted font-medium">{k.label}</th>)}<th className="text-right px-2 text-muted font-medium">Total</th></tr></thead>
       <tbody>{byMonth.map((r) => (
-        <tr key={r.month} className="border-b border-border/70"><td className="py-1 px-1.5">{r.month}</td>{KINDS.map((k) => <td key={k.id} className="text-right px-1.5">{r[k.id]}</td>)}
+        <tr key={r.month} className="border-b border-hairline"><td className="py-1 px-1.5">{r.month}</td>{KINDS.map((k) => <td key={k.id} className="text-right px-1.5">{r[k.id]}</td>)}
           <td className="text-right px-1.5 font-semibold">{KINDS.reduce((a, k) => a + r[k.id], 0)}</td></tr>
       ))}</tbody>
     </table>
@@ -56,57 +56,57 @@ export function HelixPanel() {
 
   return (
     <Card
-      title="Journey helix · last two years" icon={<Dna size={16} />}
-      info={{ about: <>Each ring is one month; each dot one recorded event for {nCases || "~200"} sampled cases, placed at that patient's angle.{share6 ? <> {share6}% of events fall in the final 6 months.</> : null}</>, method,
-              notes: "Hover a dot to trace that patient's path; drag to orbit, scroll to zoom. Click an event type to hide it. “Working diagnosis” = a coded diagnosis such as dyspepsia or gastritis, not the cancer itself." }}
-      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
-      actions={<>
-        {share6 ? <StatusChip status="serious" size="md" label={<span className="tabular">{share6}% in final 6 months</span>} /> : null}
-        <Seg label="Render" value={view} onChange={setView} options={[{ value: "3d", label: "3D helix" }, { value: "bars", label: "2D bars" }]} />
-      </>}
+      title="Patient journeys, last two years" icon={<Dna size={16} />}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>Each ring is one month; each dot one recorded event for {nCases || "about 200"} sampled cases, placed at that patient's angle.</p><p className="mt-2">{method}</p></>,
+        notes: "Hover a dot to trace that patient's path; drag to orbit, scroll to zoom. Select an event type to hide it. A working diagnosis is a coded diagnosis such as dyspepsia or gastritis, not the cancer itself." }), defaultTab: "table" }}
+      detailLabel="Patient journeys: view as table"
+      actions={<Seg label="Render" value={view} onChange={setView} options={[{ value: "3d", label: "3D helix" }, { value: "bars", label: "Bars" }]} />}
     >
+      {share6 ? <p className="text-label font-normal text-muted -mt-1 mb-4 tabular">{share6}% of recorded events fall in the final 6 months before diagnosis.</p> : null}
       {q.error ? <ErrorNote error={q.error} /> : q.isLoading ? <Loading h={480} /> : !events.length ? <Empty h={300}>No journey sample published yet.</Empty> : (
-        <div className="grid gap-4 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="grid gap-6 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_240px]">
           {view === "3d" && webgl ? (
-            <div className="relative h-[500px] rounded-tile overflow-hidden case-stage">
-              <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-xs text-[#8696a2]">Loading 3D helix…</div>}>
+            <div className="relative h-[500px] rounded-tile overflow-hidden bg-tile">
+              <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-label text-muted">Loading the 3D helix</div>}>
                 <div className="absolute inset-0">
-                  <HelixScene events={events} kindColor={stageColor} hidden={hidden} hoverCase={hover?.case_index ?? null} onHover={setHover} reducedMotion={reduced} />
+                  <HelixScene events={events} kindColor={stageColor} hidden={hidden} hoverCase={hover?.case_index ?? null} onHover={setHover} reducedMotion={reduced} light={pal.mode === "light"} />
                 </div>
               </Suspense>
-              <div className={`absolute top-3 left-3 glass rounded-tile shadow-tile text-fg px-3 py-2 z-10 pointer-events-none ${hover ? "w-[236px]" : ""}`} role="status" aria-live="polite">
+              <div className={`absolute top-4 left-4 bg-surface rounded-tile dark:border dark:border-hairline text-ink px-4 py-3 z-10 pointer-events-none ${hover ? "w-[244px]" : ""}`} role="status" aria-live="polite">
                 {hover ? (
                   <>
-                    <div className="text-micro text-fg-muted">Sample case #{hover.case_index + 1} · stage {hover.stage_group}</div>
-                    <div className="flex items-center gap-1.5 mt-1 text-[12.5px] font-semibold">
+                    <div className="flex gap-3 text-micro text-muted"><span>Sample case {hover.case_index + 1}</span><span>Stage {hover.stage_group}</span></div>
+                    <div className="flex items-center gap-1.5 mt-1 text-[13px] font-medium">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: stageColor[hover.kind] }} aria-hidden />
-                      {KINDS.find((k) => k.id === hover.kind)?.label ?? hover.kind}{hover.is_abnormal ? <span className="text-tone-warning font-normal text-[11px]">· abnormal</span> : null}
+                      {KINDS.find((k) => k.id === hover.kind)?.label ?? hover.kind}{hover.is_abnormal ? <span className="text-tone-warning font-normal text-[12px] ml-1">abnormal</span> : null}
                     </div>
-                    <div className="text-micro text-fg-muted tabular">{Math.abs(hover.month_before)} month{Math.abs(hover.month_before) === 1 ? "" : "s"} before diagnosis</div>
-                    <div className="text-micro text-fg-muted tabular mt-1">This patient: {caseEvents.length} events, {new Set(caseEvents.filter((e) => e.kind === "VISIT").map((e) => e.month_before)).size} months with a GI visit</div>
+                    <div className="text-micro text-muted tabular">{Math.abs(hover.month_before)} month{Math.abs(hover.month_before) === 1 ? "" : "s"} before diagnosis</div>
+                    <div className="text-micro text-muted tabular mt-1">This patient: {caseEvents.length} events, {new Set(caseEvents.filter((e) => e.kind === "VISIT").map((e) => e.month_before)).size} months with a GI visit</div>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 text-micro text-fg-muted">
+                  <div className="flex items-center gap-2 text-micro text-muted">
                     <MousePointer2 size={13} className="shrink-0" aria-hidden />
-                    <span>Hover · drag · scroll</span>
+                    <span>Hover, drag or scroll</span>
                   </div>
                 )}
               </div>
             </div>
           ) : <Bars byMonth={byMonth} colors={themeColor} hidden={hidden} />}
-          <aside className="flex flex-col gap-1" aria-label="Event types (legend and filter)">
-            <div className="text-label font-medium text-fg-muted mb-1">Event type</div>
-            {KINDS.map((k) => {
-              const off = hidden.has(k.id);
-              return (
-                <button key={k.id} onClick={() => toggle(k.id)} aria-pressed={!off}
-                        className={`flex items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-left text-[12.5px] border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${off ? "border-transparent text-fg-muted/60" : "border-border/70 bg-surface-2 hover:bg-surface"}`}>
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: off ? "transparent" : (view === "3d" && webgl ? stageColor : themeColor)[k.id], boxShadow: `inset 0 0 0 1.5px ${(view === "3d" && webgl ? stageColor : themeColor)[k.id]}` }} aria-hidden />
-                  <span className={`flex-1 ${off ? "line-through" : ""}`}>{k.label}</span>
-                  <span className="tabular text-[11px] text-fg-muted">{int(counts[k.id] ?? 0)}</span>
-                </button>
-              );
-            })}
+          <aside className="flex flex-col" aria-label="Event types (legend and filter)">
+            <div className="text-label text-muted mb-2">Event type</div>
+            <div className="flex flex-col -mx-3">
+              {KINDS.map((k) => {
+                const off = hidden.has(k.id);
+                return (
+                  <button key={k.id} onClick={() => toggle(k.id)} aria-pressed={!off}
+                          className="flex items-center gap-3 rounded-tile h-11 px-3 text-left text-[14px] hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: off ? "transparent" : themeColor[k.id], boxShadow: `inset 0 0 0 1.5px ${themeColor[k.id]}` }} aria-hidden />
+                    <span className={`flex-1 ${off ? "text-faint line-through" : "text-ink"}`}>{k.label}</span>
+                    <span className="tabular text-micro text-muted">{int(counts[k.id] ?? 0)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </aside>
         </div>
       )}

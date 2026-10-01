@@ -8,7 +8,7 @@ import { fmt, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";
 import { alpha, tipHead, tipRow, usePalette, chartBase } from "./kit";
 import { Band, specKey, useJp, useSeries } from "./api";
-import { TrendChip } from "./JoinpointPanel";
+import { TrendText } from "./JoinpointPanel";
 
 const ROWS: { age: Band; sex: "ALL" | "F" | "M"; label: string }[] = [
   { age: "<50", sex: "ALL", label: "under 50" }, { age: "50-64", sex: "ALL", label: "50–64" }, { age: "65+", sex: "ALL", label: "65+" },
@@ -56,9 +56,9 @@ export function AgeContrastPanel() {
           const r = p.data.row;
           const s = r.last;
           const a = r.jp.aapc_last10;
-          return tipHead(`National · ${r.label}`) +
-            tipRow(r.color, `Latest segment ${s.start_year}–${s.end_year}`, `${signed(s.apc, 1, "%")}/yr`, `[${fmt(s.apc_lci, 1)}, ${fmt(s.apc_uci, 1)}]`) +
-            tipRow(null, "AAPC, last 10 years", `${signed(a.value, 1, "%")}/yr`, `[${fmt(a.lci, 1)}, ${fmt(a.uci, 1)}]`);
+          return tipHead(`National, ${r.label}`) +
+            tipRow(r.color, `Latest segment ${s.start_year}–${s.end_year}`, `${signed(s.apc, 1, "%")} a year`, `(${fmt(s.apc_lci, 1)} to ${fmt(s.apc_uci, 1)})`) +
+            tipRow(null, "AAPC, last 10 years", `${signed(a.value, 1, "%")} a year`, `(${fmt(a.lci, 1)} to ${fmt(a.uci, 1)})`);
         },
       },
       series: [{
@@ -97,23 +97,22 @@ export function AgeContrastPanel() {
   const table = ready ? <DataTable columns={[{ key: "label", label: "Series" }, { key: "seg", label: "Latest segment" }, { key: "apc", label: "APC", num: true }, { key: "aapc", label: "AAPC (10 y)", num: true }]}
     rows={rows.map((r) => ({ label: r.label, seg: `${r.last!.start_year}–${r.last!.end_year}`, apc: `${signed(r.last!.apc, 1, "%")} [${fmt(r.last!.apc_lci, 1)}, ${fmt(r.last!.apc_uci, 1)}]`,
       aapc: `${signed(r.jp!.aapc_last10.value, 1, "%")} [${fmt(r.jp!.aapc_last10.lci, 1)}, ${fmt(r.jp!.aapc_last10.uci, 1)}]` }))} /> : undefined;
-  const st = (s?: { apc: number; significant: boolean }) => (!s ? undefined : <TrendChip s={s} />);
+  const st = (s?: { apc: number; significant: boolean }) => (!s ? undefined : <TrendText s={s} />);
   return (
-    <Card title="Who is driving the trend?" icon={<Users size={16} />}
-      info={{ about: "National joinpoint by age band (both sexes) and by sex (all ages).", method }}
-      detail={table ? { tabs: chartDetailTabs({ table, method }), defaultTab: "table" } : undefined} detailLabel="View as table">
+    <Card title="Who drives the trend" icon={<Users size={16} />}
+      detail={table ? { tabs: chartDetailTabs({ table, method: <><p>National joinpoint by age band (both sexes) and by sex (all ages).</p><p className="mt-2">{method}</p></> }), defaultTab: "table" } : undefined} detailLabel="Who drives the trend: view as table">
       {err ? <ErrorNote error={err} /> : !ready ? <Loading h={210} /> : (
         <>
           <EChart option={option} height={262} ariaLabel="Annual percent change by age band with 95% confidence intervals" />
-          <div className="flex items-center gap-3 mt-0.5 text-[11px] text-fg-muted">
-            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-fg-muted" aria-hidden />Latest-segment APC</span>
-            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 border-[1.5px] border-fg-muted" aria-hidden />AAPC, 10 years</span>
+          <div className="flex items-center gap-5 mt-1 text-micro text-muted">
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-muted" aria-hidden />Latest segment</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 border-[1.5px] border-muted" aria-hidden />Average, 10 years</span>
           </div>
           {young.last && (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <StatTile label={`Under 50 · since ${young.last.start_year}`} value={signed(young.last.apc, 1, "%")} unit="/yr" sub={st(young.last)}
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
+              <StatTile label={`Under 50, since ${young.last.start_year}`} value={signed(young.last.apc, 1, "%")} unit="a year" sub={st(young.last)}
                         info={`95% CI ${fmt(young.last.apc_lci, 1)} to ${fmt(young.last.apc_uci, 1)}`} />
-              <StatTile label="65+" value={signed(old.last?.apc, 1, "%")} unit="/yr" sub={st(old.last)}
+              <StatTile label="65 and over" value={signed(old.last?.apc, 1, "%")} unit="a year" sub={st(old.last)}
                         info={old.last ? `${old.last.significant ? "Changing" : "Flat"}: 95% CI ${fmt(old.last.apc_lci, 1)} to ${fmt(old.last.apc_uci, 1)}` : undefined} />
             </div>
           )}

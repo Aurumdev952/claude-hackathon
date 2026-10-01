@@ -9,6 +9,13 @@ import type { JourneyRow } from "./api";
 export type HelixProps = {
   events: JourneyRow[]; kindColor: Record<string, string>; hidden: Set<string>;
   hoverCase: number | null; onHover: (e: JourneyRow | null) => void; reducedMotion: boolean;
+  /** Light stage (light theme): ink rings and labels on the grey tile. */
+  light?: boolean;
+};
+
+const CHROME = {
+  light: { dim: "#F5F6F9", major: "#6B7080", minor: "#A3A8B5", majorOp: 0.5, minorOp: 0.35, axis: "#6B7080", strong: "text-[#15171C]", muted: "text-[#6B7080]", path: "#15171C" },
+  dark: { dim: "#1b2430", major: "#b4c0c8", minor: "#56677a", majorOp: 0.55, minorOp: 0.32, axis: "#8696a2", strong: "text-[#F2F3F5]", muted: "text-[#8B909E]", path: "#ffffff" },
 };
 
 const HH = 8, R0 = 0.7, R1 = 4.2, TWIST = 0.13;
@@ -30,7 +37,8 @@ function layout(events: JourneyRow[]) {
   });
 }
 
-function Dots({ events, pos, kindColor, hidden, hoverCase, onHover }: HelixProps & { pos: THREE.Vector3[] }) {
+function Dots(p: HelixProps & { pos: THREE.Vector3[] }) {
+  const { events, pos, kindColor, hidden, hoverCase, onHover } = p;
   const ref = useRef<THREE.InstancedMesh>(null);
   const geo = useMemo(() => new THREE.IcosahedronGeometry(0.036, 1), []);
   useLayoutEffect(() => {
@@ -45,13 +53,13 @@ function Dots({ events, pos, kindColor, hidden, hoverCase, onHover }: HelixProps
       m.compose(pos[i], q, s);
       mesh.setMatrixAt(i, m);
       c.set(kindColor[e.kind] ?? "#8696a2");
-      if (!on) c.lerp(new THREE.Color("#1b2430"), 0.78);
+      if (!on) c.lerp(new THREE.Color(p.light ? CHROME.light.dim : CHROME.dark.dim), 0.78);
       mesh.setColorAt(i, c);
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [events, pos, kindColor, hidden, hoverCase]);
+  }, [events, pos, kindColor, hidden, hoverCase, p.light]);
   useEffect(() => () => geo.dispose(), [geo]);
   const pick = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -67,7 +75,8 @@ function Dots({ events, pos, kindColor, hidden, hoverCase, onHover }: HelixProps
   );
 }
 
-function Rings({ counts }: { counts: Map<number, number> }) {
+function Rings({ counts, light }: { counts: Map<number, number>; light?: boolean }) {
+  const c = light ? CHROME.light : CHROME.dark;
   const circle = (m: number) => {
     const r = ringR(m), y = ringY(m);
     return Array.from({ length: 97 }, (_, i) => { const t = (i / 96) * Math.PI * 2; return [Math.cos(t) * r, y, Math.sin(t) * r] as [number, number, number]; });
@@ -77,28 +86,28 @@ function Rings({ counts }: { counts: Map<number, number> }) {
     <group>
       {months.map((m) => {
         const major = m === -1 || Math.abs(m) % 6 === 0;
-        return <Line key={m} points={circle(m)} color={major ? "#b4c0c8" : "#56677a"} lineWidth={major ? 1 : 0.6} transparent opacity={major ? 0.55 : 0.32} />;
+        return <Line key={m} points={circle(m)} color={major ? c.major : c.minor} lineWidth={major ? 1 : 0.6} transparent opacity={major ? c.majorOp : c.minorOp} />;
       })}
-      <Line points={[[0, -0.4, 0], [0, HH + 0.4, 0]]} color="#8696a2" lineWidth={0.8} transparent opacity={0.35} />
+      <Line points={[[0, -0.4, 0], [0, HH + 0.4, 0]]} color={c.axis} lineWidth={0.8} transparent opacity={0.35} />
       {[-1, -3, -6, -12, -18, -24].map((m) => (
         <Html key={m} position={[ringR(m) + 0.25, ringY(m), 0]} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
           <div className="whitespace-nowrap text-[10.5px] tabular leading-tight" style={{ transform: "translateY(-50%)" }}>
-            <span className="text-[#e6ecee] font-semibold">{m === -1 ? "Last month" : `${Math.abs(m)} mo before`}</span>
-            <span className="text-[#8696a2]"> · {counts.get(m) ?? 0} events</span>
+            <span className={`${c.strong} font-semibold`}>{m === -1 ? "Last month" : `${Math.abs(m)} months before`}</span>
+            <span className={`${c.muted} ml-2`}>{counts.get(m) ?? 0} events</span>
           </div>
         </Html>
       ))}
       <Html position={[0, -0.55, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
-        <div className="case-label is-strong">Diagnosis</div>
+        <div className="whitespace-nowrap rounded-full bg-[rgb(var(--ink))] text-[rgb(var(--on-ink))] text-[12px] leading-none px-3 py-2">Diagnosis</div>
       </Html>
     </group>
   );
 }
 
-function CasePath({ events, pos, hoverCase }: { events: JourneyRow[]; pos: THREE.Vector3[]; hoverCase: number }) {
+function CasePath({ events, pos, hoverCase, light }: { events: JourneyRow[]; pos: THREE.Vector3[]; hoverCase: number; light?: boolean }) {
   const pts = events.map((e, i) => ({ e, p: pos[i] })).filter((x) => x.e.case_index === hoverCase).sort((a, b) => a.e.month_before - b.e.month_before).map((x) => x.p);
   if (pts.length < 2) return null;
-  return <Line points={[...pts, new THREE.Vector3(0, -0.4, 0)]} color="#ffffff" lineWidth={1.6} transparent opacity={0.85} />;
+  return <Line points={[...pts, new THREE.Vector3(0, -0.4, 0)]} color={light ? CHROME.light.path : CHROME.dark.path} lineWidth={1.6} transparent opacity={0.85} />;
 }
 
 export function HelixScene(p: HelixProps) {
@@ -115,9 +124,9 @@ export function HelixScene(p: HelixProps) {
       <ambientLight intensity={0.85} />
       <directionalLight position={[4, 10, 6]} intensity={1.1} />
       <OrbitControls makeDefault target={[0, HH * 0.47, 0]} enableDamping={!p.reducedMotion} dampingFactor={0.12} minDistance={5} maxDistance={26} rotateSpeed={0.7} />
-      <Rings counts={counts} />
+      <Rings counts={counts} light={p.light} />
       <Dots {...p} pos={pos} />
-      {p.hoverCase !== null && <CasePath events={p.events} pos={pos} hoverCase={p.hoverCase} />}
+      {p.hoverCase !== null && <CasePath events={p.events} pos={pos} hoverCase={p.hoverCase} light={p.light} />}
     </Canvas>
   );
 }

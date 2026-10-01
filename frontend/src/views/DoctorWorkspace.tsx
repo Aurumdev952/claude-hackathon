@@ -156,9 +156,9 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
                        )}</span>}
                      sub={<><span>{p.display_id}</span><span className="truncate">{status === "flagged" ? `Seen ${date(p.last_visit)}` : `Diagnosed ${date(p.dx_date)}`}</span></>}
                      right={status === "flagged" ? (
-                       <span className="w-[118px] shrink-0 flex flex-col gap-2">
+                       <span className="w-[76px] sm:w-[118px] shrink-0 flex flex-col gap-2">
                          <span className="flex items-center justify-between gap-1">
-                           <BandMark band={p.risk_band} />
+                           <BandMark band={p.risk_band} labelClassName="max-sm:sr-only" />
                            <span className="text-[14px] leading-5 font-semibold tabular text-ink">{fmt(100 * prob)}%</span>
                          </span>
                          <Track value={prob} height={4} label={`${p.name} risk`} delay={0} />
@@ -336,7 +336,7 @@ function PatientPanel({ patientId }: { patientId: number }) {
             <p className="text-[15px] leading-[24px] text-ink max-w-[640px]">{ex.data.data.summary}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-micro text-muted">
               <span>{ex.data.data.disclaimer}</span>
-              <span>{ex.data.data.generated_by}</span>
+              <span>Source: {ex.data.data.generated_by}</span>
             </div>
           </div>
         ) : null}

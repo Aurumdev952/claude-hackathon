@@ -18,11 +18,11 @@ export function Dot({ level, className = "" }: { level: MarkLevel; className?: s
 }
 
 /** Dot + label ("● High"). `label` overrides the text (e.g. "Critical"). */
-export function BandMark({ band, level, label, className = "" }: { band?: string | null; level?: MarkLevel; label?: string; className?: string }) {
+export function BandMark({ band, level, label, className = "", labelClassName = "" }: { band?: string | null; level?: MarkLevel; label?: string; className?: string; labelClassName?: string }) {
   const l = level ?? levelOf(band);
   return (
     <span className={`inline-flex items-center gap-1.5 text-micro whitespace-nowrap ${l === "high" ? "text-ink" : "text-muted"} ${className}`}>
-      <Dot level={l} />{label ?? TEXT[l]}
+      <Dot level={l} /><span className={labelClassName}>{label ?? TEXT[l]}</span>
     </span>
   );
 }

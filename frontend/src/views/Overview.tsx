@@ -87,11 +87,11 @@ export default function Overview() {
         sub: partial ? `About ${int(cAnn)} over a full year` : `${SEX[f.sex][0].toUpperCase()}${SEX[f.sex].slice(1)}, ${BAND[f.ageBand]}`,
         delta: cD === null ? null : { text: `${signed(cD, 1, "%")} ${vs}`, dir: dir(cD), tone: "neutral", note: partial ? "annualised" : undefined },
         spark: rates.filter((r) => r.y <= year && r.y >= f.yearFrom).map((r) => ({ year: r.y, value: annual(r) ?? null, flag: flagOf(r) })), format: (v) => int(v) },
-      { id: "asr", label: "National ASR", short: "National rate", value: fmt(cur?.asr), unit: "per 100k", partial,
+      { id: "asr", label: "National ASR", short: "National rate", mini: "National rate", value: fmt(cur?.asr), unit: "per 100k", partial,
         sub: `95% CI ${fmt(cur?.asr_lci)}–${fmt(cur?.asr_uci)}`,
         delta: aD === null ? null : { text: `${signed(aD, 1)} ${vs}`, dir: dir(aD), tone: aSig ? tone(aD, false, 0) : "neutral", note: aSig ? undefined : "within CI" },
         spark: rates.filter((r) => r.y <= year && r.y >= f.yearFrom).map((r) => ({ year: r.y, value: r.asr, flag: flagOf(r) })), format: (v) => fmt(v) },
-      { id: "s4", label: "Stage IV at diagnosis", short: "Stage IV at diagnosis", value: fmt(s4, 0), unit: "%", partial, sub: "Of cases with a known stage",
+      { id: "s4", label: "Stage IV at diagnosis", short: "Stage IV at diagnosis", mini: "Stage IV", value: fmt(s4, 0), unit: "%", partial, sub: "Of cases with a known stage",
         delta: s4D === null ? null : { text: `${signed(s4D, 1)} pts ${vs}`, dir: dir(s4D), tone: tone(s4D, false, 2) },
         spark: spark(sp.pct_stage_iv ?? []), format: (v) => `${fmt(v, 0)}%`, scope },
       { id: "di", label: "Time to diagnosis", value: int(di), unit: "days", partial, sub: di !== null ? `Median, about ${fmt(di / 30.44, 1)} months from first symptom` : undefined,
@@ -100,7 +100,7 @@ export default function Overview() {
       { id: "hp", label: "H. pylori testing", value: hp === null ? "—" : fmt(100 * hp, 0), unit: "%", partial, sub: "Of dyspepsia patients tested",
         delta: hpD === null ? null : { text: `${signed(hpD, 1)} pts ${vs}`, dir: dir(hpD), tone: tone(hpD, true, 1) },
         spark: spark((sp.hp_testing_rate_dyspepsia ?? []).map((p) => ({ ...p, value: p.value === null ? null : 100 * p.value }))), format: (v) => `${fmt(v, 1)}%`, scope },
-      { id: "await", label: "Awaiting endoscopy", short: "High risk, not yet scoped", value: k.high_risk_awaiting_endoscopy === null ? "—" : int(k.high_risk_awaiting_endoscopy), unit: "patients", partial: false,
+      { id: "await", label: "Awaiting endoscopy", short: "High risk, not yet scoped", mini: "Not scoped", value: k.high_risk_awaiting_endoscopy === null ? "—" : int(k.high_risk_awaiting_endoscopy), unit: "patients", partial: false,
         missing: k.high_risk_awaiting_endoscopy === null ? "Not published this run" : "High-risk (HIGH band) patients not yet scoped", delta: null, spark: [], format: (v) => int(v),
         scope: k.high_risk_awaiting_endoscopy === null ? "Needs risk scores in the KPI mart" : "Current snapshot (no history)" },
     ];
@@ -164,7 +164,7 @@ export default function Overview() {
 
       <BentoGrid>
         {/* Hero: the 3D district map */}
-        <GridItem span={{ lg: 8 }} className="row-start-1 col-start-1">
+        <GridItem span={{ lg: 8 }} className="row-start-1 col-start-1 lg:col-start-1">
           <Card hero padding="none" aria-label="District map, age-standardised rate" className="min-h-[460px] max-sm:min-h-[420px] overflow-hidden !bg-sky-soft dark:!border-transparent">
             <MapHero yearTo={f.yearTo} compact={narrow} />
           </Card>
@@ -213,7 +213,7 @@ export default function Overview() {
         {/* Headline indicators: three numbers in the hero strip + three cards (six list items) */}
         <div role="list" aria-label="Headline indicators" className="contents">
           {kpis && (
-            <motion.div variants={cardEnter} className="row-start-1 col-start-1 col-span-12 lg:col-span-8 self-end relative z-10 p-5 pr-[112px] max-sm:p-3 pointer-events-none">
+            <motion.div variants={cardEnter} className="row-start-1 col-start-1 col-span-12 lg:col-span-8 lg:col-start-1 self-end relative z-10 p-5 pr-[112px] max-sm:p-3 pointer-events-none">
               <div className="pointer-events-auto flex gap-1 w-full max-w-[660px] rounded-[20px] bg-surface p-1.5">
                 <HeroStat k={byId("asr")!} icon={<Activity />} />
                 <HeroStat k={byId("s4")!} icon={<Layers />} />
@@ -271,7 +271,7 @@ export default function Overview() {
           <Card title="Highest rates" icon={<MapPin size={16} />}
                 info={{ about: "District age-standardised rates per 100,000, pooled over the latest three complete years. Select a district to open it in the map explorer.",
                         notes: "Hotspot means a High–High cluster: a high-rate district surrounded by high-rate neighbours (local Moran's I, p < 0.05). Hover a row for its 95% CI." }}>
-            <TopDistricts yearTo={f.yearTo} n={5} />
+            <TopDistricts yearTo={f.yearTo} n={6} />
           </Card>
         </GridItem>
       </BentoGrid>

@@ -23,8 +23,8 @@ async function shot(name, { w = 1600, h = 960, theme = "light", path = "/doctor"
   await page.goto(BASE + path);
   await page.waitForTimeout(wait);
   // theme fallback: set the attribute directly if the store key differs
-  await page.evaluate((t) => { document.documentElement.dataset.theme = t; document.documentElement.classList.toggle("dark", t === "dark"); }, theme);
-  if (action) await action(page);
+  try { await page.evaluate((t) => { document.documentElement.dataset.theme = t; document.documentElement.classList.toggle("dark", t === "dark"); }, theme); } catch { await page.waitForTimeout(wait); }
+  if (action) { try { await action(page); } catch (e) { console.log("action failed", name, e.message.split("\n")[0]); } }
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage });
   await ctx.close();
@@ -36,7 +36,8 @@ await shot("picker-light", { fac: null });
 await shot("doctor-light");
 await shot("doctor-dark", { theme: "dark" });
 await shot("doctor-1280-light", { w: 1280, h: 800 });
-await shot("doctor-full-light", { fullPage: true, h: 960 });
+await shot("doctor-scrolled-light", { action: async (p) => { await p.evaluate(() => { const m = document.querySelector("#main > div"); if (m) m.scrollTop = 99999; }); await p.waitForTimeout(800); } });
+await shot("doctor-scrolled-dark", { theme: "dark", action: async (p) => { await p.evaluate(() => { const m = document.querySelector("#main > div"); if (m) m.scrollTop = 99999; }); await p.waitForTimeout(800); } });
 await shot("doctor-alerts-light", { action: async (p) => { await p.getByRole("tab", { name: "Alerts inbox" }).click(); await p.waitForTimeout(1500); } });
 await shot("doctor-modal-light", { action: async (p) => { await p.getByRole("button", { name: "Explain" }).click(); await p.waitForTimeout(2500); } });
 await shot("doctor-390-light", { w: 390, h: 844, fullPage: false });
@@ -44,6 +45,7 @@ await shot("case-high-light", { path: `/doctor/case/${HIGH}`, wait: caseWait });
 await shot("case-high-dark", { path: `/doctor/case/${HIGH}`, wait: caseWait, theme: "dark" });
 await shot("case-high-1280-light", { path: `/doctor/case/${HIGH}`, wait: caseWait, w: 1280, h: 800 });
 await shot("case-dx-light", { path: `/doctor/case/${DX}`, wait: caseWait });
+await shot("case-dx-1280-light", { path: `/doctor/case/${DX}`, wait: caseWait, w: 1280, h: 800 });
 await shot("case-dx-dark", { path: `/doctor/case/${DX}`, wait: caseWait, theme: "dark" });
 await shot("case-modal-light", { path: `/doctor/case/${HIGH}`, wait: caseWait, action: async (p) => { await p.getByRole("button", { name: "View as table" }).click(); await p.waitForTimeout(800); } });
 await browser.close();

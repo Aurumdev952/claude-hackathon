@@ -11,9 +11,11 @@ const short = (n: string) => cleanName(n).replace(" Health Centre", " HC").repla
 
 export type TierMode = "tier" | "derived_tier";
 
+/** Testing tier colours: low testing is the attention case (signal), medium is context grey, high is the data hue (sky).
+ * `series` is the theme's SERIES array (sky, signal, ink, grey, ...). */
 export function tierColor(t: string | null | undefined, series: string[], muted: string) {
   const i = TIERS.indexOf(t as Tier);
-  return i >= 0 ? series[i] : muted;
+  return i === 0 ? series[1] : i === 1 ? series[3] : i === 2 ? series[0] : muted;
 }
 
 /** Standardised distance from the target (binomial z) - used to pick which outliers get a direct label. */
@@ -32,6 +34,7 @@ export const FLAG: Record<string, { label: string; short: string; status?: keyof
 };
 
 const FLAG_STATUS: Record<string, StatusKind> = { LOW_OUTLIER: "critical", low: "warning", within: "neutral", high: "good", HIGH_OUTLIER: "good", LOW_VOLUME: "neutral" };
+/** Outlier status for the focused facility: one pill (solid only for the low outlier, the single attention case). */
 export function FlagChip({ flag, short = false }: { flag: string; short?: boolean }) {
   const f = FLAG[flag] ?? FLAG.within;
   return <StatusChip status={FLAG_STATUS[flag] ?? "neutral"} icon={<f.Icon size={11} aria-hidden />} label={short ? f.short : f.label} title={f.label} />;
@@ -79,7 +82,7 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
                            position: zOf(p) < 0 ? "bottom" : "top", color: k.primary, fontSize: 10, distance: 6 } : undefined,
         };
       }),
-      itemStyle: { color: S[i], borderColor: k.surface, borderWidth: 1 },
+      itemStyle: { color: tierColor(t, S, k.muted), borderColor: k.surface, borderWidth: 1 },
       labelLayout: { hideOverlap: true, moveOverlap: "shiftY" },
       emphasis: { scale: 1.6, itemStyle: { opacity: 1 } },
     }));
@@ -94,14 +97,14 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
           const f: FacilityQ | undefined = p.data?.f;
           if (!f) return "";
           return ttHead(cleanName(f.name)) +
-            `<div style="opacity:.75;font-size:11px;margin:-2px 0 6px">${FACILITY_TYPE[f.facility_type] ?? f.facility_type} · ${PROVINCE[f.province_code] ?? f.province_code}</div>` +
+            `<div style="opacity:.75;font-size:11px;margin:-2px 0 6px">${FACILITY_TYPE[f.facility_type] ?? f.facility_type}, ${PROVINCE[f.province_code] ?? f.province_code}</div>` +
             ttRow(p.color, "HP tested", `${pct(f.hp_test_rate, 1, 100)} (${int(f.n_hp_tested)}/${int(f.n_dyspepsia)})`) +
             ttRow(k.secondary, "95% limits", `${pct(f.funnel_lower95, 0, 100)}–${pct(f.funnel_upper95, 0, 100)}`, "line") +
             ttRow(k.secondary, "99.8% limits", `${pct(f.funnel_lower998, 0, 100)}–${pct(f.funnel_upper998, 0, 100)}`, "line") +
-            ttNote(`${FLAG[f.outlier_flag]?.label ?? f.outlier_flag} · click for details`);
+            ttNote(`${FLAG[f.outlier_flag]?.label ?? f.outlier_flag}. Select for details.`);
         },
       }),
-      xAxis: xAxis({ type: "value", min: 0, max: xMax, axisLabel: { color: k.muted, showMaxLabel: false }, name: "Dyspepsia patients seen (2019 →)", nameLocation: "middle", nameGap: 26,
+      xAxis: xAxis({ type: "value", min: 0, max: xMax, axisLabel: { color: k.muted, showMaxLabel: false }, name: "Dyspepsia patients seen since 2019", nameLocation: "middle", nameGap: 26,
                      nameTextStyle: { color: k.muted, fontSize: 11 }, splitLine: { show: false } }),
       yAxis: yAxis({ type: "value", min: 0, max: Math.min(100, Math.ceil((Math.max(...pts.map((p) => 100 * (p.hp_test_rate ?? 0))) + 6) / 10) * 10), interval: 10, axisLabel: { color: k.muted, formatter: "{value}%" },
                      name: "% tested for H. pylori ≤ 90 days", nameTextStyle: { color: k.muted, fontSize: 10, align: "left", padding: [0, 0, 0, -38] } }),
@@ -126,7 +129,7 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
   return (
     <div>
       <Legend className="mb-1" items={[
-        ...TIERS.map((t, i) => ({ label: TIER_LABEL[t], color: S[i], shape: "dot" as const })),
+        ...TIERS.map((t) => ({ label: TIER_LABEL[t], color: tierColor(t, S, k.muted), shape: "dot" as const })),
         { label: "National rate", color: k.primary, shape: "line" },
         { label: "99.8% limits", color: k.secondary, shape: "line" },
         { label: "95% limits", color: k.secondary, shape: "dash" },
@@ -140,7 +143,7 @@ export function FunnelTable({ rows, onSelect }: { rows: FacilityQ[]; onSelect: (
   const sorted = [...rows].sort((a, b) => (a.hp_test_rate ?? 0) - (b.hp_test_rate ?? 0));
   return (
     <DataTable rows={sorted} columns={[
-      { key: "name", label: "Facility", fmt: (v, r) => <button className="text-left hover:text-accent hover:underline" onClick={() => onSelect(r.location_id)}>{cleanName(v)}</button> },
+      { key: "name", label: "Facility", fmt: (v, r) => <button className="text-left font-medium hover:underline" onClick={() => onSelect(r.location_id)}>{cleanName(v)}</button> },
       { key: "district_code", label: "District" },
       { key: "tier", label: "Tier" },
       { key: "derived_tier", label: "Derived", fmt: (v) => v ?? "—" },

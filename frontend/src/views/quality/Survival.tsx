@@ -25,6 +25,8 @@ export function useGroupColors(gv: GroupVar, values: string[]) {
   const g = GROUPS[gv];
   let slot = 0;
   const out: Record<string, string> = {};
+  // testing tiers keep the tier colours used on the funnel plot (low = signal, medium = grey, high = sky)
+  if (gv === "facility_tier") { [...g.order, ...values].forEach((v) => { out[v] = v === "low" ? S[1] : v === "medium" ? S[3] : v === "high" ? S[0] : k.muted; }); return out; }
   [...g.order, ...values.filter((v) => !g.order.includes(v))].forEach((v) => {
     out[v] = g.missing?.includes(v) ? k.muted : S[slot++ % S.length];
   });
@@ -87,7 +89,7 @@ export function KmChart({ rows, gv }: { rows: KmRow[]; gv: GroupVar }) {
           if (!main.length) return "";
           const t = main[0].value[0];
           return ttHead(`${fmt(t, 0)} months after diagnosis`) + main.map((p) =>
-            ttRow(p.color, p.seriesName, `${fmt(p.value[1], 0)}% <span style="opacity:.6;font-weight:400">(${fmt(p.value[3], 0)}–${fmt(p.value[4], 0)}) · ${int(p.value[2])} at risk</span>`, "line")).join("");
+            ttRow(p.color, p.seriesName, `${fmt(p.value[1], 0)}% <span style="opacity:.6;font-weight:400">(${fmt(p.value[3], 0)}–${fmt(p.value[4], 0)}), ${int(p.value[2])} at risk</span>`, "line")).join("");
         },
       }),
       xAxis: xAxis({ type: "value", min: 0, max: 60, interval: 12, axisLabel: { color: k.muted, formatter: (v: number) => `${v}` },
@@ -121,7 +123,7 @@ export function RiskTable({ rows, gv, summary }: { rows: KmRow[]; gv: GroupVar; 
   };
   return (
     <div className="text-[11px] tabular" role="table" aria-label="Numbers at risk">
-      <div className="flex items-end border-b border-border/70 pb-1 mb-1 text-[10px] uppercase tracking-wider text-fg-muted" role="row">
+      <div className="flex items-end border-b border-hairline pb-1.5 mb-1.5 text-[11px] text-muted" role="row">
         <div style={{ width: GRID.left }} className="shrink-0" role="columnheader">Number at risk</div>
         <div className="relative flex-1 h-3">{RISK_T.map((t) => (
           <span key={t} role="columnheader" className="absolute -translate-x-1/2" style={{ left: `${(t / MO / 60) * 100}%` }}>{Math.round(t / MO / 12) * 12}</span>))}</div>
@@ -139,7 +141,7 @@ export function RiskTable({ rows, gv, summary }: { rows: KmRow[]; gv: GroupVar; 
               <span key={t} role="cell" className="absolute top-0.5 -translate-x-1/2 text-fg" style={{ left: `${(t / MO / 60) * 100}%` }}>{at(g, t) ?? "—"}</span>))}</div>
             <div style={{ width: GRID.right }} className="shrink-0 grid grid-cols-2 text-right pl-3" role="cell">
               <span className="font-semibold">{s ? `${fmt(100 * s.surv_1y, 0)}%` : "—"}</span>
-              <span className="text-fg-muted">{s?.median_surv_days ? `${fmt(s.median_surv_days / MO, 1)} mo` : "—"}</span>
+              <span className="text-muted">{s?.median_surv_days ? `${fmt(s.median_surv_days / MO, 1)} mo` : "—"}</span>
             </div>
           </div>
         );

@@ -115,7 +115,7 @@ export function ViewHeader({ eyebrow, title, lede, right }: { eyebrow: string; t
 /** Legend key (shape follows the mark: line, band, dot). */
 export function Key({ color, label, kind = "line", dashed }: { color: string; label: ReactNode; kind?: "line" | "dot" | "band" | "box"; dashed?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-fg-muted whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 text-micro text-muted whitespace-nowrap">
       {kind === "line" && <span className="inline-block w-4 h-0" style={{ borderTop: `2px ${dashed ? "dashed" : "solid"} ${color}` }} aria-hidden />}
       {kind === "dot" && <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} aria-hidden />}
       {kind === "band" && <span className="inline-block w-4 h-2.5 rounded-sm" style={{ background: alpha(color.startsWith("#") ? color : "#8696a2", 0.25) }} aria-hidden />}
@@ -126,7 +126,7 @@ export function Key({ color, label, kind = "line", dashed }: { color: string; la
 }
 
 export function Empty({ h = 200, children }: { h?: number; children: ReactNode }) {
-  return <div className="flex items-center justify-center text-center text-xs text-fg-muted px-6 rounded-tile bg-surface-2/60" style={{ height: h }}>{children}</div>;
+  return <div className="flex items-center justify-center text-center text-label font-normal text-muted px-6 rounded-tile bg-tile" style={{ height: h }}>{children}</div>;
 }
 
 export const yearFrac = (d: string) => {

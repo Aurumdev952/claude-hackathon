@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable, StatusChip } from "@/components/ui";
+import { DataTable } from "@/components/ui";
 import { fmt, int } from "@/lib/format";
 import { hexToRgb } from "@/lib/viz";
 import { Legend, pval, stageRamp, tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "./kit";
@@ -36,7 +36,7 @@ export function StageMix({ rows, includeUnknown }: { rows: StageTierRow[]; inclu
         trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: k.grid } },
         formatter: (ps: any[]) => {
           const t = tiers[ps[0].dataIndex];
-          return ttHead(`${TIER_LABEL[t]} · n = ${int(nOf(t))}`) + ps.map((p) => {
+          return ttHead(`${TIER_LABEL[t]}, n = ${int(nOf(t))}`) + ps.map((p) => {
             const r = rows.find((x) => x.facility_tier === t && x.stage_group === p.seriesName);
             return ttRow(p.color, `Stage ${p.seriesName}`, `${fmt(p.value, 1)}% (${int(r?.n ?? 0)})`, "dot");
           }).join("");
@@ -67,15 +67,14 @@ export function StageLegend({ includeUnknown }: { includeUnknown: boolean }) {
   return <Legend items={[...STAGES, ...(includeUnknown ? ["Unknown"] : [])].map((s) => ({ label: s === "Unknown" ? "Stage unknown" : `Stage ${s}`, color: col[s], shape: "square" as const }))} />;
 }
 
-/** χ² result as chips under the stage bars (the reading sentence lives in the card ⓘ via ChiSquareNote). */
+/** χ² result as one muted line under the stage bars (the reading sentence lives in the detail modal via ChiSquareNote). */
 export function ChiSquareChips({ chi, rows }: { chi: ChiSquare; rows: StageTierRow[] }) {
   const iv = (t: string) => rows.find((r) => r.facility_tier === t && r.stage_group === "IV")?.pct_known ?? null;
   const lo = iv("low"), hi = iv("high");
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mt-2">
-      {chi ? <StatusChip status={chi.p < 0.05 ? "info" : "neutral"} icon={false} label={<span className="tabular">χ² {fmt(chi.chi2, 1)} · df {chi.dof} · {pval(chi.p)}</span>} title="Chi-square test, stage × tier (known stages)" />
-           : <StatusChip status="neutral" label="χ² not available" />}
-      {lo !== null && hi !== null && <StatusChip status="serious" label={<span className="tabular">Stage IV {fmt(lo, 0)}% low tier vs {fmt(hi, 0)}% high</span>} />}
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-3 text-label font-normal text-muted tabular">
+      {lo !== null && hi !== null && <span>Stage IV <span className="text-ink">{fmt(lo, 0)}%</span> at low-testing vs <span className="text-ink">{fmt(hi, 0)}%</span> at high-testing facilities</span>}
+      {chi ? <span title="Chi-square test, stage by tier (known stages)">χ² {fmt(chi.chi2, 1)}, df {chi.dof}, {pval(chi.p)}</span> : <span>χ² not available</span>}
     </div>
   );
 }

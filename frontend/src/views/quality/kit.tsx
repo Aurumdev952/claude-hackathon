@@ -34,7 +34,7 @@ export const ttNote = (s: string) => `<div style="opacity:.7;font-size:11px;marg
 /** HTML legend (used where ECharts' built-in legend would collide with direct labels). */
 export function Legend({ items, className = "" }: { items: { label: string; color: string; shape?: "dot" | "line" | "square" | "dash" }[]; className?: string }) {
   return (
-    <ul className={`flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-muted ${className}`} aria-label="Legend">
+    <ul className={`flex flex-wrap gap-x-5 gap-y-1 text-micro text-muted ${className}`} aria-label="Legend">
       {items.map((i) => (
         <li key={i.label} className="inline-flex items-center gap-1.5">
           <Key color={i.color} shape={i.shape} />{i.label}
@@ -57,7 +57,7 @@ export function Stat({ label, value, sub, accent }: { label: ReactNode; value: R
 }
 
 export function Empty({ h = 220, children }: { h?: number; children: ReactNode }) {
-  return <div className="flex items-center justify-center text-center text-xs text-fg-muted px-6 border border-dashed border-border rounded-tile bg-surface-2/50" style={{ minHeight: h }}>{children}</div>;
+  return <div className="flex items-center justify-center text-center text-label font-normal text-muted px-6 rounded-tile bg-tile" style={{ minHeight: h }}>{children}</div>;
 }
 
 /** p-value in reporting style. */
