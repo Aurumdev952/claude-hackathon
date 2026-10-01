@@ -41,3 +41,27 @@ body { @apply bg-basalt text-mist font-sans antialiased; font-feature-settings: 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* Case Analysis 3D stage: always a dark "lightbox" (imaging viewers are dark in both themes) */
+.case-stage {
+  background:
+    radial-gradient(60% 55% at 50% 42%, #1d2b3a 0%, #121a24 55%, #0b1118 100%);
+}
+.case-stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 4px);
+}
+.case-label {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 6px;
+  background: rgb(11 17 24 / 0.82); border: 1px solid rgb(230 236 238 / 0.18); color: #e6ecee;
+  backdrop-filter: blur(4px); transition: border-color .2s, box-shadow .2s;
+}
+.case-label.is-strong { border-color: #f2a541; box-shadow: 0 0 0 1px rgb(242 165 65 / 0.35), 0 0 22px rgb(255 106 58 / 0.3); }
+.case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(230 236 238 / 0.45); }
+.hud { @apply rounded-lg border text-[11px]; background: rgb(11 17 24 / 0.72); border-color: rgb(230 236 238 / 0.14); color: #e6ecee; backdrop-filter: blur(6px); }
+.hud-btn { @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-kivu; color: #b4c0c8; }
+.hud-btn:hover { color: #e6ecee; background: rgb(230 236 238 / 0.08); }
+.hud-btn[aria-pressed="true"] { color: #e6ecee; background: rgb(62 124 168 / 0.38); }
+@keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.28); } 22% { transform: scale(1.05); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } }
+.beat { animation: heartbeat var(--beat, 0.85s) ease-in-out infinite; transform-origin: center; }

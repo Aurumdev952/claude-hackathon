@@ -148,7 +148,10 @@ def _eradication_model(con) -> list[dict]:
 
 def _hiv_negative_control(con) -> list[dict]:
     d = con.execute("""
-        WITH hiv AS (SELECT DISTINCT patient_id FROM core_fact_diagnosis WHERE concept_id = 2101)
+        -- exposure = HIV recorded on/before cohort entry; "ever HIV" would count diagnoses made later, which only
+        -- people who stay alive and cancer-free can collect (immortal-time bias -> spurious protective HR)
+        WITH hivdx AS (SELECT patient_id, min(dx_datetime) AS hiv_t FROM core_fact_diagnosis WHERE concept_id = 2101 GROUP BY 1),
+        hiv AS (SELECT h.patient_id FROM hivdx h JOIN core_gi_cohort g USING (patient_id) WHERE h.hiv_t <= g.entry_date)
         SELECT g.patient_id, (h.patient_id IS NOT NULL)::DOUBLE AS hiv, date_diff('year', p.birthdate, g.entry_date) AS age,
                (p.sex = 'M')::DOUBLE AS male, g.entry_date, c.dx_date, p.death_date, p.last_encounter_date
         FROM core_gi_cohort g JOIN core_dim_patient p USING (patient_id) LEFT JOIN hiv h USING (patient_id)
