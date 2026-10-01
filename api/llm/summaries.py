@@ -132,9 +132,16 @@ def template_cards(view: str, f: dict) -> list[dict]:
             + (f"; 1-year survival {_f(f['surv1_low'], 0)}% vs {_f(f['surv1_high'], 0)}%." if f.get("surv1_low") is not None else "."),
             "warning", [{"metric": "mart_stage_mix.pct_known", "value": f["stage4_low"]}])
     if f.get("hiv_hr") is not None and view in ("quality",):
-        add("quality-negative-control", "What doesn't matter: HIV",
-            f"HIV status is not associated with gastric cancer (HR {_f(f['hiv_hr'], 2)}, 95% CI {_f(f['hiv_lci'], 2)}-{_f(f['hiv_uci'], 2)}) - "
-            "the negative control behaves as expected.", "info", [{"metric": "mart_cox.hr", "value": f["hiv_hr"]}])
+        ok = f["hiv_lci"] is not None and f["hiv_uci"] is not None and f["hiv_lci"] <= 1 <= f["hiv_uci"]
+        if ok:
+            add("quality-negative-control", "What doesn't matter: HIV",
+                f"HIV status is not associated with gastric cancer (HR {_f(f['hiv_hr'], 2)}, 95% CI {_f(f['hiv_lci'], 2)}-{_f(f['hiv_uci'], 2)}) - "
+                "the negative control behaves as expected.", "info", [{"metric": "mart_cox.hr", "value": f["hiv_hr"]}])
+        else:
+            add("quality-negative-control", "Negative control check failed",
+                f"HIV, which should have no effect, shows HR {_f(f['hiv_hr'], 2)} (95% CI {_f(f['hiv_lci'], 2)}-{_f(f['hiv_uci'], 2)}). "
+                "Treat the cohort estimates on this page with caution: residual bias is likely.", "warning",
+                [{"metric": "mart_cox.hr", "value": f["hiv_hr"]}])
     if f.get("erad_hr") is not None and view in ("quality",):
         add("quality-eradication", "Eradication associated with lower risk",
             f"Among H. pylori positive patients, eradication therapy is associated with a hazard ratio of {_f(f['erad_hr'], 2)} "

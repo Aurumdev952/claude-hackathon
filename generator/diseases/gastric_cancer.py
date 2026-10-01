@@ -38,7 +38,7 @@ TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
-CANCER_REFER_MULT = {"low": 0.65, "medium": 0.9, "high": 1.0}
+CANCER_REFER_MULT = {"low": 1.0, "medium": 1.4, "high": 1.8}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -196,7 +196,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     cs.ramp = rnd.random() < 0.70
     cs.ppi_repeat = rnd.random() < 0.40
     cs.alarm_late = rnd.random() < 0.55
-    cs.hb_drop = rnd.random() < 0.70
+    cs.hb_drop = rnd.random() < 0.75
     cs.wt_loss = rnd.random() < 0.45
     cs.dx_day = None
     cs.status = "UNDIAGNOSED"
@@ -274,7 +274,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             vitals(p, rec, enc, t, loc, rnd, pulse_add=tachy, full=rnd.random() < 0.5)
         fbc_boost = 2.2 if (alarms or hb_now < 10.5) else 1.5
         if ins6["enabled"] and p.province_at(day) in ins6["provinces"]:
-            fbc_boost *= 1.8  # malaria-endemic areas check Hb more often (and then misread it)
+            fbc_boost *= 1.25  # malaria-endemic areas check Hb a little more often (and then misread it)
         hb_meas = fbc(p, ctx, rec, enc, t, loc, rnd, boost=fbc_boost)
         hp_res = None if hp_done else hp_test(p, ctx, rec, enc, t, loc, rnd)
         hp_done = hp_done or hp_res is not None
@@ -328,7 +328,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
         if ctx.district_endoscopy(dcode, day):
             p_ref = min(0.95, p_ref * 1.25)
         # advanced disease seen at a hospital is worked up there (endoscopy if on site, else clinical diagnosis)
-        if (stage == "IV" and day - iv_start > 30 and ctx.by_id[loc]["facility_type"] != "HEALTH_CENTRE"
+        if (stage == "IV" and day - iv_start > 30 and day >= suppress_until and ctx.by_id[loc]["facility_type"] != "HEALTH_CENTRE"
                 and rnd.random() < 0.35 * (0.3 + 0.7 * anchor)):
             cs.route = "hospital_iv"
             _hospital_workup(p, ctx, rec, cs, day, rnd, alarms, anaemic_seen)

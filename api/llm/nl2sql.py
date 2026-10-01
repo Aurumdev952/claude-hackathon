@@ -72,19 +72,31 @@ def _execute(sql: str, timeout_s: float = 5.0):
         con.close()
 
 
+RATE_FIRST = ("asr", "rate", "crude_rate", "sir", "surv_1y", "auroc", "pct", "median_days", "apc", "hp_test_rate", "cases", "n")
+
+
+def _pick_value(num: list[str], exclude: tuple = ()) -> str | None:
+    cands = [c for c in num if c not in exclude and not c.endswith(("_lci", "_uci", "lci", "uci"))]
+    for pref in RATE_FIRST:
+        if pref in cands:
+            return pref
+    return cands[0] if cands else None
+
+
 def chart_spec(cols: list[str], rows: list[list], question: str) -> dict:
-    if len(rows) == 1 and len(cols) <= 2 and isinstance(rows[0][-1], (int, float)):
-        return {"type": "kpi", "value": cols[-1], "title": question}
     num = [c for i, c in enumerate(cols) if rows and all(isinstance(r[i], (int, float)) or r[i] is None for r in rows)]
-    if "year" in cols or "period" in cols:
+    if len(rows) == 1:  # one row is a headline number, never a one-point chart
+        v = _pick_value(num, ("year", "period"))
+        if v:
+            return {"type": "kpi", "value": v, "title": question}
+    if ("year" in cols or "period" in cols) and len(rows) > 1:
         x = "year" if "year" in cols else "period"
-        ys = [c for c in num if c not in (x,)]
-        return {"type": "line", "x": x, "y": ys[0] if ys else None, "title": question}
+        return {"type": "line", "x": x, "y": _pick_value(num, (x,)), "title": question}
     if "geo_code" in cols and num:
-        return {"type": "choropleth", "geo": "geo_code", "value": [c for c in num if c != "geo_code"][0], "title": question}
+        return {"type": "choropleth", "geo": "geo_code", "value": _pick_value(num, ("geo_code",)), "title": question}
     cat = [c for c in cols if c not in num]
     if cat and num:
-        return {"type": "bar", "x": cat[0], "y": num[0], "title": question}
+        return {"type": "bar", "x": "name" if "name" in cat else cat[0], "y": _pick_value(num), "title": question}
     return {"type": "table", "title": question}
 
 
@@ -97,8 +109,23 @@ def template_answer(cols, rows, intent: str) -> str:
         return str(v)
     if len(rows) == 1:
         return "; ".join(f"{c.replace('_', ' ')}: {fmt(v)}" for c, v in zip(cols, rows[0])) + "."
-    label = next((i for i, c in enumerate(cols) if c in ("name", "geo_code", "group", "stage", "model_id", "sex", "year", "period", "display_id")), 0)
-    val = next((i for i, c in enumerate(cols) if i != label and all(isinstance(r[i], (int, float)) or r[i] is None for r in rows)), None)
+    num = [c for i, c in enumerate(cols) if all(isinstance(r[i], (int, float)) or r[i] is None for r in rows)]
+    tcol = "year" if "year" in cols else ("period" if "period" in cols else None)
+    if tcol and len(rows) >= 3:  # time series: describe the change, not a "top" list
+        v = _pick_value(num, (tcol,))
+        if v:
+            ti, vi = cols.index(tcol), cols.index(v)
+            pts = [(r[ti], r[vi]) for r in rows if r[vi] is not None]
+            if len(pts) >= 2:
+                (t0, v0), (t1, v1) = pts[0], pts[-1]
+                hi = max(pts, key=lambda p: p[1])
+                word = "rose" if v1 > v0 * 1.05 else ("fell" if v1 < v0 * 0.95 else "was broadly flat")
+                return (f"{v.replace('_', ' ')} {word} from {fmt(v0)} in {t0} to {fmt(v1)} in {t1} "
+                        f"(highest {fmt(hi[1])} in {hi[0]}).")
+    label = next((cols.index(c) for c in ("name", "geo_code", "group", "stage", "model_id", "sex", "year", "period", "display_id")
+                  if c in cols), 0)
+    vname = _pick_value([c for c in num if cols.index(c) != label])
+    val = cols.index(vname) if vname else None
     items = [f"{fmt(r[label])} ({fmt(r[val])})" if val is not None else fmt(r[label]) for r in rows[:6]]
     more = f" and {len(rows) - 6} more" if len(rows) > 6 else ""
     head = cols[val].replace("_", " ") if val is not None else "result"

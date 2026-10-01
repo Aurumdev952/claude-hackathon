@@ -114,7 +114,7 @@ def match(question: str, role: str, facility_id: int | None, last_full_year: int
                          f"WHERE level = 'DISTRICT' AND geo_code = '{d}' AND period = '{y}' AND {DEFAULTS}")
     if d and re.search(r"change|after|since|before|trend", q):
         return ("trends", f"SELECT CAST(period AS INTEGER) AS year, cases, round(asr, 1) AS asr FROM mart_rates WHERE level = 'DISTRICT' "
-                          f"AND geo_code = '{d}' AND period_type = 'YEAR' AND {DEFAULTS} ORDER BY 1")
+                          f"AND geo_code = '{d}' AND period_type = 'YEAR' AND {DEFAULTS} AND NOT partial_year AND coverage_flag IS NULL ORDER BY 1")
     p = _province(q)
     if p and re.search(r"how many|number of|cases", q):
         cd = "CONFIRMED" if "confirmed" in q else "CONFIRMED_PROBABLE"
