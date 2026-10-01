@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Crosshair } from "lucide-react";
 import { Card, chartDetailTabs, DataTable, Loading } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt } from "@/lib/format";
 import { chartBase, tipHead, tipRow, usePalette } from "../trends/kit";
 import { SIGNAL_LABEL, useOr } from "./api";

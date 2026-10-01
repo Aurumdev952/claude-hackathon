@@ -4,7 +4,7 @@ import { get, qs } from "@/api/client";
 import { Accordion, AccordionItem } from "@heroui/react";
 import { AlertOctagon, BarChartHorizontal, Building2, FlaskConical, HeartPulse, ScatterChart, ShieldCheck } from "lucide-react";
 import { BentoGrid, Card, chartDetailTabs, GridItem, Loading, MetricCard, PageHeader, PairCard, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
 import { Empty, pval, usePalette } from "./quality/kit";
 import { FunnelPlot, FunnelTable, type TierMode } from "./quality/FunnelPlot";

@@ -3,6 +3,7 @@ import { Tooltip } from "@heroui/react";
 import { usePortalContainer } from "@/components/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crosshair, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
+import { useGesture } from "@/lib/motion";
 import { useCaseUI } from "./store";
 
 /** Is `target` the browser-fullscreen element? Returns [on, toggle]. */
@@ -22,9 +23,10 @@ export function useFullscreen(target: React.RefObject<HTMLElement>) {
 
 function RoundBtn({ label, onPress, children, active }: { label: string; onPress: () => void; children: React.ReactNode; active?: boolean }) {
   const portal = usePortalContainer();
+  const gesture = useGesture({ scale: 1.06 }, { scale: 0.92 });
   return (
     <Tooltip content={label} placement="left" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
-      <motion.button type="button" onClick={onPress} aria-label={label} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92 }}
+      <motion.button type="button" onClick={onPress} aria-label={label} {...gesture}
                      className={`w-10 h-10 rounded-full grid place-items-center glass shadow-tile focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                                  ${active ? "!bg-accent text-white" : "text-fg hover:!bg-surface"}`}>
         {children}

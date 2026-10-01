@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+.venv
+**/.venv
+**/__pycache__
+data/bulk
+data/analytics
+data/models
+data/sim_state
+agent/data
+logs
+.git
+frontend/test-results
+frontend/playwright-report
+.env

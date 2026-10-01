@@ -52,7 +52,12 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
     const byZ = [...pts].sort((a, b) => zOf(a) - zOf(b));
     const selF = pts.find((p) => p.location_id === selected);
     const near = (f: FacilityQ) => !!selF && Math.abs(f.n_dyspepsia - selF.n_dyspepsia) < xMaxRaw * 0.12 && Math.abs((f.hp_test_rate ?? 0) - (selF.hp_test_rate ?? 0)) < 0.08;
-    const labelled = new Set([...byZ.slice(0, 3), ...byZ.slice(-3)].filter((f) => !near(f)).map((f) => f.location_id));
+    // greedy: most extreme first, skipping points whose label would sit on an already-labelled neighbour
+    const close = (f: FacilityQ, g: FacilityQ) => Math.abs(f.n_dyspepsia - g.n_dyspepsia) < xMaxRaw * 0.1 && Math.abs((f.hp_test_rate ?? 0) - (g.hp_test_rate ?? 0)) < 0.06;
+    const picked: FacilityQ[] = [];
+    for (const f of [...byZ.slice(0, 3), ...byZ.slice(-3)].sort((x, y) => Math.abs(zOf(y)) - Math.abs(zOf(x))))
+      if (!near(f) && !picked.some((g) => close(f, g))) picked.push(f);
+    const labelled = new Set(picked.map((f) => f.location_id));
     const limitLine = (key: keyof FacilityQ, name: string, dashed: boolean, label?: string) => ({
       name, type: "line", silent: true, showSymbol: false, z: 1,
       data: lim.map((r) => [r.n_dyspepsia, Math.max(0, Math.min(100, 100 * (r[key] as number)))]),

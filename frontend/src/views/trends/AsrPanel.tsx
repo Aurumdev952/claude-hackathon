@@ -4,7 +4,7 @@ import { Button, Switch } from "@heroui/react";
 import { LineChart, Plus, Target, X } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
 import { Card, chartDetailTabs, DataTable, InfoHint, Loading, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
 import { useFilters } from "@/state/filters";

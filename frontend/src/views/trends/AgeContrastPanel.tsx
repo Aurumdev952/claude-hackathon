@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Users } from "lucide-react";
 import { Card, chartDetailTabs, DataTable, Loading, StatTile } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";
 import { alpha, tipHead, tipRow, usePalette, chartBase } from "./kit";

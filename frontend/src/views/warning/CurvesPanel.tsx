@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Waves } from "lucide-react";
 import { Card, chartDetailTabs, DataTable, Loading, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
 import { bandSeries, chartBase, Key, tipHead, tipRow, usePalette } from "../trends/kit";
 import { CurveRow, useCurves } from "./api";

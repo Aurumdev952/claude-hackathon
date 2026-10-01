@@ -7,7 +7,7 @@ import {
 import { Card, DetailModal, PillTabs, Sparkline, StatusChip, useDetailModal } from "@/components/ui";
 import { date, fmt } from "@/lib/format";
 import { DIVERGING } from "@/lib/viz";
-import { EASE, itemEnter, stagger } from "@/lib/motion";
+import { EASE, itemEnter, stagger, useGesture } from "@/lib/motion";
 import { AlertActions } from "@/views/doctor/AlertActions";
 import { NotScored, SHAP_NOTE } from "@/views/doctor/RiskCard";
 import type { CaseData, Measure } from "./types";
@@ -21,9 +21,10 @@ function Item({ icon, tone = "accent", title, sub, right, children, onHover }: {
   icon: React.ReactNode; tone?: "accent" | "warning" | "danger" | "success" | "neutral"; title: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode;
   children?: React.ReactNode; onHover?: (on: boolean) => void;
 }) {
+  const lift = useGesture({ y: -2 });
   const T = { accent: "bg-accent-soft text-accent", warning: "bg-warning/15 text-tone-warning", danger: "bg-danger/10 text-tone-danger", success: "bg-success/10 text-tone-success", neutral: "bg-surface-2 text-fg-muted" }[tone];
   return (
-    <motion.li variants={itemEnter} whileHover={{ y: -2 }} tabIndex={onHover ? 0 : undefined}
+    <motion.li variants={itemEnter} {...lift} tabIndex={onHover ? 0 : undefined}
                onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)} onFocus={() => onHover?.(true)} onBlur={() => onHover?.(false)}
                className="rounded-tile bg-surface border border-border shadow-tile p-3 flex gap-3 min-w-0 outline-none focus-visible:ring-2 focus-visible:ring-accent/60 hover:shadow-card transition-shadow">
       <span className={`w-10 h-10 shrink-0 rounded-[12px] grid place-items-center ${T}`} aria-hidden>{icon}</span>

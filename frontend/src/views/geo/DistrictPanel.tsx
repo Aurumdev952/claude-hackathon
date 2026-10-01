@@ -5,7 +5,7 @@ import { ChevronRight, MapPin, Sparkles, X } from "lucide-react";
 import type { Insight, MapRow } from "@/api/types";
 import { aiInsightCards, useInsights } from "@/api/hooks";
 import { AnimatedNumber, DeltaChip, DetailModal, InfoHint, Loading, StatTile, StatusChip, useDetailModal } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { SPRING_SOFT } from "@/lib/motion";
 import { useThemeMode } from "@/components/charts/EChart";
 import { fmt, int } from "@/lib/format";

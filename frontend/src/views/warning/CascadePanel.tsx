@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CornerDownRight } from "lucide-react";
 import { Filter } from "lucide-react";
 import { Card, chartDetailTabs, DataTable, Loading, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
 import { alpha, Empty, usePalette } from "../trends/kit";
 import { FunnelRow, PROVINCES, useFunnel } from "./api";

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { SPRING_SOFT } from "@/lib/motion";
+import { SPRING_SOFT, useGesture } from "@/lib/motion";
 
 export type FloatingGlassCardProps = {
   open?: boolean;
@@ -25,6 +25,7 @@ const POS = { "bottom-left": "fixed left-5 bottom-5 z-40", "bottom-right": "fixe
 
 /** Floating frosted card (plan §A2, reference "3 New insights"): gradient CTA + Dismiss, springs in and out. */
 export function FloatingGlassCard({ open = true, count, title, body, icon, cta, onDismiss, dismissLabel = "Dismiss", position = "bottom-left", role, ariaLabel, className = "", children }: FloatingGlassCardProps) {
+  const gesture = useGesture({ y: -1 }, { scale: 0.98 });
   return (
     <AnimatePresence>
       {open && (
@@ -52,7 +53,7 @@ export function FloatingGlassCard({ open = true, count, title, body, icon, cta, 
           {(cta || onDismiss) && (
             <div className="flex flex-col gap-2 mt-3.5">
               {cta && (
-                <motion.button type="button" onClick={cta.onPress} whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}
+                <motion.button type="button" onClick={cta.onPress} {...gesture}
                                className="w-full h-10 rounded-[12px] bg-cta-gradient text-white text-[13px] font-semibold flex items-center justify-between px-4 shadow-[0_8px_20px_-8px_rgb(var(--accent)/0.7)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2">
                   <span>{cta.label}</span>{cta.icon}
                 </motion.button>

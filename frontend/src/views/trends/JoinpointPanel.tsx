@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, GitCommitHorizontal } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
 import { Card, chartDetailTabs, InfoHint, Loading, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { Joinpoint, Segment } from "@/api/types";
 import { fmt, int, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";

@@ -1,7 +1,8 @@
 /** Motion primitives (plan §A2). Every animated component goes through these so the feel stays consistent; Framer's
  * MotionConfig reducedMotion="user" (Providers) turns transforms off for users who prefer reduced motion. */
-import type { Transition, Variants } from "framer-motion";
-export { useReducedMotion } from "framer-motion";
+import type { TargetAndTransition, Transition, Variants } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
+export { useReducedMotion };
 
 /** Apple-like ease-out (fast start, long settle). */
 export const EASE = [0.22, 1, 0.36, 1] as const;
@@ -48,3 +49,9 @@ export const modalMotion = {
     exit: { opacity: 0, y: 12, scale: 0.97, transition: { duration: 0.16, ease: EASE_IN_OUT } },
   },
 } as const;
+
+/** Hover / tap gesture props that switch off under prefers-reduced-motion (gestures would otherwise still jump). */
+export function useGesture(hover: TargetAndTransition, tap?: TargetAndTransition) {
+  const reduce = useReducedMotion();
+  return reduce ? {} : { whileHover: hover, ...(tap ? { whileTap: tap } : {}) };
+}
