@@ -218,7 +218,8 @@ def _diag_interval(con):
             p = float(mannwhitneyu(groups[0][1]["days"], groups[1][1]["days"]).pvalue)
         for g, s in groups:
             rows.append({"group_var": gv, "group": str(g), "median_days": float(s["days"].median()),
-                         "q1": float(s["days"].quantile(0.25)), "q3": float(s["days"].quantile(0.75)), "n": int(len(s)), "p_value": p})
+                         "q1": float(s["days"].quantile(0.25)), "q3": float(s["days"].quantile(0.75)),
+                         "p10": float(s["days"].quantile(0.10)), "p90": float(s["days"].quantile(0.90)), "n": int(len(s)), "p_value": p})
     to_table(con, "mart_diag_interval", pl.DataFrame(rows, infer_schema_length=None))
 
 
@@ -260,5 +261,7 @@ def _warning_summary(con, sets, subj, gi, hbsum, hbn):
         {"metric": "median_diag_interval_months", "case": (missed[4] or 0) / 30.44, "control": None},
         {"metric": "pct_alarm45_no_scope_90d", "case": 100 * missed[0] / max(1, missed[2]), "control": None},
         {"metric": "pct_alarm45_no_scope_90d_among_alarm", "case": 100 * missed[0] / max(1, missed[1]), "control": None},
+        {"metric": "n_cases_with_alarm45", "case": float(missed[1]), "control": None},
+        {"metric": "n_cases_with_2plus_hb_12m", "case": float((case & hb_ok).sum()), "control": float((~case & hb_ok).sum())},
     ]
     to_table(con, "mart_warning_summary", pl.DataFrame(rows, schema={"metric": pl.Utf8, "case": pl.Float64, "control": pl.Float64}))

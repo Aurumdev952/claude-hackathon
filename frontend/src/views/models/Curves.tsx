@@ -48,8 +48,7 @@ export function CurveChart({ kind, models, prevalence, height = 280 }: { kind: K
                  data: [[0, 0], [xMax, yMax]], lineStyle: { color: k.muted, width: 1, type: [4, 4] } });
     if (kind === "pr" && prevalence)
       ref.push({ name: "Prevalence", type: "line", silent: true, showSymbol: false, z: 1, tooltip: { show: false },
-                 data: [[0, prevalence], [1, prevalence]], lineStyle: { color: k.muted, width: 1, type: [4, 4] },
-                 endLabel: { show: true, formatter: `base rate ${fmt(100 * prevalence, 1)}%`, color: k.muted, fontSize: 10, position: "insideEndTop", offset: [-4, -4] } });
+                 data: [[0, prevalence], [1, prevalence]], lineStyle: { color: k.muted, width: 1, type: [4, 4] } });
     const series = ms.map((m) => {
       const c = S[TIER_META[m.tier].slot];
       const pts = (m.curves[kind] ?? []).map((p) => [p.x, p.y]);

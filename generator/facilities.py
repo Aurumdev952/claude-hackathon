@@ -48,7 +48,7 @@ def build_facilities(cfg: dict, seed: int) -> list[dict]:
     # so crude counts rise ~4-6x by 2019 from coverage alone (INS-7)
     order = sorted(DISTRICTS, key=lambda k: (0 if k.startswith("KGL") else 1, rnd.random()))
     lo, hi = d("2015-01-01"), d("2019-06-30")
-    n_pilot = 8   # D-25: 6 pilots made 2015 coverage so thin that 2019/2015 counts rose 7.6x (INS-7: 4-6x)
+    n_pilot = 10   # D-25: 6 pilots made 2015 coverage so thin that 2019/2015 counts rose 7.6x (INS-7: 4-6x)
     rollout = {}
     for i, k in enumerate(order):
         if i < n_pilot:

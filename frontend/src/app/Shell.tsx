@@ -34,7 +34,7 @@ export function Shell({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
-  const showFilters = role === "ministry" && ["/", "/geo", "/trends", "/warning", "/quality"].some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
+  const showFilters = role === "ministry" && ["/", "/geo", "/trends", "/warning"].some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
   return (
     <div className="h-full flex flex-col terrain-bg">
       <div className="bg-sorghum/15 border-b border-sorghum/30 text-[11px] text-center py-1 text-mist tracking-wide" role="note">
