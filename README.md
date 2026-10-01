@@ -117,6 +117,13 @@ What the build container measured on the final dataset:
 | Tier 3 sequence (GRU) | 0.963 | 0.536 | 92% | 6.3 mo |
 | Ensemble (final band) | 0.970 | 0.594 | 95% | 6.2 mo |
 
+- **Live loop** (`make up`: simulator tick every 5 min = 1 simulated day, pipeline scheduler every 5 min):
+  - About 2,750 encounters and 17,500 obs are inserted per tick in 45–60 s.
+  - A warm incremental batch takes about 3 min: stage 51 s, core 18 s, marts 44 s, scoring 60 s, publish 4 s.
+  - Most Tier 3 attributions come from the cache (for example 4,497 of 4,552).
+  - The API and the dashboard header pick up each new run without a restart.
+  - The first run in a new process adds about 1 min for numba/JAX compilation.
+
 ### Offline demo (no backend)
 
 `VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
