@@ -42,7 +42,7 @@ def build_facility_quality(con, sim_time, log=print):
     derived = np.where(~valid, None, np.where(rate <= t1, "low", np.where(rate <= t2, "medium", "high")))
     df = df.with_columns(pl.Series("hp_test_rate", rate), pl.Series("funnel_lower95", l95), pl.Series("funnel_upper95", u95),
                          pl.Series("funnel_lower998", l998), pl.Series("funnel_upper998", u998), pl.Series("outlier_flag", flag),
-                         pl.Series("derived_tier", derived, dtype=pl.Utf8), pl.lit(p0).alias("target_rate"))
+                         pl.Series("derived_tier", derived.tolist(), dtype=pl.Utf8), pl.lit(p0).alias("target_rate"))
     to_table(con, "mart_facility_quality", df)
     by_tier = df.filter(pl.col("n_dyspepsia") >= 10).group_by("tier").agg(
         (pl.col("n_hp_tested").sum() / pl.col("n_dyspepsia").sum() * 100).round(1).alias("rate"))

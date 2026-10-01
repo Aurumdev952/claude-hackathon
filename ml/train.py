@@ -55,6 +55,7 @@ def run(log=print) -> dict:
     prepare_sources(con)
     lm = build_landmarks(con)
     log(f"  landmarks: {len(lm):,} ({int(lm['label'].sum()):,} positive) by split {lm.groupby('split')['label'].agg(['size', 'sum']).to_dict()}")
+    lm["L"] = pd.to_datetime(lm["L"]).astype("datetime64[ns]")
     feats = build_feature_table(con, lm, "ml_train_features")
     df = lm.merge(feats, on=["patient_id", "L"], how="inner")
     X = design_matrix(df)

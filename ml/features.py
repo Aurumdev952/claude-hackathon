@@ -197,7 +197,9 @@ def build_feature_table(con, lm_df: pd.DataFrame, out: str = "ml_features") -> p
     con.register("_lm", lm_df[["patient_id", "L"]])
     con.execute(FEATURE_SQL.format(out=out, lm="_lm"))
     con.unregister("_lm")
-    return con.execute(f"SELECT * FROM {out}").df()
+    df = con.execute(f"SELECT * FROM {out}").df()
+    df["L"] = pd.to_datetime(df["L"]).astype("datetime64[ns]")
+    return df
 
 
 def design_matrix(df: pd.DataFrame) -> pd.DataFrame:

@@ -24,7 +24,12 @@ def sim_time_of(con) -> dt.datetime:
     return r or dt.datetime(2026, 6, 30, 23, 59, 59)
 
 
-def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_extract: bool = True) -> dict:
+ORDER = ["refs", "extract", "dq_raw", "stage", "core", "marts", "score", "dq_marts", "publish"]
+
+
+def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_extract: bool = True,
+        start_at: str | None = None) -> dict:
+    """start_at (dev): skip the steps before it and reuse the tables already in the work db."""
     con = work_connection()
     con.execute(LOG_DDL)
     run_id = (con.execute("SELECT coalesce(max(run_id), 0) + 1 FROM pipeline_run_log").fetchone()[0])
@@ -32,14 +37,18 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_ex
     steps: dict[str, float] = {}
     deltas: dict = {}
 
+    skip_before = ORDER.index(start_at) if start_at else 0
+
     def step(name, fn):
+        if ORDER.index("extract" if name == "bootstrap" else name) < skip_before:
+            return {}
         t = time.time()
         out = fn()
         steps[name] = round(time.time() - t, 2)
         log(f"  [{run_id}] {name:10s} {steps[name]:6.1f}s")
         return out
 
-    status, err = "OK", None
+    status, err, logged = "OK", None, False
     extract_enabled = do_extract
     try:
         step("refs", lambda: refs.load_refs(con))
@@ -61,6 +70,9 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_ex
         step("score", lambda: score.score_patients(con, sim_time, log))
         step("dq_marts", lambda: quality_checks.check_marts(con, sim_time))
         from . import publish
+        # log the run before publishing so the serve copy of pipeline_run_log already shows this run
+        _log_run(con, run_id, started, "OK", steps, deltas, None)
+        logged = True
         info = step("publish", lambda: publish.publish(con, run_id, sim_time, deltas))
         log(f"  [{run_id}] published -> {info['active']}  sim_time={sim_time}")
     except Exception as e:
@@ -68,10 +80,16 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_ex
         log(traceback.format_exc())
         raise
     finally:
-        con.execute("INSERT INTO pipeline_run_log VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    [run_id, started, dt.datetime.now(), status, sim_time_of(con), json.dumps(steps), json.dumps(deltas), err])
+        if logged:
+            con.execute("DELETE FROM pipeline_run_log WHERE run_id = ?", [run_id])
+        _log_run(con, run_id, started, status, steps, deltas, err)
         con.close()
     return {"run_id": run_id, "steps": steps, "deltas": deltas, "status": status}
+
+
+def _log_run(con, run_id, started, status, steps, deltas, err):
+    con.execute("INSERT INTO pipeline_run_log VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [run_id, started, dt.datetime.now(), status, sim_time_of(con), json.dumps(steps), json.dumps(deltas), err])
 
 
 def _has(con, table: str) -> bool:
@@ -83,6 +101,7 @@ if __name__ == "__main__":
     ap.add_argument("--bootstrap", action="store_true")
     ap.add_argument("--stop-after")
     ap.add_argument("--no-extract", action="store_true", help="dev: rebuild from raw_* without contacting MySQL")
+    ap.add_argument("--from", dest="start_at", choices=ORDER, help="dev: resume at this step")
     a = ap.parse_args()
     ANALYTICS_DIR.mkdir(parents=True, exist_ok=True)
-    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after, do_extract=not a.no_extract))
+    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after, do_extract=not a.no_extract, start_at=a.start_at))
