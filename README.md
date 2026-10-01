@@ -126,6 +126,30 @@ What the build container measured on the final dataset:
 
 `VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
 
+## Claude Code automations
+
+Project skills live in `.claude/skills/`. Repo notes for Claude are in [`CLAUDE.md`](CLAUDE.md). Both skills need published
+data (`make dev-data` builds a small MySQL-free dataset). They identify patients by display ID only.
+
+| Command (in Claude Code) | What it does |
+|---|---|
+| `/validate-risk 5` | Fetches the 5 newest HIGH-risk patients that have not been reviewed yet (`scripts/risk_validation.py cases`). Claude checks each flag against the record (alarm features, labs, H. pylori, endoscopy status, demographics) and appends a verdict (`agree / disagree / uncertain`, confidence, evidence, per-reason checks) to `reports/risk_validation.jsonl`. It then commits and pushes `reports/` |
+| `/loop 30m /validate-risk 5` | Repeats the review every 30 minutes for as long as the session is open. Once every HIGH case is reviewed, each run does nothing |
+| `/daily-report` | Builds `reports/daily/<today>.pdf`, a one-page A4 brief with KPIs, trend, alerts by trigger, the top 10 high-risk patients with Claude's verdicts, data quality and provenance. Adds 3-4 observations against the previous day, then commits and pushes |
+
+The **daily Routine** (07:00 Africa/Kigali) starts a fresh cloud session, runs `/daily-report` and pushes the PDF. A fresh
+session has no generated data, so the report renders from the committed `reports/snapshots/latest.json` and the
+validation log. The snapshot is refreshed whenever validations are appended or a report is built against live data.
+
+```bash
+make validate-cases N=5                                  # what /validate-risk sees, as JSON
+uv run python scripts/risk_validation.py summary         # agreement so far
+make report                                              # PDF for today (live data, or the snapshot)
+uv run python scripts/daily_report.py --from-snapshot --check
+```
+
+See [`reports/README.md`](reports/README.md) for the file formats.
+
 ## Data, privacy and licences
 
 - All people, facilities and statistics are synthetic. Facility names carry "(Synthetic)". District choices for the insights are illustrative only (SPEC §9).
