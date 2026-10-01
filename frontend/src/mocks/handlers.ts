@@ -3,7 +3,7 @@ import { useRole } from "@/state/role";
 import fixtures from "./fixtures.json";
 
 /** Mock API for VITE_USE_MOCKS=true (SPEC §16.6): replays responses recorded from a full UI walk-through
- *  (tools/mocks/record.mjs). Exact URL first, then the same path with any query, so unseen filter combinations still
+ *  (scripts/record-mocks.mjs, `npm run mocks:record`). Exact URL first, then the same path with any query, so unseen filter combinations still
  *  render plausible data. Writes (alert status, notes) are echoed back. */
 type Rec = { status: number; body: unknown };
 const GET = (fixtures as { get: Record<string, Rec> }).get;

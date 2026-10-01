@@ -1,5 +1,5 @@
 // Records the API traffic of a full UI walk-through into frontend/src/mocks/fixtures.json (SPEC §16.6).
-// Run from frontend/: node ../tools/mocks/record.mjs  (API on :8000, Vite on :5173). Patient names are synthetic.
+// Run from frontend/: npm run mocks:record  (API on :8000, Vite on :5173). Patient names are synthetic.
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 
