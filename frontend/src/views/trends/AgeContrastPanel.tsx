@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { Users } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading, StatTile } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import { fmt, signed } from "@/lib/format";
 import { useFilters } from "@/state/filters";
 import { alpha, tipHead, tipRow, usePalette, chartBase } from "./kit";
 import { Band, specKey, useJp, useSeries } from "./api";
+import { TrendChip } from "./JoinpointPanel";
 
 const ROWS: { age: Band; sex: "ALL" | "F" | "M"; label: string }[] = [
   { age: "<50", sex: "ALL", label: "under 50" }, { age: "50-64", sex: "ALL", label: "50–64" }, { age: "65+", sex: "ALL", label: "65+" },
@@ -89,32 +92,33 @@ export function AgeContrastPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qs.map((q) => q.dataUpdatedAt).join(), pal, series]);
 
-  const young = rows[0];
+  const young = rows[0], old = rows[2];
+  const method = "For each national age-band series: the APC of the most recent joinpoint segment (filled dot) and the average annual percent change over the last 10 years (hollow diamond), both with 95% CIs. A CI that crosses 0 is not a significant trend.";
+  const table = ready ? <DataTable columns={[{ key: "label", label: "Series" }, { key: "seg", label: "Latest segment" }, { key: "apc", label: "APC", num: true }, { key: "aapc", label: "AAPC (10 y)", num: true }]}
+    rows={rows.map((r) => ({ label: r.label, seg: `${r.last!.start_year}–${r.last!.end_year}`, apc: `${signed(r.last!.apc, 1, "%")} [${fmt(r.last!.apc_lci, 1)}, ${fmt(r.last!.apc_uci, 1)}]`,
+      aapc: `${signed(r.jp!.aapc_last10.value, 1, "%")} [${fmt(r.jp!.aapc_last10.lci, 1)}, ${fmt(r.jp!.aapc_last10.uci, 1)}]` }))} /> : undefined;
+  const st = (s?: { apc: number; significant: boolean }) => (!s ? undefined : <TrendChip s={s} />);
   return (
-    <Panel
-      title="Who is driving the trend?"
-      subtitle="National joinpoint by age band (both sexes) and by sex (all ages)"
-      method="For each national age-band series: the APC of the most recent joinpoint segment (filled dot) and the average annual percent change over the last 10 years (hollow diamond), both with 95% CIs. A CI that crosses 0 is not a significant trend."
-      table={ready ? <DataTable columns={[{ key: "label", label: "Series" }, { key: "seg", label: "Latest segment" }, { key: "apc", label: "APC", num: true }, { key: "aapc", label: "AAPC (10 y)", num: true }]}
-        rows={rows.map((r) => ({ label: r.label, seg: `${r.last!.start_year}–${r.last!.end_year}`, apc: `${signed(r.last!.apc, 1, "%")} [${fmt(r.last!.apc_lci, 1)}, ${fmt(r.last!.apc_uci, 1)}]`,
-          aapc: `${signed(r.jp!.aapc_last10.value, 1, "%")} [${fmt(r.jp!.aapc_last10.lci, 1)}, ${fmt(r.jp!.aapc_last10.uci, 1)}]` }))} /> : undefined}
-    >
+    <Card title="Who is driving the trend?" icon={<Users size={16} />}
+      info={{ about: "National joinpoint by age band (both sexes) and by sex (all ages).", method }}
+      detail={table ? { tabs: chartDetailTabs({ table, method }), defaultTab: "table" } : undefined} detailLabel="View as table">
       {err ? <ErrorNote error={err} /> : !ready ? <Loading h={210} /> : (
         <>
-          <EChart option={option} height={286} ariaLabel="Annual percent change by age band with 95% confidence intervals" />
-          <div className="flex items-center gap-3 mt-0.5 text-[11px] text-fog">
-            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-fog" aria-hidden />Latest-segment APC</span>
-            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 border-[1.5px] border-fog" aria-hidden />AAPC, 10 years</span>
+          <EChart option={option} height={262} ariaLabel="Annual percent change by age band with 95% confidence intervals" />
+          <div className="flex items-center gap-3 mt-0.5 text-[11px] text-fg-muted">
+            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-fg-muted" aria-hidden />Latest-segment APC</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 border-[1.5px] border-fg-muted" aria-hidden />AAPC, 10 years</span>
           </div>
           {young.last && (
-            <p className="text-[12px] leading-relaxed mt-2.5 border-t border-line/50 pt-2.5">
-              Under-50 rates have changed <b className="tabular">{signed(young.last.apc, 1, "%")}</b> a year since <b>{young.last.start_year}</b>{" "}
-              <span className="text-fog tabular">(95% CI {fmt(young.last.apc_lci, 1)} to {fmt(young.last.apc_uci, 1)})</span>, while the 65+ band is{" "}
-              {rows[2].last?.significant ? "changing" : "flat"} <span className="text-fog tabular">({signed(rows[2].last?.apc, 1, "%")}/yr)</span>.
-            </p>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <StatTile label={`Under 50 · since ${young.last.start_year}`} value={signed(young.last.apc, 1, "%")} unit="/yr" sub={st(young.last)}
+                        info={`95% CI ${fmt(young.last.apc_lci, 1)} to ${fmt(young.last.apc_uci, 1)}`} />
+              <StatTile label="65+" value={signed(old.last?.apc, 1, "%")} unit="/yr" sub={st(old.last)}
+                        info={old.last ? `${old.last.significant ? "Changing" : "Flat"}: 95% CI ${fmt(old.last.apc_lci, 1)} to ${fmt(old.last.apc_uci, 1)}` : undefined} />
+            </div>
           )}
         </>
       )}
-    </Panel>
+    </Card>
   );
 }

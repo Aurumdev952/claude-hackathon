@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { Waves } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading, StatusChip } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import { fmt, int } from "@/lib/format";
 import { bandSeries, chartBase, Key, tipHead, tipRow, usePalette } from "../trends/kit";
 import { CurveRow, useCurves } from "./api";
@@ -76,24 +78,24 @@ export function CurvesPanel() {
       { key: "group", label: "Group" }, { key: "value", label: "Value", num: true, fmt: (v) => fmt(v, 2) }, { key: "ci", label: "95% CI", num: true }]}
       rows={rows.filter((r) => r.month_before < 0 && METRICS.some((m) => m.id === r.metric)).map((r) => ({ ...r, ci: r.lci !== null && r.uci !== null ? `${fmt(r.lci, 2)}–${fmt(r.uci, 2)}` : "—" }))} />
   );
+  const method = "Nested case–control within the GI cohort: up to 5 controls per case, matched on sex, age ±5 years, province and cohort entry year, cancer-free at the case's index date (incidence-density sampling). Curves are monthly group means for months −24 to −1; bands are bootstrap 95% CIs (200 resamples). The diagnosis month itself is not plotted. Each panel has its own y-axis.";
   return (
-    <Panel
-      title="Months before diagnosis · cases vs matched controls"
-      subtitle={<>Every patient aligned on their diagnosis date (controls on their matched case's date). {nCase ? <span className="tabular">{int(nCase)} cases · {int(nCtrl)} controls.</span> : null}</>}
-      method="Nested case–control within the GI cohort: up to 5 controls per case, matched on sex, age ±5 years, province and cohort entry year, cancer-free at the case's index date (incidence-density sampling). Curves are monthly group means for months −24 to −1; bands are bootstrap 95% CIs (200 resamples). The diagnosis month itself is not plotted."
-      table={table}
+    <Card
+      title="Months before diagnosis · cases vs controls" icon={<Waves size={16} />}
+      info={{ about: "Every patient aligned on their diagnosis date (controls on their matched case's date).", method }}
+      actions={nCase ? <StatusChip status="neutral" size="md" icon={false} label={<span className="tabular">{int(nCase)} cases · {int(nCtrl)} controls</span>} /> : undefined}
+      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
     >
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={250} /> : (
         <>
-          <EChart option={option} height={250} ariaLabel="Pre-diagnostic signal curves: GI visits, PPI prescriptions, haemoglobin and weight, cases versus controls" />
+          <EChart option={option} height={260} ariaLabel="Pre-diagnostic signal curves: GI visits, PPI prescriptions, haemoglobin and weight, cases versus controls" />
           <div className="flex items-center gap-4 mt-1">
             <Key color={caseC} label="Cases (gastric cancer)" />
             <Key color={ctrlC} label="Matched controls" />
             <Key color={caseC} kind="band" label="95% CI" />
-            <span className="text-[11px] text-fog ml-auto">Each panel has its own y-axis.</span>
           </div>
         </>
       )}
-    </Panel>
+    </Card>
   );
 }

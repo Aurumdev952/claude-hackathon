@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel, Seg } from "@/components/ui/Panel";
+import { Clock } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading, Seg, StatTile } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import { fmt, int } from "@/lib/format";
 import { alpha, chartBase, Key, tipHead, tipRow, usePalette } from "../trends/kit";
 import { DAYS_PER_MONTH, IntervalRow, MALARIA_ENDEMIC, PROVINCES, useIntervals, useOr } from "./api";
@@ -16,6 +18,7 @@ const ORDER: Record<GV, string[]> = {
 const LABEL = (gv: GV, g: string) => gv === "province" ? PROVINCES[g] ?? g
   : gv === "tier" ? `${g[0].toUpperCase()}${g.slice(1)} HP-testing tier`
   : gv === "malaria_region" ? (g === "malaria_endemic" ? "Malaria-endemic (E + S)" : "Other provinces") : g === "<50" ? "Under 50" : g;
+const GROUP_OPTS: { value: GV; label: string }[] = [{ value: "province", label: "Province" }, { value: "tier", label: "Facility tier" }, { value: "age_band", label: "Age band" }, { value: "malaria_region", label: "Malaria region" }];
 const m = (d: number) => d / DAYS_PER_MONTH;
 const pFmt = (p: number | null) => (p === null ? "—" : p < 0.001 ? "p < 0.001" : `p = ${fmt(p, 3)}`);
 
@@ -76,34 +79,35 @@ export function IntervalPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, pal, overall, gv]);
 
+  const method = "Interval = diagnosis date − first recorded GI symptom within the preceding 24 months, per confirmed/probable case. Groups compared with the Mann–Whitney U test. Malaria-endemic = Eastern and Southern provinces, where anaemia from a bleeding tumour is often first treated as malaria or worms (INS-6).";
   return (
-    <Panel
-      title="Diagnostic interval"
-      subtitle="First GI symptom in the 24-month window → diagnosis. Box = interquartile range, bar = median."
-      method="Interval = diagnosis date − first recorded GI symptom within the preceding 24 months, per confirmed/probable case. Groups compared with the Mann–Whitney U test. Malaria-endemic = Eastern and Southern provinces, where anaemia from a bleeding tumour is often first treated as malaria or worms (INS-6)."
-      table={<DataTable columns={[{ key: "group", label: "Group", fmt: (v) => LABEL(gv, v) }, { key: "median_days", label: "Median (months)", num: true, fmt: (v) => fmt(m(v), 1) },
-        { key: "iqr", label: "IQR (months)", num: true, fmt: (_v, r) => `${fmt(m(r.q1), 1)}–${fmt(m(r.q3), 1)}` }, { key: "n", label: "Cases", num: true, fmt: int }]} rows={rows} />}
+    <Card
+      title="Diagnostic interval" icon={<Clock size={16} />}
+      info={{ about: "First GI symptom in the 24-month window → diagnosis. Box = interquartile range, bar = median; right axis = median and cases.", method }}
+      detail={{ tabs: chartDetailTabs({ table: <DataTable columns={[{ key: "group", label: "Group", fmt: (v) => LABEL(gv, v) }, { key: "median_days", label: "Median (months)", num: true, fmt: (v) => fmt(m(v), 1) },
+        { key: "iqr", label: "IQR (months)", num: true, fmt: (_v, r) => `${fmt(m(r.q1), 1)}–${fmt(m(r.q3), 1)}` }, { key: "n", label: "Cases", num: true, fmt: int }]} rows={rows} />, method }), defaultTab: "table" }}
+      detailLabel="View as table"
+      actions={<Seg label="Group by" value={gv} onChange={setGv} options={GROUP_OPTS} />}
     >
-      <Seg label="Group by" value={gv} onChange={setGv} options={[{ value: "province", label: "Province" }, { value: "tier", label: "Facility tier" }, { value: "age_band", label: "Age band" }, { value: "malaria_region", label: "Malaria region" }]} />
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={240} /> : (
         <>
-          <EChart key={gv} option={option} height={Math.max(170, 46 * rows.length + 60)} ariaLabel="Diagnostic interval box plots by group" />
+          <EChart key={gv} option={option} height={Math.max(190, 46 * rows.length + 60)} ariaLabel="Diagnostic interval box plots by group" />
           <div className="flex items-center gap-3 flex-wrap mt-1">
             {(gv === "province" || gv === "malaria_region") ? <>
-              <Key color={pal.series[1]} kind="box" label="Malaria-endemic province" />
+              <Key color={pal.series[1]} kind="box" label="Malaria-endemic" />
               <Key color={pal.series[0]} kind="box" label="Other provinces" />
             </> : <Key color={pal.series[0]} kind="box" label="Interquartile range" />}
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-fog"><span className="w-[2.5px] h-3 bg-mist" aria-hidden />Median</span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-fg-muted"><span className="w-[2.5px] h-3 bg-fg" aria-hidden />Median</span>
           </div>
           {gap !== null && (
-            <p className="text-[12px] leading-relaxed mt-2.5 border-t border-line/50 pt-2.5">
-              In malaria-endemic provinces the median interval is <b className="tabular">{fmt(m(endemic!.median_days), 1)} months</b> vs{" "}
-              <b className="tabular">{fmt(m(other!.median_days), 1)}</b> elsewhere — <b className="tabular">{gap >= 0 ? "+" : ""}{fmt(gap, 1)} months</b>{" "}
-              <span className="text-fog">(Mann–Whitney {pFmt(endemic!.p_value)})</span>.
-            </p>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              <StatTile label="Malaria-endemic" value={fmt(m(endemic!.median_days), 1)} unit="mo" />
+              <StatTile label="Elsewhere" value={fmt(m(other!.median_days), 1)} unit="mo" />
+              <StatTile label="Gap" value={`${gap >= 0 ? "+" : ""}${fmt(gap, 1)}`} unit="mo" info={`Mann–Whitney ${pFmt(endemic!.p_value)}`} />
+            </div>
           )}
         </>
       )}
-    </Panel>
+    </Card>
   );
 }

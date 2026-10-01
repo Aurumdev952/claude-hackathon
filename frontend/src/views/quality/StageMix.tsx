@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable } from "@/components/ui/Panel";
+import { DataTable, StatusChip } from "@/components/ui";
 import { fmt, int } from "@/lib/format";
 import { hexToRgb } from "@/lib/viz";
 import { Legend, pval, stageRamp, tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "./kit";
@@ -67,22 +67,28 @@ export function StageLegend({ includeUnknown }: { includeUnknown: boolean }) {
   return <Legend items={[...STAGES, ...(includeUnknown ? ["Unknown"] : [])].map((s) => ({ label: s === "Unknown" ? "Stage unknown" : `Stage ${s}`, color: col[s], shape: "square" as const }))} />;
 }
 
+/** χ² result as chips under the stage bars (the reading sentence lives in the card ⓘ via ChiSquareNote). */
+export function ChiSquareChips({ chi, rows }: { chi: ChiSquare; rows: StageTierRow[] }) {
+  const iv = (t: string) => rows.find((r) => r.facility_tier === t && r.stage_group === "IV")?.pct_known ?? null;
+  const lo = iv("low"), hi = iv("high");
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+      {chi ? <StatusChip status={chi.p < 0.05 ? "info" : "neutral"} icon={false} label={<span className="tabular">χ² {fmt(chi.chi2, 1)} · df {chi.dof} · {pval(chi.p)}</span>} title="Chi-square test, stage × tier (known stages)" />
+           : <StatusChip status="neutral" label="χ² not available" />}
+      {lo !== null && hi !== null && <StatusChip status="serious" label={<span className="tabular">Stage IV {fmt(lo, 0)}% low tier vs {fmt(hi, 0)}% high</span>} />}
+    </div>
+  );
+}
+
 export function ChiSquareNote({ chi, rows }: { chi: ChiSquare; rows: StageTierRow[] }) {
   const iv = (t: string) => rows.find((r) => r.facility_tier === t && r.stage_group === "IV")?.pct_known ?? null;
   const lo = iv("low"), hi = iv("high");
   return (
-    <div className="mt-2 rounded-lg border border-line/60 bg-ridge2/40 p-2.5 text-xs leading-relaxed">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-semibold">Chi-square test, stage × tier</span>
-        {chi ? <span className="tabular text-fog">χ² = {fmt(chi.chi2, 1)} · df = {chi.dof} · <b className="text-mist">{pval(chi.p)}</b></span>
-             : <span className="text-fog">not available</span>}
-      </div>
-      <p className="text-fog mt-1">
-        {lo !== null && hi !== null && <>Among cancers with a known stage, <b className="text-mist tabular">{fmt(lo, 0)}%</b> first seen at low-testing facilities were stage IV, versus <b className="text-mist tabular">{fmt(hi, 0)}%</b> at high-testing facilities. </>}
-        {chi && chi.p < 0.05 ? "The stage distribution differs by tier more than chance would explain." : chi ? "No clear difference by tier." : ""}
-        {" "}Patients with no prior GI visit are shown for completeness but excluded from the test.
-      </p>
-    </div>
+    <span>
+      {chi && <>Chi-square test, stage × tier: χ² = {fmt(chi.chi2, 1)}, df = {chi.dof}, {pval(chi.p)}. </>}
+      {lo !== null && hi !== null && <>Among cancers with a known stage, {fmt(lo, 0)}% first seen at low-testing facilities were stage IV, versus {fmt(hi, 0)}% at high-testing facilities. </>}
+      {chi && chi.p < 0.05 ? "The stage distribution differs by tier more than chance would explain." : chi ? "No clear difference by tier." : ""}
+    </span>
   );
 }
 

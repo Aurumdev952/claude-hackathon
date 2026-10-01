@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable } from "@/components/ui/Panel";
+import { DataTable } from "@/components/ui";
 import { fmt } from "@/lib/format";
 import { Legend, tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "../quality/kit";
 import { TIER_META, type Curves } from "./types";
@@ -68,7 +68,7 @@ export function CurveChart({ kind, models, prevalence, height = 280 }: { kind: K
     };
     return {
       ...base(),
-      grid: { left: 48, right: 18, top: 14, bottom: 42 },
+      grid: { left: 60, right: 18, top: 14, bottom: 42 },
       legend: { show: false },
       tooltip: tooltip({
         trigger: "axis",
@@ -86,7 +86,7 @@ export function CurveChart({ kind, models, prevalence, height = 280 }: { kind: K
                      name: axisNames[kind][0], nameLocation: "middle", nameGap: 26, nameTextStyle: { color: k.muted, fontSize: 11 } }),
       yAxis: yAxis({ type: "value", min: 0, max: lead ? (cum ? 1 : undefined) : yMax, minInterval: kind === "lead_time" ? 1 : undefined,
                      axisLabel: { color: k.muted, formatter: kind === "lead_time" ? "{value}" : (v: number) => (kind === "calibration" ? `${Math.round(v * 100)}%` : pctFmt(v)) },
-                     name: axisNames[kind][1], nameLocation: "middle", nameGap: 36, nameTextStyle: { color: k.muted, fontSize: 11 } }),
+                     name: axisNames[kind][1], nameLocation: "middle", nameGap: 44, nameTextStyle: { color: k.muted, fontSize: 11 } }),
       series: [...ref, ...series, ...(cum ? [{ name: "__3m", type: "line", data: [], silent: true, markLine: { silent: true, symbol: "none",
         lineStyle: { color: k.axis, type: "solid", width: 1 }, label: { formatter: "3 months", color: k.muted, fontSize: 10, position: "end" }, data: [{ xAxis: 3 }] } }] : [])],
     } as any;
