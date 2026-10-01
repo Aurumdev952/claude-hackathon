@@ -20,7 +20,7 @@ The full spec is in `SPEC.md` and the agreed deviations are in `docs/decisions.m
 | `pipeline/` | DuckDB ETL: staging, core, marts (`mart_*`), patient tables (`pt_*`), scoring, blue/green publish (`data/analytics/current.json`) |
 | `ml/` | Tier 1 points, Tier 2 XGBoost + SHAP, Tier 3 JAX sequence model; `ml/score.py` writes `pt_risk`, `pt_alerts`; `ml/reasons.yaml` is the source of reason labels |
 | `api/` | FastAPI on :8000 (`/api/v1/...`); `api/deps.py` reads the serve DB read-only; `api/app_state.py` stores alert status and notes in `data/analytics/app_state.sqlite` |
-| `frontend/` | React + Vite on :5173. Design system: HeroUI 2.7 + Framer Motion, light theme by default, tokens in `src/styles.css`, shared kit in `src/components/ui`, chart palette in `src/lib/viz.ts` |
+| `frontend/` | React + Vite on :5173. Design system (v3, D-44): HeroUI 2.7 + Framer Motion, Urbanist, flat cards, one orange accent, light theme by default, tokens in `src/styles.css`, shared kit in `src/components/ui`, chart palette in `src/lib/viz.ts` |
 | `agent/` | AI agent: Hono on :8787. `POST /agent/chat` (streaming), MCP (Streamable HTTP) at `/mcp`, `GET /agent/health`. Python sandbox in `agent/sandbox` |
 | `evals/agent/` | DeepEval gate for the agent (`make eval-agent`, needs a running agent at `AGENT_URL`) |
 | `scripts/` | `verify_results.py`, `risk_validation.py` (/validate-risk), `daily_report.py` (/daily-report), `report_data.py` (shared) |
