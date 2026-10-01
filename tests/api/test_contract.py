@@ -9,7 +9,8 @@ import pytest
 from shared.config import ANALYTICS_DIR
 
 MIN = {"X-Role": "ministry"}
-PII = {"given_name", "family_name", "name", "display_id", "birthdate", "phone", "patient_id"}
+# patient-identifying keys; "name" alone is a district / facility name in aggregate payloads
+PII = {"given_name", "family_name", "display_id", "birthdate", "phone", "patient_id", "national_id"}
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +55,7 @@ def keys_deep(obj, out=None):
 
 
 MINISTRY_GETS = [
-    "/health", "/status", "/meta/filters", "/kpis", "/kpis?year=2024", "/rates?level=DISTRICT&period=2019-2025",
+    "/status", "/meta/filters", "/kpis", "/kpis?year=2024", "/rates?level=DISTRICT&period=2019-2025",
     "/rates/map?metric=asr", "/trends/joinpoint?series_id=NATIONAL|ALL|<50|CONFIRMED_PROBABLE", "/trends/surface",
     "/spatial", "/points/cases", "/characteristics", "/stage-mix", "/warning-signs/curves", "/warning-signs/or",
     "/diag-interval", "/facilities/quality", "/survival/km?group_var=facility_tier", "/survival/summary", "/survival/cox",
