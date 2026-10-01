@@ -21,14 +21,14 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   useEffect(() => { if (isOpen) { setQ(""); setActive(0); } }, [isOpen]);
   const items = useMemo(() => {
     const m = meta.data?.data;
-    const out: Item[] = NAV.map((n) => ({ label: n.title, hint: "View", icon: <n.icon size={15} aria-hidden />, run: () => nav(n.to) }));
-    (m?.districts ?? []).forEach((d: any) => out.push({ label: d.name, hint: `District in ${d.province}`, icon: <MapPin size={15} aria-hidden />, run: () => { selectDistrict(d.district_code); nav("/geo"); } }));
-    (m?.facilities ?? []).forEach((f: any) => out.push({ label: f.name.replace(" (Synthetic)", ""), hint: `Open as doctor, ${f.facility_type.toLowerCase()}`, icon: <Building2 size={15} aria-hidden />, run: () => { setFacility(f.location_id, f.name); nav("/doctor"); } }));
+    const out: Item[] = NAV.map((n) => ({ label: n.title, hint: "View", icon: <n.icon size={16} aria-hidden />, run: () => nav(n.to) }));
+    (m?.districts ?? []).forEach((d: any) => out.push({ label: d.name, hint: `District in ${d.province}`, icon: <MapPin size={16} aria-hidden />, run: () => { selectDistrict(d.district_code); nav("/geo"); } }));
+    (m?.facilities ?? []).forEach((f: any) => out.push({ label: f.name.replace(" (Synthetic)", ""), hint: `Facility, open as doctor`, icon: <Building2 size={16} aria-hidden />, run: () => { setFacility(f.location_id, f.name); nav("/doctor"); } }));
     return out;
   }, [meta.data, nav, setFacility, selectDistrict]);
   const ql = q.toLowerCase();
   const shown = (ql ? items.filter((i) => i.label.toLowerCase().includes(ql)) : items).slice(0, 9);
-  const ask: Item | null = q ? { label: `Ask the agent: “${q}”`, hint: "Agent", icon: <Sparkles size={15} aria-hidden />, run: () => nav(`/agent?q=${encodeURIComponent(q)}`) } : null;
+  const ask: Item | null = q ? { label: `Ask the agent “${q}”`, hint: "Agent", icon: <Sparkles size={16} aria-hidden />, run: () => nav(`/agent?q=${encodeURIComponent(q)}`) } : null;
   const all = ask ? [...shown, ask] : shown;
   const run = (fn: () => void) => { fn(); onClose(); };
   return (
@@ -37,7 +37,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       <ModalContent>
         <ModalBody className="p-0 gap-0">
           <div className="flex items-center gap-3 px-6 border-b border-hairline">
-            <Search size={18} className="text-ink" aria-hidden />
+            <Search size={18} className="text-ink shrink-0" aria-hidden />
             <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} placeholder="Jump to a view, district or facility, or ask a question"
                    className="flex-1 bg-transparent py-5 text-[16px] text-ink placeholder:text-muted outline-none focus-visible:outline-none" aria-label="Search"
                    aria-controls="cmd-results" aria-activedescendant={all[active] ? `cmd-${active}` : undefined}
@@ -46,21 +46,21 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                      if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
                      if (e.key === "Enter") run(all[active]?.run ?? (() => nav(`/agent?q=${encodeURIComponent(q)}`)));
                    }} />
-            <Kbd className="hidden sm:inline-flex bg-tile shadow-none text-muted">Esc</Kbd>
+            <Kbd className="hidden sm:inline-flex bg-tile shadow-none text-muted text-[12px] rounded-full px-2.5">Esc</Kbd>
           </div>
-          <ul id="cmd-results" role="listbox" aria-label="Results" className="max-h-[380px] overflow-auto p-2.5">
+          <ul id="cmd-results" role="listbox" aria-label="Results" className="max-h-[400px] overflow-auto p-3">
             {all.map((i, k) => (
               <li key={k} id={`cmd-${k}`} role="option" aria-selected={k === active}>
                 <button type="button" tabIndex={-1} onMouseEnter={() => setActive(k)} onClick={() => run(i.run)}
-                        className={`w-full text-left px-3 py-2.5 rounded-[14px] flex items-center gap-3 text-[14px] transition-colors ${k === active ? "bg-tile text-ink" : "text-ink hover:bg-tile/60"}`}>
-                  <span className="w-8 h-8 rounded-full border border-hairline text-ink grid place-items-center shrink-0 bg-surface">{i.icon}</span>
+                        className={`w-full text-left h-11 px-3.5 rounded-full flex items-center gap-3 text-[15px] transition-colors ${k === active ? "bg-tile text-ink" : "text-ink"}`}>
+                  <span className="text-muted shrink-0">{i.icon}</span>
                   <span className="flex-1 truncate">{i.label}</span>
-                  <span className="text-[13px] text-muted">{i.hint}</span>
-                  {k === active && <CornerDownLeft size={14} className="text-muted" aria-hidden />}
+                  <span className="text-[13px] text-muted truncate max-w-[45%]">{i.hint}</span>
+                  <CornerDownLeft size={14} className={`text-muted shrink-0 ${k === active ? "opacity-100" : "opacity-0"}`} aria-hidden />
                 </button>
               </li>
             ))}
-            {!all.length && <li className="px-3 py-6 text-center text-[14px] text-muted">Type to search views, districts and facilities</li>}
+            {!all.length && <li className="px-3 py-6 text-center text-[14px] text-muted">Type to search views, districts and facilities.</li>}
           </ul>
         </ModalBody>
       </ModalContent>

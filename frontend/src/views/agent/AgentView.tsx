@@ -82,18 +82,22 @@ export default function AgentView() {
       </AnimatePresence>
 
       <section className="min-h-0 min-w-0 flex flex-col" aria-label="Agent chat">
-        <header className="flex items-center gap-3 h-12 shrink-0">
-          <Button isIconOnly radius="full" variant="flat" aria-label="Show chats" onPress={() => setDrawer(true)} className="lg:hidden w-10 h-10 min-w-10 bg-surface text-ink"><PanelLeft size={17} /></Button>
-          <AgentChip role={role} facilityName={facilityName} className="flex-1 sm:flex-none" />
+        <header className="flex md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] items-center gap-2 md:gap-3 h-12 shrink-0">
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            <Button isIconOnly radius="full" variant="flat" aria-label="Show chats" onPress={() => setDrawer(true)} className="lg:hidden w-10 h-10 min-w-10 bg-surface text-ink dark:border dark:border-hairline"><PanelLeft size={17} /></Button>
+            <AgentChip role={role} facilityName={facilityName} className="min-w-0" />
+          </div>
           <AnimatePresence mode="wait" initial={false}>
             <motion.h1 key={title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: EASE }}
-                       className="hidden sm:block flex-1 min-w-0 truncate text-center text-[14px] font-medium text-muted px-2">{title}</motion.h1>
+                       className="hidden md:block min-w-0 max-w-[560px] truncate text-center text-[14px] font-medium text-muted">{title}</motion.h1>
           </AnimatePresence>
-          <Button radius="full" variant="flat" onPress={newChat} aria-label="New chat"
-                  startContent={<SquarePen size={16} aria-hidden />}
-                  className="h-10 min-w-10 px-0 sm:px-4 bg-surface text-ink text-[14px] font-medium data-[hover=true]:bg-tile dark:border dark:border-hairline">
-            <span className="hidden sm:inline">New chat</span>
-          </Button>
+          <div className="flex justify-end shrink-0">
+            <Button radius="full" variant="flat" onPress={newChat} aria-label="New chat"
+                    startContent={<SquarePen size={16} aria-hidden />}
+                    className="lg:hidden h-10 min-w-10 px-0 sm:px-4 bg-surface text-ink text-[14px] font-medium data-[hover=true]:bg-tile dark:border dark:border-hairline">
+              <span className="hidden sm:inline">New chat</span>
+            </Button>
+          </div>
         </header>
         {isLocal ? (
           <Thread key={activeId} conversationId={activeId} initialMessages={[]} autoSend={autoSend}

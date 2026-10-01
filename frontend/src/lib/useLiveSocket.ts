@@ -23,7 +23,7 @@ export function useLiveSocket() {
           qc.invalidateQueries({ predicate: (q) => changed.length === 0 || changed.includes(String(q.queryKey[0])) || q.queryKey[0] === "status" });
         } else if (m.type === "alert_new") {
           const { role, facilityId } = useRole.getState();
-          if (role === "doctor" && facilityId === m.facility_id) useLive.getState().toast("New HIGH alert for one of your patients", "alert");
+          if (role === "doctor" && facilityId === m.facility_id) useLive.getState().toast("New high-risk alert for one of your patients", "alert");
         } else if (m.type === "sim_tick") {
           useLive.getState().update({ simTime: m.sim_time });
         }

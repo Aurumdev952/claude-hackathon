@@ -134,7 +134,7 @@ function Inspector({ part, modal }: { part: ToolPartLike; modal: { isOpen: boole
     if (rows && rows.length) {
       const keys = [...new Set(rows.slice(0, 50).flatMap((r) => Object.keys(r)))].slice(0, 16);
       out.push({ key: "rows", label: "Result", count: rows.length, icon: <Database size={13} aria-hidden />, content: (
-        <div className="overflow-auto max-h-[60vh] rounded-tile border border-hairline">
+        <div className="overflow-auto max-h-[60vh]">
           <DataTable ariaLabel={`${toolLabel(name)} result`} rows={rows.slice(0, 300)}
                      columns={keys.map((k) => ({ key: k, label: colLabel(k), num: rows.some((r) => typeof r[k] === "number"), fmt: (v: unknown) => (v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v)) }))} />
         </div>
