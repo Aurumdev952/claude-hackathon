@@ -16,7 +16,7 @@ import { useRole } from "@/state/role";
 import { date, fmt, signed } from "@/lib/format";
 import { itemEnter, stagger } from "@/lib/motion";
 import { FacilityPicker } from "./doctor/FacilityPicker";
-import { RISK_METHOD, ReasonBars, RiskSummary, SHAP_NOTE, Track } from "./doctor/RiskCard";
+import { RISK_METHOD, ReasonBars, RiskSummary, SHAP_NOTE, TIERS_NOTE, Track } from "./doctor/RiskCard";
 import { MiniSeries, Timeline } from "./doctor/Timeline";
 import { AlertActions, SeverityMark, triggerLabel } from "./doctor/AlertActions";
 import { PatientAvatar } from "./doctor/PatientAvatar";
@@ -147,24 +147,21 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
               <motion.li key={p.patient_id} variants={itemEnter}>
                 <Row on={on} onPress={() => onSelect(p.patient_id)}
                      title={status === "flagged" ? (p.top_reasons ?? []).map((r) => r.label).join("; ") : undefined}
-                     avatar={
-                       <span className="relative shrink-0">
-                         <PatientAvatar name={p.name} size="sm" className={on ? "!bg-surface" : ""} />
-                         {p.open_alerts > 0 && (
-                           <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-ink text-ink-on text-[10.5px] font-semibold leading-[18px] text-center ring-2 ring-surface tabular"
-                                 aria-label={`${p.open_alerts} open alert${p.open_alerts > 1 ? "s" : ""}`}>{p.open_alerts}</span>
-                         )}
-                       </span>
-                     }
-                     name={p.name}
+                     avatar={<PatientAvatar name={p.name} size="sm" className={on ? "!bg-surface" : ""} />}
+                     name={<span className="flex items-center gap-2 min-w-0"><span className="truncate">{p.name}</span>
+                       {p.open_alerts > 0 && (
+                         <span className="shrink-0 inline-flex items-center gap-0.5 text-micro text-muted tabular" aria-label={`${p.open_alerts} open alert${p.open_alerts > 1 ? "s" : ""}`} title="Open alerts">
+                           <BellRing size={12} aria-hidden />{p.open_alerts}
+                         </span>
+                       )}</span>}
                      sub={<><span>{p.display_id}</span><span className="truncate">{status === "flagged" ? `Seen ${date(p.last_visit)}` : `Diagnosed ${date(p.dx_date)}`}</span></>}
                      right={status === "flagged" ? (
-                       <span className="w-[96px] shrink-0 flex flex-col gap-2">
+                       <span className="w-[118px] shrink-0 flex flex-col gap-2">
                          <span className="flex items-center justify-between gap-1">
                            <BandMark band={p.risk_band} />
                            <span className="text-[14px] leading-5 font-semibold tabular text-ink">{fmt(100 * prob)}%</span>
                          </span>
-                         <Track value={prob} tone={p.risk_band === "HIGH" ? "ink" : "sky"} height={4} label={`${p.name} risk`} delay={0} />
+                         <Track value={prob} height={4} label={`${p.name} risk`} delay={0} />
                        </span>
                      ) : (
                        <span className="shrink-0 rounded-full bg-tile px-2.5 py-1 text-micro text-muted">{cap(p.case_status ?? "case")}</span>
@@ -273,11 +270,8 @@ function PatientPanel({ patientId }: { patientId: number }) {
           <div className="flex items-center gap-2 flex-wrap mt-5">
             <Chip>{h.sex === "F" ? "Female" : "Male"}</Chip>
             <Chip>{h.age} years</Chip>
-            {wLast !== null && <Chip>{fmt(wLast, 1)} kg</Chip>}
             <Chip title="District">{h.district_name ?? h.district_code}</Chip>
-            {h.is_case
-              ? <Chip><Dot level="high" />{cap(h.case_status)} gastric cancer</Chip>
-              : band && <Chip><Dot level={band === "HIGH" ? "high" : band === "MEDIUM" ? "medium" : "low"} />{cap(band)} risk</Chip>}
+            {h.is_case && <Chip><Dot level="high" />{cap(h.case_status)} gastric cancer</Chip>}
             {h.is_case && <Chip>Diagnosed {date(h.dx_date)}</Chip>}
             {nNew > 0 && <Chip><BellRing size={13} className="text-muted" aria-hidden />{nNew} new alert{nNew === 1 ? "" : "s"}</Chip>}
           </div>
@@ -287,10 +281,10 @@ function PatientPanel({ patientId }: { patientId: number }) {
       {risk ? (
         <>
           <GridItem span={{ md: 6 }}>
-            <Card title="Risk" icon={<Gauge size={16} />} info={{ method: RISK_METHOD }}
+            <Card title="Risk" icon={<Gauge size={16} />} info={{ method: RISK_METHOD, notes: TIERS_NOTE }}
                   actions={band === "HIGH" ? <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-signal-strong text-signal-on text-micro font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-signal-on" aria-hidden />High</span>
                          : band ? <span className="inline-flex items-center h-7 px-3 rounded-full bg-tile text-micro text-muted">{cap(band)}</span> : undefined}>
-              <RiskSummary risk={risk} />
+              <RiskSummary risk={risk} showBand={false} />
             </Card>
           </GridItem>
           <GridItem span={{ md: 6 }}>

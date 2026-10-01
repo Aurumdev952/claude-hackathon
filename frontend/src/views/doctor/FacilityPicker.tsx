@@ -61,7 +61,7 @@ export function FacilityPicker() {
                   <span className="flex flex-col items-end w-20 shrink-0">
                     {r.high_alerts ? (
                       <>
-                        <span className="inline-flex items-center gap-1.5 text-[15px] leading-5 font-medium text-ink tabular"><Dot level="high" />{int(r.high_alerts)}</span>
+                        <span className="text-[15px] leading-5 font-medium text-ink tabular">{int(r.high_alerts)}</span>
                         <span className="text-micro text-muted">high alerts</span>
                       </>
                     ) : <span className="text-micro text-muted">No high alerts</span>}

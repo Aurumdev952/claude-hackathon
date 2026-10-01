@@ -3,7 +3,7 @@ import type { ChartSpec, ChartWidget as ChartWidgetT, KpiTile, Row } from "@agen
 import { BarChart3, Gauge, LineChart, Map as MapIcon, Rows3, Sigma, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { EChart, useThemeMode } from "@/components/charts/EChart";
 import { AnimatedNumber, Card, chartDetailTabs, DataTable, Sparkline, type Column } from "@/components/ui";
-import { ink, SERIES } from "@/lib/viz";
+import { alphaHex, CATEGORICAL, CORE, ink } from "@/lib/viz";
 import { Markdown } from "../parts/Markdown";
 import { ChoroplethMap } from "./ChoroplethMap";
 import { cellText, colLabel, fmtValue, unitText } from "./format";
@@ -14,7 +14,8 @@ const ICON: Record<ChartSpec["type"], JSX.Element> = {
   table: <Rows3 size={16} />, choropleth: <MapIcon size={16} />, forest: <Sigma size={16} />,
 };
 
-/** make_chart output (plan §B7): one bento card per spec with Chart / Table / Method in the detail modal. */
+/** make_chart output (plan §B7, design v3 card grammar): outlined circle icon + title, big numbers, dotted-grid charts in
+ * the sky + signal palette; Chart / Table / Method in the detail modal. */
 export function ChartWidget({ widget }: { widget: ChartWidgetT }) {
   const spec = widget.spec;
   const method = <MethodNotes spec={spec} />;
@@ -23,17 +24,17 @@ export function ChartWidget({ widget }: { widget: ChartWidgetT }) {
           detailLabel="Open chart details"
           detail={{ subtitle: spec.subtitle, size: "5xl", tabs: chartDetailTabs({ chart: spec.type === "table" ? undefined : <ChartBody spec={spec} large />, table: <SpecTable spec={spec} />, method }) }}>
       <figure className="m-0">
-        {spec.subtitle && <p className="text-label text-fg-muted -mt-2 mb-3">{spec.subtitle}</p>}
+        {spec.subtitle && <p className="text-[14px] leading-5 text-muted -mt-3 mb-5">{spec.subtitle}</p>}
         <ChartBody spec={spec} />
         {(spec.caption || hasSuppressed(spec)) && (
-          <figcaption className="mt-3 flex flex-col gap-1">
-            {spec.caption && <span className="text-[13px] leading-relaxed text-fg/85">{spec.caption}</span>}
-            {hasSuppressed(spec) && <span className="text-micro text-fg-muted">Gaps mark years or areas with fewer than 5 cases (suppressed).</span>}
+          <figcaption className="mt-4 flex flex-col gap-1.5">
+            {spec.caption && <span className="text-[14px] leading-[21px] text-ink/80">{spec.caption}</span>}
+            {hasSuppressed(spec) && <span className="text-[13px] leading-[18px] text-muted">Gaps mark years or areas with fewer than 5 cases (suppressed).</span>}
           </figcaption>
         )}
         {!!spec.caveats?.length && (
-          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Caveats">
-            {spec.caveats.slice(0, 3).map((c) => <li key={c} className="text-micro text-fg-muted bg-surface-2 border border-border rounded-full px-2.5 py-1 max-w-full truncate" title={c}>{c}</li>)}
+          <ul className="mt-2 flex flex-col gap-0.5 text-[13px] leading-[18px] text-muted" aria-label="Caveats">
+            {spec.caveats.slice(0, 3).map((c) => <li key={c}>{c}</li>)}
           </ul>
         )}
       </figure>
@@ -44,13 +45,14 @@ export function ChartWidget({ widget }: { widget: ChartWidgetT }) {
 const hasSuppressed = (spec: ChartSpec) =>
   "data" in spec && spec.type !== "table" && spec.data.some((r) => Object.keys(r).some((k) => k.endsWith("_label") && typeof r[k] === "string"));
 
-function usePalette() {
+/** Series colours: the CORE four (sky, signal, ink, grey) for up to four series, the validated CATEGORICAL palette beyond. */
+function usePalette(n: number) {
   const mode = useThemeMode();
-  return { mode, S: SERIES[mode], k: ink() };
+  return { mode, S: n > 4 ? CATEGORICAL[mode] : CORE[mode], k: ink() };
 }
 
 export function ChartBody({ spec, large = false }: { spec: ChartSpec; large?: boolean }) {
-  const { mode, S, k } = usePalette();
+  const { mode, S, k } = usePalette("series" in spec ? spec.series.length : 1);
   const option = useMemo(() => {
     if (spec.type === "line" || spec.type === "area") return lineOption(spec, S, k);
     if (spec.type === "bar") return barOption(spec, S, k);
@@ -59,7 +61,7 @@ export function ChartBody({ spec, large = false }: { spec: ChartSpec; large?: bo
   }, [spec, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (spec.type === "kpi") return <KpiTiles tiles={spec.tiles} unit={spec.unit} />;
-  if (spec.type === "table") return <div className="max-h-[360px] overflow-auto rounded-tile border border-border"><SpecTable spec={spec} /></div>;
+  if (spec.type === "table") return <div className="max-h-[360px] overflow-auto -mx-1"><SpecTable spec={spec} /></div>;
   if (spec.type === "choropleth") return <ChoroplethMap spec={spec} large={large} />;
   if (!option) return null;
   const height = spec.type === "bar" ? barHeight(spec) * (large ? 1.25 : 1) : spec.type === "forest" ? Math.max(160, spec.data.length * 30 + 40) : large ? 420 : 260;
@@ -72,22 +74,22 @@ export function ChartBody({ spec, large = false }: { spec: ChartSpec; large?: bo
 }
 
 function Legend({ spec, S }: { spec: ChartSpec; S: string[] }) {
-  if (spec.type !== "line" && spec.type !== "area" && spec.type !== "bar") return spec.unit ? <div className="text-micro text-fg-muted mb-1">{unitText(spec.unit)}</div> : null;
+  if (spec.type !== "line" && spec.type !== "area" && spec.type !== "bar") return spec.unit ? <div className="text-[13px] text-muted mb-2">{unitText(spec.unit)}</div> : null;
   const ci = spec.series.some((s) => s.lci && s.uci);
   const multi = spec.series.length > 1;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-1 text-micro text-fg-muted">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-[13px] text-muted">
       {(spec.unit || spec.yLabel) && <span>{spec.yLabel ?? unitText(spec.unit)}</span>}
       <span className="flex-1" />
       {multi && spec.series.map((s, i) => (
-        <span key={s.key} className="inline-flex items-center gap-1.5">
-          <span className="w-3 h-[3px] rounded-full" style={{ background: S[i % S.length], opacity: s.dashed ? 0.6 : 1 }} aria-hidden />{seriesLabel(s)}
+        <span key={s.key} className="inline-flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: S[i % S.length], opacity: s.dashed ? 0.6 : 1 }} aria-hidden />{seriesLabel(s)}
         </span>
       ))}
       {ci && (
-        <span className="inline-flex items-center gap-1.5">
-          {spec.type === "bar" ? <span className="w-3 h-2.5 border-x border-fg-muted/70 relative" aria-hidden><span className="absolute inset-x-0 top-1/2 h-px bg-fg-muted/70" /></span>
-                               : <span className="w-3 h-2.5 rounded-[3px]" style={{ background: `${S[0]}26` }} aria-hidden />}
+        <span className="inline-flex items-center gap-2">
+          {spec.type === "bar" ? <span className="w-2.5 h-2.5 border-x border-muted/70 relative" aria-hidden><span className="absolute inset-x-0 top-1/2 h-px bg-muted/70" /></span>
+                               : <span className="w-2.5 h-2.5 rounded-full" style={{ background: alphaHex(S[0], 0.28) }} aria-hidden />}
           95% CI
         </span>
       )}
@@ -96,7 +98,7 @@ function Legend({ spec, S }: { spec: ChartSpec; S: string[] }) {
 }
 
 function KpiTiles({ tiles, unit }: { tiles: KpiTile[]; unit?: string }) {
-  const cols = tiles.length === 1 ? "grid-cols-1" : tiles.length === 2 || tiles.length === 4 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3";
+  const cols = tiles.length === 1 ? "grid-cols-1" : tiles.length === 2 || tiles.length === 4 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3";
   return (
     <div className={`grid gap-3 ${cols}`}>
       {tiles.map((t) => {
@@ -106,24 +108,27 @@ function KpiTiles({ tiles, unit }: { tiles: KpiTile[]; unit?: string }) {
         const dir = t.delta === null || t.delta === undefined ? 0 : t.delta > 0 ? 1 : t.delta < 0 ? -1 : 0;
         const DeltaIcon = dir > 0 ? TrendingUp : dir < 0 ? TrendingDown : Minus;
         return (
-          <div key={t.label} className="rounded-tile bg-surface-2 border border-border/70 p-4 flex flex-col gap-1 min-w-0">
-            <div className="text-label text-fg-muted truncate" title={t.label}>{t.label}</div>
-            <div className="flex items-baseline gap-1.5 min-w-0">
+          <div key={t.label} className="rounded-tile bg-tile p-5 flex flex-col min-w-0">
+            <div className="text-[14px] leading-5 text-muted truncate" title={t.label}>{t.label}</div>
+            <div className="flex items-baseline gap-2 min-w-0 mt-2">
               {t.value === null
-                ? <span className="text-metric text-fg">{t.valueLabel ?? "—"}</span>
-                : <AnimatedNumber value={t.value} format={fmt} className={`${tiles.length === 1 ? "text-display" : "text-metric"} text-fg`} />}
-              {u && !/%$/.test(u) && t.format !== "percent" && t.format !== "fraction_percent" && <span className="text-label text-fg-muted truncate">{u}</span>}
+                ? <span className="text-metric text-ink">{t.valueLabel ?? "—"}</span>
+                : <AnimatedNumber value={t.value} format={fmt} className={`${tiles.length === 1 ? "text-display" : "text-metric"} text-ink`} />}
+              {u && !/%$/.test(u) && t.format !== "percent" && t.format !== "fraction_percent" && <span className="text-[15px] text-muted truncate">{u}</span>}
             </div>
-            {t.ci && t.ci[0] !== null && t.ci[1] !== null && <div className="text-micro text-fg-muted tabular">95% CI {fmt(t.ci[0])}–{fmt(t.ci[1])}</div>}
-            {(t.delta !== null && t.delta !== undefined || t.deltaLabel) && (
-              <div className="inline-flex items-center gap-1 text-micro text-fg-muted">
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-surface border border-border px-1.5 py-0.5 text-fg font-medium tabular">
-                  <DeltaIcon size={11} aria-hidden />{t.delta !== null && t.delta !== undefined ? `${t.delta > 0 ? "+" : ""}${fmtValue(t.delta, t.format === "fraction_percent" ? "fraction_percent" : undefined)}` : ""}
-                </span>
-                {t.deltaLabel && <span className="truncate">{t.deltaLabel}</span>}
+            {(t.ci && t.ci[0] !== null && t.ci[1] !== null || t.delta !== null && t.delta !== undefined || t.deltaLabel) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] leading-[18px] text-muted tabular">
+                {t.delta !== null && t.delta !== undefined && (
+                  <span className="inline-flex items-center gap-1 text-ink/80">
+                    <DeltaIcon size={13} aria-hidden />{`${t.delta > 0 ? "+" : ""}${fmtValue(t.delta, t.format === "fraction_percent" ? "fraction_percent" : undefined)}`}
+                    {t.deltaLabel && <span className="text-muted">{t.deltaLabel}</span>}
+                  </span>
+                )}
+                {(t.delta === null || t.delta === undefined) && t.deltaLabel && <span>{t.deltaLabel}</span>}
+                {t.ci && t.ci[0] !== null && t.ci[1] !== null && <span>95% CI {fmt(t.ci[0])}–{fmt(t.ci[1])}</span>}
               </div>
             )}
-            {t.trend && t.trend.filter((v) => v !== null).length > 1 && <Sparkline values={t.trend} height={30} className="mt-1" />}
+            {t.trend && t.trend.filter((v) => v !== null).length > 1 && <Sparkline values={t.trend} height={32} className="mt-3" />}
           </div>
         );
       })}
@@ -158,10 +163,11 @@ function MethodNotes({ spec }: { spec: ChartSpec }) {
     <div className="flex flex-col gap-3">
       {spec.subtitle && <p>{spec.subtitle}</p>}
       {spec.caption && <p className="text-fg-muted">{spec.caption}</p>}
-      {src?.tool && <p><span className="text-fg-muted">Source tool</span> <code className="text-[12px] bg-surface-2 border border-border rounded-md px-1.5 py-0.5">{src.tool}</code>{src.note ? <span className="text-fg-muted"> · {src.note}</span> : null}</p>}
+      {src?.tool && <p><span className="text-muted">Source tool </span><code className="font-mono text-[12px] bg-tile rounded-md px-1.5 py-0.5">{src.tool}</code></p>}
+      {src?.note && <p className="text-muted">{src.note}</p>}
       {src?.sql && <Markdown>{"```sql\n" + src.sql + "\n```"}</Markdown>}
       {!!spec.caveats?.length && <ul className="list-disc pl-5 text-fg-muted">{spec.caveats.map((c) => <li key={c}>{c}</li>)}</ul>}
-      <p className="text-micro text-fg-muted">Synthetic data. Numbers come straight from the tool output; counts under 5 are suppressed.</p>
+      <p className="text-[13px] text-muted">Synthetic data. Numbers come straight from the tool output; counts under 5 are suppressed.</p>
     </div>
   );
 }

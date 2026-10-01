@@ -143,7 +143,7 @@ function AssistantMessage({ message, streaming, busy, isLast, errored, onRegener
         {empty && streaming && <div className="h-6 flex items-center gap-2.5 text-[14px] text-muted"><StateDot state="run" />Thinking</div>}
         {blocks.map((b, i) => {
           if (b.kind === "steps") return <Steps key={b.key} items={b.items} live={streaming && i === blocks.length - 1} />;
-          if (b.kind === "text") return <Markdown key={b.key} streaming={streaming && i === lastTextIdx && i === blocks.length - 1}>{b.text}</Markdown>;
+          if (b.kind === "text") return <Markdown key={b.key} className="md-prose" streaming={streaming && i === lastTextIdx && i === blocks.length - 1}>{b.text}</Markdown>;
           return <div key={b.key} className="min-w-0">{b.node}</div>;
         })}
         {streaming && !empty && blocks[blocks.length - 1]?.kind === "widget" && <div className="h-6 flex items-center gap-2.5 text-[14px] text-muted"><StateDot state="run" />Writing</div>}
