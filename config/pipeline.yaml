@@ -15,6 +15,7 @@ metrics:
   bootstrap_resamples: 200
   lisa_permutations: 999
   controls_per_case: 5
+  joinpoint_selection: permutation   # permutation (NCI default, 499 permutations) | bic
 dq:
   hb_plausible: [3, 22]
   bmi_plausible: [10, 60]

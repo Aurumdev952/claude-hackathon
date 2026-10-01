@@ -1,7 +1,8 @@
 """In-house joinpoint regression (SPEC §12.3), NCI-Joinpoint in spirit.
 
 ln(ASR_y) = b0 + b1*y + sum_k d_k*(y - tau_k)_+  fitted by weighted least squares, w = 1/Var(ln ASR) = ASR^2/Var(ASR).
-0-2 joinpoints at integer years, >= 2 observations from each end and between joinpoints; selection by weighted BIC.
+0-2 joinpoints at integer years, >= 2 observations from each end and between joinpoints.
+Model selection: sequential permutation tests (Kim et al. 2000, the NCI Joinpoint default; SPEC P2) or weighted BIC.
 """
 from __future__ import annotations
 
@@ -47,7 +48,44 @@ def candidates(years: np.ndarray, k: int, min_obs: int = 2):
                 yield taus
 
 
-def fit_joinpoint(years, asr, var, max_joinpoints: int = 2, min_obs: int = 2) -> dict | None:
+def _best_rss(years, y, w, cands):
+    best = None
+    for taus in cands:
+        beta, cov, rss, dof, bic = _fit(years, y, w, taus)
+        if best is None or rss < best[1] - 1e-12:
+            best = (taus, rss, beta)
+    return best
+
+
+def _select_permutation(years, y, w, by_k: dict, alpha: float, n_perm: int, seed: int) -> int:
+    """Sequential tests H0: k vs H1: k+1 joinpoints. Null data = H0 fit + permuted (weighted) residuals; the statistic is
+    the relative RSS reduction of the best (k+1)-joinpoint fit. Bonferroni over the number of tests keeps the overall
+    level at alpha. Returns the selected number of joinpoints."""
+    rng = np.random.default_rng(seed)
+    kmax = max(by_k)
+    sw = np.sqrt(w)
+    level = alpha / max(kmax, 1)
+    k = 0
+    while k < kmax:
+        taus0, rss0, beta0 = _best_rss(years, y, w, by_k[k])
+        _, rss1, _ = _best_rss(years, y, w, by_k[k + 1])
+        t_obs = (rss0 - rss1) / max(rss1, 1e-12)
+        fit0 = _design(years, taus0) @ beta0
+        r = (y - fit0) * sw
+        hits = 0
+        for _ in range(n_perm):
+            ys = fit0 + rng.permutation(r) / sw
+            _, a0, _ = _best_rss(years, ys, w, by_k[k])
+            _, a1, _ = _best_rss(years, ys, w, by_k[k + 1])
+            hits += (a0 - a1) / max(a1, 1e-12) >= t_obs
+        if (hits + 1) / (n_perm + 1) >= level:
+            break
+        k += 1
+    return k
+
+
+def fit_joinpoint(years, asr, var, max_joinpoints: int = 2, min_obs: int = 2, selection: str = "permutation",
+                  alpha: float = 0.05, n_perm: int = 499, seed: int = 20150101) -> dict | None:
     years = np.asarray(years, float)
     asr = np.asarray(asr, float)
     var = np.asarray(var, float)
@@ -57,14 +95,25 @@ def fit_joinpoint(years, asr, var, max_joinpoints: int = 2, min_obs: int = 2) ->
     years, asr, var = years[ok], asr[ok], var[ok]
     y = np.log(asr)
     w = asr**2 / var
-    best = None
+    by_k: dict[int, list] = {}
     for k in range(0, max_joinpoints + 1):
         if len(years) < 2 * min_obs + k * min_obs:
             break
-        for taus in (candidates(years, k, min_obs) if k else [()]):
-            beta, cov, rss, dof, bic = _fit(years, y, w, taus)
-            if best is None or bic < best["bic"] - 1e-9:
-                best = {"taus": taus, "beta": beta, "cov": cov, "rss": rss, "dof": dof, "bic": bic}
+        c = list(candidates(years, k, min_obs)) if k else [()]
+        if c:
+            by_k[k] = c
+    best = None
+    if selection == "permutation" and len(by_k) > 1:
+        k_sel = _select_permutation(years, y, w, by_k, alpha, n_perm, seed)
+        taus, _, _ = _best_rss(years, y, w, by_k[k_sel])
+        beta, cov, rss, dof, bic = _fit(years, y, w, taus)
+        best = {"taus": taus, "beta": beta, "cov": cov, "rss": rss, "dof": dof, "bic": bic}
+    else:
+        for k, cands in by_k.items():
+            for taus in cands:
+                beta, cov, rss, dof, bic = _fit(years, y, w, taus)
+                if best is None or bic < best["bic"] - 1e-9:
+                    best = {"taus": taus, "beta": beta, "cov": cov, "rss": rss, "dof": dof, "bic": bic}
     if best is None:
         return None
     taus, beta, cov, dof = best["taus"], best["beta"], best["cov"], best["dof"]

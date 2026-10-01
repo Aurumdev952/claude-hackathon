@@ -60,7 +60,7 @@ insights:
   ins5: {enabled: true, district: WES-RUS, endoscopy_from: 2021-07-01,
          pre_access_terminal_dx: 0.5, pre_access_workup_dx: 0.6,   # D-24: 0.35/0.45/0.2 gave +185%
          pre_access_referral_completion: 0.3}   # without local endoscopy many cases die undiagnosed
-  ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.65,   # per case (D-28): ~45% of endemic cases end up misattributed (SPEC 35-50%)
+  ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.75,   # per case (D-28/D-31): ~45% of endemic cases end up misattributed (SPEC 35-50%)
          suppress_days: [150, 270], anchor_after: 0.3}
   ins7: {enabled: true}
   ins8: {enabled: true, factor: hiv}
