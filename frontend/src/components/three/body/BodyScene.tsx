@@ -109,12 +109,12 @@ function OrganLabels({ organs, state }: { organs: Record<string, OrganInfo>; sta
         const side = o.center.x >= 0 ? 1 : -1;
         return (
           <Html key={id} position={[o.center.x, o.center.y + (placed[id] ?? 0), o.center.z]} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-            <div className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] leading-none px-2 py-[5px] rounded-full border backdrop-blur-md transition-shadow
-                             bg-surface/90 text-fg shadow-tile ${strong ? "border-warning ring-2 ring-warning/35 shadow-float" : "border-border"}`}
+            <div className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] leading-none px-2.5 py-[6px] rounded-full border bg-surface text-ink
+                             ${strong ? "border-ink" : "border-hairline"}`}
                  style={{ transform: `translate(${side > 0 ? "18px" : "calc(-100% - 18px)"}, -50%)` }}>
-              <span className="absolute top-1/2 w-[18px] h-px bg-fg-muted/60" style={{ [side > 0 ? "left" : "right"]: -18 } as React.CSSProperties} aria-hidden />
+              <span className="absolute top-1/2 w-[18px] h-px bg-muted/60" style={{ [side > 0 ? "left" : "right"]: -18 } as React.CSSProperties} aria-hidden />
               <span className="font-semibold">{labelOf(id)}</span>
-              {s > 0 && <span className="tabular text-fg-muted">{Math.round(100 * s)}</span>}
+              {s > 0 && <span className="tabular text-muted">{Math.round(100 * s)}</span>}
             </div>
           </Html>
         );
@@ -180,5 +180,5 @@ export function BodyScene({ state, anchors, reducedMotion, light = false }: {
 }
 
 function LoadingBody() {
-  return <Html center><div className="text-xs text-fg-muted animate-pulse whitespace-nowrap">Loading anatomy model…</div></Html>;
+  return <Html center><div className="text-[13px] text-muted animate-pulse whitespace-nowrap">Loading anatomy model…</div></Html>;
 }

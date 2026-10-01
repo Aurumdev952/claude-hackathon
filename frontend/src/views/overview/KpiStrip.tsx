@@ -10,8 +10,9 @@ export type KpiDef = {
   delta: { text: string; dir: -1 | 0 | 1; tone: "good" | "bad" | "neutral"; note?: string } | null;
   spark: KpiPoint[]; partial?: boolean; scope?: string; missing?: string;
   format: (v: number | null) => string;
-  /** Short name for the hero strip (defaults to label). */
+  /** Short name for the hero strip (defaults to label), and a shorter one for phones. */
   short?: string;
+  mini?: string;
 };
 
 const notesOf = (k: KpiDef) => [k.delta?.note && `Change ${k.delta.note}.`, k.partial && "The current year is year to date (annualised where noted).", k.scope].filter(Boolean).join(" ");
@@ -70,7 +71,7 @@ export function HeroStat({ k, icon, attention = false }: { k: KpiDef; icon: Reac
             <span className="text-[22px] max-sm:text-[19px] leading-7 font-medium tracking-[-0.01em] text-ink tabular">{k.value}</span>
             {k.unit && <span className="text-micro text-muted">{k.unit}</span>}
           </span>
-          <span className="block text-micro text-muted truncate">{k.short ?? k.label}</span>
+          <span className="block text-micro text-muted truncate"><span className={k.mini ? "max-sm:hidden" : ""}>{k.short ?? k.label}</span>{k.mini && <span className="sm:hidden">{k.mini}</span>}</span>
         </span>
       </button>
       <DetailModal {...d.modalProps} title={k.label} subtitle={k.partial ? "Current year to date" : undefined} size="2xl">
@@ -86,8 +87,8 @@ export function KpiCard({ k, icon, visual = "line" }: { k: KpiDef; icon: ReactNo
   const m = useThemeMode();
   const pts = k.spark.filter((p) => p.value !== null);
   const vals = k.spark.map((p) => p.value);
-  const last = pts[pts.length - 1], prev = pts[pts.length - 2];
-  const best = pts.length ? pts.reduce((a, b) => ((b.value ?? -Infinity) > (a.value ?? -Infinity) ? b : a)) : null;
+  const prev = pts[pts.length - 2];
+  const first = pts[0];
   const num = Number(String(k.value).replace(/,/g, ""));
   return (
     <Card as="div" title={k.label} icon={icon} className="h-full" bodyClassName="flex flex-col"
@@ -119,7 +120,7 @@ export function KpiCard({ k, icon, visual = "line" }: { k: KpiDef; icon: ReactNo
             {Number.isFinite(num) && <GradientRangeBar value={num} min={0} max={100} reverse showMinMax={false} label={`${k.label}, 0 to 100%`} />}
             <div className="grid grid-cols-2 gap-2.5">
               <StatTile label={prev ? `In ${prev.year}` : "Last year"} value={prev ? k.format(prev.value) : "—"} />
-              <StatTile label={best ? `Best, ${best.year}` : "Best year"} value={best && best !== last ? k.format(best.value) : best ? k.format(best.value) : "—"} />
+              <StatTile label={first && first !== prev ? `In ${first.year}` : "First year"} value={first && first !== prev ? k.format(first.value) : "—"} />
             </div>
           </div>
         )}

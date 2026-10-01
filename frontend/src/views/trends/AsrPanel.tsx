@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import type { EChartsOption, SeriesOption } from "echarts";
-import { Button, Switch } from "@heroui/react";
-import { LineChart, Plus, Target, X } from "lucide-react";
+import { Button } from "@heroui/react";
+import { LineChart, Plus, X } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
-import { Card, chartDetailTabs, DataTable, InfoHint, Loading, Seg, StatusChip } from "@/components/ui";
+import { Card, chartDetailTabs, DataTable, InfoHint, Loading, Seg } from "@/components/ui";
 import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
@@ -92,14 +92,14 @@ export function AsrPanel() {
     if (geoEvents.length && first(out)) {
       first(out)!.markLine = { silent: true, symbol: "none", animation: false, lineStyle: { color: k.axis, width: 1, type: "solid" },
         label: { formatter: (p: any) => p.name, color: k.muted, fontSize: 10, position: "insideEndTop" },
-        data: geoEvents.filter((e) => yearFrac(e.date) >= y0 && yearFrac(e.date) <= y1).map((e) => ({ xAxis: yearFrac(e.date), name: `Endoscopy · ${names[e.geo_code] ?? e.geo_code}` })) };
+        data: geoEvents.filter((e) => yearFrac(e.date) >= y0 && yearFrac(e.date) <= y1).map((e) => ({ xAxis: yearFrac(e.date), name: `Endoscopy, ${names[e.geo_code] ?? e.geo_code}` })) };
     }
     return {
       ...b,
       grid: GRID,
       xAxis: { ...b.xAxis, type: "value", min: y0, max: y1, interval: 1, axisLabel: { ...b.xAxis.axisLabel, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } },
       yAxis: log
-        ? { ...b.yAxis, type: "log", logBase: 10, min: logMin, max: Math.pow(10, Math.ceil(Math.log10(maxV * 1.05))), name: `per 100,000 · log scale`,
+        ? { ...b.yAxis, type: "log", logBase: 10, min: logMin, max: Math.pow(10, Math.ceil(Math.log10(maxV * 1.05))), name: `per 100,000, log scale`,
             minorTick: { show: false }, minorSplitLine: { show: true, lineStyle: { color: k.grid, opacity: 0.5 } },
             axisLabel: { ...b.yAxis.axisLabel, formatter: (v: number) => (v >= 1 ? int(v) : String(v)) } }
         : { ...b.yAxis, type: "value", min: 0, name: "per 100,000" },
@@ -113,7 +113,7 @@ export function AsrPanel() {
             const val = p.v === null ? (p.suppressed ? "suppressed" : "—") : fmt(p.v, 1);
             const ci = p.lo !== null && p.hi !== null ? `${fmt(p.lo, 1)}–${fmt(p.hi, 1)}` : "";
             const cases = p.cases !== null ? `${int(p.cases)} cases` : p.casesLabel ? `${p.casesLabel} cases` : "";
-            return tipRow(d.color, seriesLabel(d.spec, names), val, [ci && `[${ci}]`, cases].filter(Boolean).join(" · "));
+            return tipRow(d.color, seriesLabel(d.spec, names), val, [ci && `(${ci})`, cases].filter(Boolean).join(", "));
           }).join("");
           const any = data.flatMap((d) => d.pts.filter((x) => x.year === yr));
           const notes = [any.some((p) => p.low) && "Dashed: under 50% of facilities on the EMR this year.", any.some((p) => p.partial) && "Year to date, annualised.", any.some((p) => p.suppressed) && "Cells under 5 cases are suppressed."].filter(Boolean).join(" ");
@@ -134,17 +134,14 @@ export function AsrPanel() {
     />
   );
 
-  const subtitle = <>Per 100,000 person-years, {f.caseDef === "CONFIRMED" ? "confirmed cases" : "confirmed + probable"}. Bands = 95% CI. Click a series to fit its joinpoint below.</>;
+  const subtitle = <>Per 100,000 person-years, {f.caseDef === "CONFIRMED" ? "confirmed cases" : "confirmed and probable cases"}. Bands are 95% confidence intervals. Select a series to fit its joinpoint below.</>;
   const method = "Direct standardisation to the WHO World Standard Population (18 age groups; age bands use their own re-normalised weights). 95% CI: Fay–Feuer gamma. Denominator = person-years in the catchment of facilities live on the EMR, so years with low EMR coverage (under 50% of facilities live) are dashed. On the log scale equal slopes mean equal % change per year.";
   return (
     <Card
       title={metric === "asr" ? "Age-standardised incidence" : "Crude incidence"} icon={<LineChart size={16} />}
-      info={{ about: subtitle, method, notes: "Event rug: dots = EMR go-lives, diamonds = endoscopy units opening; hover or focus one to see it on the chart." }}
-      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
-      actions={<>
-        <Switch size="sm" isSelected={showEvents} onValueChange={setShowEvents} aria-label="Event annotations" classNames={{ label: "text-label text-fg-muted" }}>Events</Switch>
-        <Seg label="Y scale" value={logScale ? "log" : "lin"} onChange={(v) => setLog(v === "log")} options={[{ value: "log", label: "Log" }, { value: "lin", label: "Linear" }]} />
-      </>}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>{subtitle}</p><p className="mt-2">{method}</p></>, notes: "Event rug: dots are EMR go-lives, diamonds are endoscopy units opening; hover or focus one to see it on the chart." }), defaultTab: "table" }}
+      detailLabel="Incidence: view as table"
+      actions={<Seg label="Y scale" value={logScale ? "log" : "lin"} onChange={(v) => setLog(v === "log")} options={[{ value: "log", label: "Log" }, { value: "lin", label: "Linear" }]} />}
     >
       <SeriesChips focus={focus} setFocus={setFocus} />
       {err ? <ErrorNote error={err} /> : loading && !data.some((d) => d.pts.length) ? <Loading h={340} /> : (
@@ -153,10 +150,14 @@ export function AsrPanel() {
           {hoverEv && <EventGuide e={hoverEv} y0={y0} y1={y1} />}
         </div>
       )}
-      <div className="flex items-center gap-3 flex-wrap mt-1 mb-1">
+      <div className="flex items-center gap-5 flex-wrap mt-2 mb-1">
         <Key color={pal.ink.secondary} label="Observed" />
         <Key color={pal.ink.secondary} dashed label="Low EMR coverage" />
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-fg-muted"><span className="w-2 h-2 rounded-full border-2" style={{ borderColor: pal.ink.secondary }} />Year to date</span>
+        <span className="inline-flex items-center gap-1.5 text-micro text-muted"><span className="w-2 h-2 rounded-full border-2" style={{ borderColor: pal.ink.secondary }} />Year to date</span>
+        <button type="button" onClick={() => setShowEvents((v) => !v)} aria-pressed={showEvents}
+                className="ml-auto text-micro text-muted hover:text-ink rounded-full px-2 py-1 -my-1 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+          {showEvents ? "Hide events" : "Show events"}
+        </button>
       </div>
       {showEvents && <EventRug events={ev.data?.data ?? []} y0={y0} y1={y1} names={names} onHover={setHoverEv} />}
     </Card>
@@ -169,7 +170,7 @@ function EventGuide({ e, y0, y1 }: { e: EventRow; y0: number; y1: number }) {
   if (t < 0 || t > 1) return null;
   return (
     <div className="absolute pointer-events-none" style={{ left: GRID.left, right: GRID.right, top: GRID.top, bottom: GRID.bottom }} aria-hidden>
-      <div className="absolute top-0 bottom-0 w-px bg-fg/40" style={{ left: `${t * 100}%` }} />
+      <div className="absolute top-0 bottom-0 w-px bg-ink/40" style={{ left: `${t * 100}%` }} />
     </div>
   );
 }
@@ -190,33 +191,33 @@ function EventRug({ events, y0, y1, names, onHover }: { events: EventRow[]; y0: 
     setTip({ e, x: b.left + b.width / 2 - r.left });
   };
   return (
-    <div className="relative border-t border-border/70 pt-1.5" ref={ref} onMouseLeave={() => show(null)}>
+    <div className="relative border-t border-hairline pt-2 mt-1" ref={ref} onMouseLeave={() => show(null)}>
       {rows.map((row) => {
         const evs = inRange.filter((e) => e.event_type === row.type);
         return (
           <div key={row.type} className="relative h-[18px]">
-            <span className="absolute left-0 top-0.5 text-[10px] text-fg-muted" style={{ width: GRID.left - 4 }}>{row.type === "EMR_GO_LIVE" ? "EMR" : "Scope"}</span>
+            <span className="absolute left-0 top-0.5 text-[11px] text-muted" style={{ width: GRID.left - 4 }}>{row.type === "EMR_GO_LIVE" ? "EMR" : "Scope"}</span>
             <div className="absolute top-0 bottom-0" style={{ left: GRID.left, right: GRID.right }}>
-              <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
+              <div className="absolute left-0 right-0 top-1/2 h-px bg-hairline" />
               {evs.map((e, i) => {
                 const t = Math.max(0, (yearFrac(e.date) - y0) / (y1 - y0));
                 return (
                   <button key={i} className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 p-1 group focus:outline-none" style={{ left: `${t * 100}%` }}
                           aria-label={`${e.label}, ${e.date}`}
                           onMouseEnter={(x) => show(e, x.currentTarget)} onFocus={(x) => show(e, x.currentTarget)} onBlur={() => show(null)}>
-                    <span className={`block ${row.shape === "dot" ? "w-[6px] h-[6px] rounded-full bg-fg-muted/70" : "w-[7px] h-[7px] rotate-45 bg-fg"} group-hover:scale-150 group-focus-visible:scale-150 group-focus-visible:ring-2 ring-accent/60 transition-transform`} />
+                    <span className={`block ${row.shape === "dot" ? "w-[6px] h-[6px] rounded-full bg-faint" : "w-[7px] h-[7px] rotate-45 bg-ink"} group-hover:scale-150 group-focus-visible:scale-150 group-focus-visible:ring-2 ring-signal transition-transform`} />
                   </button>
                 );
               })}
             </div>
-            <span className="absolute top-0.5 text-[10px] text-fg-muted tabular" style={{ right: 0, width: GRID.right - 10 }}>{evs.length} {row.type === "EMR_GO_LIVE" ? "go-lives" : "openings"}</span>
+            <span className="absolute top-0.5 text-[11px] text-muted tabular" style={{ right: 0, width: GRID.right - 10 }}>{evs.length} {row.type === "EMR_GO_LIVE" ? "go-lives" : "openings"}</span>
           </div>
         );
       })}
       {tip && (
-        <div className="absolute z-20 -translate-x-1/2 bottom-full mb-1 bg-surface border border-border shadow-float rounded-tile px-2.5 py-1.5 text-[11px] whitespace-nowrap pointer-events-none" style={{ left: tip.x }} role="status">
+        <div className="absolute z-20 -translate-x-1/2 bottom-full mb-1 bg-surface shadow-float rounded-tile dark:border dark:border-hairline px-3 py-2 text-[12px] whitespace-nowrap pointer-events-none" style={{ left: tip.x }} role="status">
           <div className="font-semibold">{tip.e.label}</div>
-          <div className="text-fg-muted tabular">{new Date(tip.e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {names[tip.e.geo_code] ?? tip.e.geo_code}</div>
+          <div className="flex gap-3 text-muted tabular"><span>{new Date(tip.e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span><span>{names[tip.e.geo_code] ?? tip.e.geo_code}</span></div>
         </div>
       )}
     </div>
@@ -229,27 +230,26 @@ function SeriesChips({ focus, setFocus }: { focus: string; setFocus: (k: string)
   const pal = usePalette();
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex items-center gap-1.5 flex-wrap mb-2 relative" role="list" aria-label="Selected series (legend)">
+    <div className="flex items-center gap-1 flex-wrap mb-3 -ml-2 relative" role="list" aria-label="Selected series (legend)">
       {series.map((s) => {
         const k = specKey(s);
         const on = k === focus;
         return (
-          <div key={k} role="listitem" className={`inline-flex items-center rounded-full border text-[12px] transition-colors ${on ? "border-accent/40 bg-accent-soft" : "border-border bg-surface-2"}`}>
-            <button className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 focus:outline-none focus-visible:ring-2 ring-accent/60 rounded-full" onClick={() => setFocus(k)} aria-pressed={on}
-                    title="Fit joinpoint for this series">
-              <span className="inline-block w-3.5 h-[3px] rounded-full" style={{ background: pal.series[s.slot] }} aria-hidden />
-              <span className={on ? "text-fg font-medium" : "text-fg-muted"}>{seriesLabel(s, names)}</span>
-              {on && <Target size={11} className="text-fg-muted" aria-label="joinpoint focus" />}
+          <div key={k} role="listitem" className={`group inline-flex items-center rounded-full text-[13px] transition-colors ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
+            <button className="inline-flex items-center gap-2 pl-3 pr-1.5 h-8 rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" onClick={() => setFocus(k)} aria-pressed={on}
+                    title={on ? "Joinpoint below follows this series" : "Fit the joinpoint below for this series"}>
+              <span className="inline-block w-2 h-2 rounded-full" style={{ background: pal.series[s.slot] }} aria-hidden />
+              <span className={on ? "text-ink font-medium" : "text-muted"}>{seriesLabel(s, names)}</span>
             </button>
-            <button className="pr-2 pl-0.5 py-1 text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 ring-accent/60 rounded-full" onClick={() => remove(k)} aria-label={`Remove ${seriesLabel(s, names)}`} disabled={series.length <= 1}>
+            <button className="w-7 h-8 grid place-items-center text-faint hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal rounded-full disabled:opacity-0" onClick={() => remove(k)} aria-label={`Remove ${seriesLabel(s, names)}`} disabled={series.length <= 1}>
               <X size={12} />
             </button>
           </div>
         );
       })}
-      <button className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-[11.5px] text-fg-muted hover:text-fg hover:border-fg-muted disabled:opacity-40 focus:outline-none focus-visible:ring-2 ring-accent/60"
+      <button className="inline-flex items-center gap-1.5 rounded-full h-8 px-3 text-[13px] text-muted hover:text-ink hover:bg-tile/70 disabled:opacity-40 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
               onClick={() => setOpen((v) => !v)} disabled={series.length >= MAX_SERIES} aria-expanded={open}>
-        <Plus size={12} /> Add series <span className="tabular text-[10px]">{series.length}/{MAX_SERIES}</span>
+        <Plus size={13} /> Add series
       </button>
       {open && <SeriesBuilder onClose={() => setOpen(false)} />}
     </div>
@@ -267,11 +267,11 @@ function SeriesBuilder({ onClose }: { onClose: () => void }) {
   const g = level === "NATIONAL" ? "RW" : geo || (level === "PROVINCE" ? provinces[0]?.code : districts[0]?.district_code) || "";
   const dup = series.some((s) => specKey(s) === specKey({ level, geo: g, sex, age }));
   return (
-    <div className="absolute left-0 top-full mt-1.5 z-30 bg-surface border border-border shadow-float rounded-tile p-3.5 w-[min(560px,100%)] flex flex-col gap-2.5 text-xs animate-rise" role="dialog" aria-label="Add a series">
+    <div className="absolute left-0 top-full mt-2 z-30 bg-surface shadow-float rounded-card dark:border dark:border-hairline p-5 w-[min(580px,100%)] flex flex-col gap-3 text-[13px] animate-rise" role="dialog" aria-label="Add a series">
       <div className="flex items-center gap-2 flex-wrap">
         <Seg label="Level" value={level} onChange={(v) => { setLevel(v); setGeo(""); }} options={[{ value: "NATIONAL", label: "National" }, { value: "PROVINCE", label: "Province" }, { value: "DISTRICT", label: "District" }]} />
         {level !== "NATIONAL" && (
-          <select className="bg-surface-2 border border-border rounded-full px-3 py-1 text-fg text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent/60" value={g} onChange={(e) => setGeo(e.target.value)} aria-label={level === "PROVINCE" ? "Province" : "District"}>
+          <select className="bg-tile rounded-full px-3 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" value={g} onChange={(e) => setGeo(e.target.value)} aria-label={level === "PROVINCE" ? "Province" : "District"}>
             {level === "PROVINCE"
               ? provinces.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)
               : provinces.map((p) => (
@@ -288,11 +288,11 @@ function SeriesBuilder({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex items-center gap-2">
         <span className="flex-1 flex items-center gap-1">
-          {dup ? <StatusChip status="neutral" label="Already plotted" /> : level === "DISTRICT" && (sex !== "ALL" || age !== "ALL") ? <StatusChip status="warning" label="Small cells" title="District × age/sex cells are small: expect wide CIs and suppressed (<5) years." /> : null}
-          <InfoHint mode="tooltip" size={13} content="Up to 6 series. Colours stay with each series. District × age/sex cells are small: expect wide CIs and suppressed (<5) years." label="About adding series" />
+          {dup ? <span className="text-micro text-muted">Already plotted</span> : level === "DISTRICT" && (sex !== "ALL" || age !== "ALL") ? <span className="text-micro text-tone-warning" title="District cells by age or sex are small: expect wide CIs and suppressed (<5) years.">Small numbers</span> : null}
+          <InfoHint mode="tooltip" size={13} content="Up to 6 series. Colours stay with each series. District cells by age or sex are small: expect wide CIs and suppressed (<5) years." label="About adding series" />
         </span>
-        <Button size="sm" radius="full" variant="flat" onPress={onClose} className="bg-surface-2 border border-border">Cancel</Button>
-        <Button size="sm" radius="full" color="primary" isDisabled={dup || !g} startContent={<Plus size={13} />} onPress={() => { add({ level, geo: g, sex, age }); onClose(); }}>Add</Button>
+        <Button size="sm" radius="full" variant="flat" onPress={onClose} className="h-9 px-4 bg-tile text-ink">Cancel</Button>
+        <Button size="sm" radius="full" color="primary" className="h-9 px-4" isDisabled={dup || !g} startContent={<Plus size={13} />} onPress={() => { add({ level, geo: g, sex, age }); onClose(); }}>Add series</Button>
       </div>
     </div>
   );

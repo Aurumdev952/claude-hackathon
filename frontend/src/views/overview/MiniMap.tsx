@@ -41,7 +41,7 @@ export function MapHero({ yearTo, compact = false }: { yearTo: number; compact?:
       {(geo.error || error) ? <div className="p-6"><ErrorNote error={geo.error ?? error} /></div>
         : !(geo.data && prov.data && rows.length) ? <div className="absolute inset-0 grid place-items-center"><Loading h={240} label="Raising the map" /></div>
         : <GeoScene variant="mini" districts={geo.data} provinces={prov.data} rows={rows} metric={metric} domain={domain} onSelect={go} labels={3}
-                    fitPad={compact ? { top: 64, bottom: 120, left: 16, right: 16 } : { top: 56, bottom: 104, left: 40, right: 200 }} />}
+                    fitPad={compact ? { top: 64, bottom: 110, left: 8, right: 8 } : { top: 36, bottom: 104, left: 60, right: 60 }} zoomOffset={compact ? 0.08 : 0.18} />}
       <div className="absolute left-5 top-5 z-10 pointer-events-none">
         <span className="inline-flex items-center h-8 px-3.5 rounded-full bg-surface text-label text-ink tabular">Age-standardised rate, {range}</span>
       </div>

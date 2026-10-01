@@ -52,7 +52,7 @@ export function IntervalPanel() {
         { ...b.yAxis, type: "category", data: cats, inverse: true, splitLine: { show: false }, axisLabel: { color: k.secondary, fontSize: 11.5, formatter: (v: string) => LABEL(gv, v) } },
         { ...b.yAxis, type: "category", data: cats, inverse: true, position: "right", splitLine: { show: false },
           axisLabel: { color: k.primary, fontSize: 11, align: "left", margin: 10, rich: { n: { color: k.muted, fontSize: 10.5 } },
-            formatter: (v: string) => { const r = rows.find((x) => x.group === v)!; return `${fmt(m(r.median_days), 1)} mo {n|n ${int(r.n)}}`; } } },
+            formatter: (v: string) => { const r = rows.find((x) => x.group === v)!; return `${fmt(m(r.median_days), 1)} mo {n|n = ${int(r.n)}}`; } } },
       ],
       tooltip: { ...b.tooltip, trigger: "item", formatter: (p: any) => {
         const r = rows[p.data.value[3]];
@@ -83,24 +83,23 @@ export function IntervalPanel() {
   return (
     <Card
       title="Diagnostic interval" icon={<Clock size={16} />}
-      info={{ about: "First GI symptom in the 24-month window → diagnosis. Box = interquartile range, bar = median; right axis = median and cases.", method }}
       detail={{ tabs: chartDetailTabs({ table: <DataTable columns={[{ key: "group", label: "Group", fmt: (v) => LABEL(gv, v) }, { key: "median_days", label: "Median (months)", num: true, fmt: (v) => fmt(m(v), 1) },
-        { key: "iqr", label: "IQR (months)", num: true, fmt: (_v, r) => `${fmt(m(r.q1), 1)}–${fmt(m(r.q3), 1)}` }, { key: "n", label: "Cases", num: true, fmt: int }]} rows={rows} />, method }), defaultTab: "table" }}
-      detailLabel="View as table"
+        { key: "iqr", label: "IQR (months)", num: true, fmt: (_v, r) => `${fmt(m(r.q1), 1)}–${fmt(m(r.q3), 1)}` }, { key: "n", label: "Cases", num: true, fmt: int }]} rows={rows} />, method: <><p>From the first GI symptom in the 24-month window to diagnosis. Boxes show the interquartile range and the bar the median; the right axis gives the median and the number of cases.</p><p className="mt-2">{method}</p></> }), defaultTab: "table" }}
+      detailLabel="Diagnostic interval: view as table"
       actions={<Seg label="Group by" value={gv} onChange={setGv} options={GROUP_OPTS} />}
     >
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={240} /> : (
         <>
           <EChart key={gv} option={option} height={Math.max(190, 46 * rows.length + 60)} ariaLabel="Diagnostic interval box plots by group" />
-          <div className="flex items-center gap-3 flex-wrap mt-1">
+          <div className="flex items-center gap-5 flex-wrap mt-2">
             {(gv === "province" || gv === "malaria_region") ? <>
               <Key color={pal.series[1]} kind="box" label="Malaria-endemic" />
               <Key color={pal.series[0]} kind="box" label="Other provinces" />
             </> : <Key color={pal.series[0]} kind="box" label="Interquartile range" />}
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-fg-muted"><span className="w-[2.5px] h-3 bg-fg" aria-hidden />Median</span>
+            <span className="inline-flex items-center gap-1.5 text-micro text-muted"><span className="w-[2.5px] h-3 bg-ink" aria-hidden />Median</span>
           </div>
           {gap !== null && (
-            <div className="grid grid-cols-3 gap-2 mt-3">
+            <div className="grid grid-cols-3 gap-2.5 mt-4">
               <StatTile label="Malaria-endemic" value={fmt(m(endemic!.median_days), 1)} unit="mo" />
               <StatTile label="Elsewhere" value={fmt(m(other!.median_days), 1)} unit="mo" />
               <StatTile label="Gap" value={`${gap >= 0 ? "+" : ""}${fmt(gap, 1)}`} unit="mo" info={`Mann–Whitney ${pFmt(endemic!.p_value)}`} />

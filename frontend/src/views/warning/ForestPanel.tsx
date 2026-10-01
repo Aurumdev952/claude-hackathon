@@ -32,11 +32,11 @@ export function ForestPanel() {
         { ...b.yAxis, type: "category", data: cats, inverse: true, splitLine: { show: false }, axisLabel: { color: k.secondary, fontSize: 11.5, formatter: (v: string) => SIGNAL_LABEL[v] ?? v } },
         { ...b.yAxis, type: "category", data: cats, inverse: true, position: "right", splitLine: { show: false },
           axisLabel: { color: k.primary, fontSize: 11, align: "left", margin: 12, rich: { m: { color: k.muted, fontSize: 10.5 } },
-            formatter: (v: string) => { const r = rows.find((x) => x.signal === v)!; return `${fmt(r.or, 1)} {m|[${fmt(r.lci, 1)}–${fmt(r.uci, 1)}]}`; } } },
+            formatter: (v: string) => { const r = rows.find((x) => x.signal === v)!; return `${fmt(r.or, 1)} {m|(${fmt(r.lci, 1)}–${fmt(r.uci, 1)})}`; } } },
       ],
       tooltip: { ...b.tooltip, trigger: "item", formatter: (p: any) => {
         const r = rows[p.data.value[2]];
-        return tipHead(SIGNAL_LABEL[r.signal] ?? r.signal) + tipRow(c, "Odds ratio", fmt(r.or, 1), `[${fmt(r.lci, 1)}–${fmt(r.uci, 1)}]`) +
+        return tipHead(SIGNAL_LABEL[r.signal] ?? r.signal) + tipRow(c, "Odds ratio", fmt(r.or, 1), `(${fmt(r.lci, 1)}–${fmt(r.uci, 1)})`) +
           tipRow(null, "Cases with signal", `${fmt(r.pct_cases, 0)}%`) + tipRow(null, "Controls with signal", `${fmt(r.pct_controls, 0)}%`) + tipRow(null, "p", pFmt(r.p));
       } },
       series: [{
@@ -64,9 +64,8 @@ export function ForestPanel() {
     { key: "ci", label: "95% CI", num: true, fmt: (_v, r) => `${fmt(r.lci, 2)}–${fmt(r.uci, 2)}` }, { key: "p", label: "p", num: true, fmt: pFmt }]} rows={rows} />;
   return (
     <Card
-      title="Which signals separate cases?" icon={<Crosshair size={16} />}
-      info={{ about: "Odds ratio for having each signal before the index date (95% CI). Right axis: OR [CI]. The share of cases and controls with each signal is in the table and the tooltip.", method }}
-      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
+      title="Signals that separate cases" icon={<Crosshair size={16} />}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>Odds ratio for having each signal before the index date, with its 95% CI (right axis). The share of cases and controls with each signal is in the table and the tooltip.</p><p className="mt-2">{method}</p></> }), defaultTab: "table" }} detailLabel="Signals: view as table"
     >
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={240} /> : (
         <EChart option={option} height={352} ariaLabel="Forest plot of signal odds ratios on a log scale" />

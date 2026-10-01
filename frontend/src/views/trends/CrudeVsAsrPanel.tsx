@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Scale } from "lucide-react";
-import { AnimatedNumber, Card, chartDetailTabs, DataTable, DeltaChip, Loading, Seg } from "@/components/ui";
+import { AnimatedNumber, Card, chartDetailTabs, DataTable, Loading, Seg } from "@/components/ui";
 import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
@@ -27,7 +27,8 @@ export function CrudeVsAsrPanel() {
   const b0 = rows.find((r) => r.year === by);
   const cmpYear = years.includes(2019) && by < 2019 ? 2019 : years[years.length - 1];
   const b1 = rows.find((r) => r.year === cmpYear);
-  const C = { cases: pal.series[0], py: pal.series[1], asr: pal.series[2] };
+  // the rate (the honest measure) wears the data hue; counts and person-years are context in ink and grey
+  const C = { cases: pal.series[2], py: pal.series[3], asr: pal.series[0] };
   const who = [AGE_LABEL[f.ageBand], SEX_LABEL[f.sex]].filter(Boolean).join(", ");
 
   const option = useMemo<EChartsOption | null>(() => {
@@ -44,7 +45,7 @@ export function CrudeVsAsrPanel() {
       return tipHead(String(yr)) +
         tipRow(C.cases, "Recorded cases", int(r.cases), `index ${int((100 * r.cases) / b0.cases)}`) +
         tipRow(C.py, "Person-years on EMR", int(r.py), `index ${int((100 * r.py) / b0.py)}`) +
-        tipRow(C.asr, "ASR per 100k", fmt(r.asr, 1), `[${fmt(r.lci, 1)}–${fmt(r.uci, 1)}] · index ${int((100 * r.asr) / b0.asr)}`) +
+        tipRow(C.asr, "ASR per 100k", fmt(r.asr, 1), `(${fmt(r.lci, 1)}–${fmt(r.uci, 1)}), index ${int((100 * r.asr) / b0.asr)}`) +
         (r.low ? tipNote("Under 50% of facilities live on the EMR.") : "");
     };
     if (view === "index") {
@@ -61,7 +62,7 @@ export function CrudeVsAsrPanel() {
       return {
         ...b, grid: { left: 46, right: 132, top: 30, bottom: 26 }, xAxis: x,
         yAxis: { ...b.yAxis, type: "log", logBase: 2, min: ymin, max: Math.max(800, 2 ** Math.ceil(Math.log2(Math.max(...rows.map((r) => idx(r.cases, b0.cases)), ...rows.map((r) => idx(r.py, b0.py)))))),
-          name: `Index, ${by} = 100 · log scale`, axisLabel: { ...b.yAxis.axisLabel, formatter: (v: number) => int(v) } },
+          name: `Index, ${by} = 100, log scale`, axisLabel: { ...b.yAxis.axisLabel, formatter: (v: number) => int(v) } },
         tooltip: { ...b.tooltip, trigger: "axis", formatter: (ps: any) => tip(Math.round(ps[0]?.axisValue)) },
         series: [
           bandSeries("asr-band", rows.map((r) => ({ x: r.year, lo: idx(r.lci, b0.asr), hi: idx(r.uci, b0.asr) })), C.asr, { floor: ymin }),
@@ -106,33 +107,32 @@ export function CrudeVsAsrPanel() {
     rows={rows.map((r) => ({ ...r, ci: `${fmt(r.lci, 1)}–${fmt(r.uci, 1)}` }))} />;
   return (
     <Card
-      title="Crude counts vs age-standardised rate" icon={<Scale size={16} />}
-      info={{ about: <>National{who ? ` · ${who}` : ""}. Recorded cases follow the EMR roll-out; the rate per person-year does not.</>, method,
-              notes: "Counting raw cases would have told a scary but false story: the extra cases are new facilities joining the EMR, not more cancer." }}
-      detail={{ tabs: chartDetailTabs({ table, method }), defaultTab: "table" }} detailLabel="View as table"
+      title="Counts vs age-standardised rate" icon={<Scale size={16} />}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>National{who ? `, ${who}` : ""}. Recorded cases follow the EMR roll-out; the rate per person-year does not.</p><p className="mt-2">{method}</p></>,
+        notes: "Counting raw cases would have told a scary but false story: the extra cases are new facilities joining the EMR, not more cancer." }), defaultTab: "table" }} detailLabel="Counts vs rate: view as table"
       actions={<>
         {view === "index" && years.length > 1 && (
-          <label className="flex items-center gap-1.5 text-label text-fg-muted">Base
-            <select className="bg-surface-2 border border-border rounded-full pl-2.5 pr-1.5 h-8 text-fg text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent/60 cursor-pointer" value={by} onChange={(e) => setBaseYear(+e.target.value)} aria-label="Base year">
+          <label className="flex items-center gap-2 text-label text-muted">Base year
+            <select className="bg-tile rounded-full pl-3 pr-1.5 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal cursor-pointer" value={by} onChange={(e) => setBaseYear(+e.target.value)} aria-label="Base year">
               {years.slice(0, -1).map((y) => <option key={y}>{y}</option>)}
             </select>
           </label>
         )}
-        <Seg label="View" value={view} onChange={setView} options={[{ value: "index", label: "Indexed" }, { value: "multiples", label: "Small multiples" }]} />
+        <Seg label="View" value={view} onChange={setView} options={[{ value: "index", label: "Indexed" }, { value: "multiples", label: "Side by side" }]} />
       </>}
     >
       {q.error ? <ErrorNote error={q.error} /> : !option ? (q.isLoading ? <Loading h={260} /> : <Empty h={260}>No full years in the selected period.</Empty>) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_230px] gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-6 items-start">
           <div className="min-w-0">
             <EChart option={option} height={280} ariaLabel="Recorded cases, person-years and age-standardised rate indexed to a base year" />
-            <div className="flex items-center gap-3 flex-wrap mt-1">
+            <div className="flex items-center gap-5 flex-wrap mt-2">
               <Key color={C.cases} kind={view === "index" ? "line" : "box"} label="Recorded cases" />
               <Key color={C.py} kind={view === "index" ? "line" : "box"} label="Person-years on EMR" />
               <Key color={C.asr} label="ASR ± 95% CI" />
             </div>
           </div>
-          <aside className="flex flex-col gap-2" aria-label={`Change ${by} to ${cmpYear}`}>
-            <div className="text-label font-medium text-fg-muted tabular">{by} → {cmpYear}</div>
+          <aside className="flex flex-col gap-2.5" aria-label={`Change ${by} to ${cmpYear}`}>
+            <div className="text-label text-muted tabular">From {by} to {cmpYear}</div>
             <Ratio label="Recorded cases" color={C.cases} v={ratio(b0?.cases, b1?.cases)} />
             <Ratio label="Person-years on EMR" color={C.py} v={ratio(b0?.py, b1?.py)} />
             <Ratio label="Age-standardised rate" color={C.asr} v={ratio(b0?.asr, b1?.asr)} />
@@ -145,11 +145,11 @@ export function CrudeVsAsrPanel() {
 
 function Ratio({ label, color, v }: { label: string; color: string; v: number | null }) {
   return (
-    <div className="rounded-tile bg-surface-2 border border-border/70 px-3 py-2">
-      <div className="flex items-center gap-1.5 text-micro text-fg-muted"><span className="w-3 h-[3px] rounded-full" style={{ background: color }} aria-hidden />{label}</div>
-      <div className="flex items-baseline gap-1.5 mt-0.5">
-        {v === null ? <span className="text-[20px] font-semibold">—</span> : <AnimatedNumber value={v} format={(n) => `×${fmt(n, v >= 10 ? 0 : 1)}`} className="text-[20px] font-semibold tracking-tight tabular" />}
-        {v !== null && <DeltaChip delta={{ text: v >= 1 ? `+${int((v - 1) * 100)}%` : `−${int((1 - v) * 100)}%`, dir: v > 1.02 ? 1 : v < 0.98 ? -1 : 0, tone: "neutral" }} />}
+    <div className="rounded-tile bg-tile px-4 py-3">
+      <div className="flex items-center gap-1.5 text-micro text-muted"><span className="w-2 h-2 rounded-full" style={{ background: color }} aria-hidden />{label}</div>
+      <div className="flex items-baseline gap-2 mt-1">
+        {v === null ? <span className="text-[24px] leading-8 font-medium">—</span> : <AnimatedNumber value={v} format={(n) => `×${fmt(n, v >= 10 ? 0 : 1)}`} className="text-[24px] leading-8 font-medium tracking-[-0.01em] tabular" />}
+        {v !== null && <span className="text-micro text-muted tabular">{v >= 1 ? `+${int((v - 1) * 100)}%` : `−${int((1 - v) * 100)}%`}</span>}
       </div>
     </div>
   );
