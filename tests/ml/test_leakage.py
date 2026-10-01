@@ -115,20 +115,27 @@ def test_no_case_table_in_feature_code():
 
 
 def test_shuffle_label_auroc(mem):
+    """Production procedure (tier-2 params, early stopping on the validation split) on shuffled train/val labels: the
+    mean test AUROC over 5 shuffles must be 0.45-0.55. A single shuffle is too noisy (positives sit in sparse regions)."""
     import xgboost as xgb
     from sklearn.metrics import roc_auc_score
     from ml.features import design_matrix
+    from shared.config import models_cfg
     df = mem.execute("""SELECT f.*, l.label, l.split FROM w.ml_train_features f
                         JOIN w.ml_landmarks l ON l.patient_id = f.patient_id AND CAST(l.L AS DATE) = CAST(f.L AS DATE)""").df()
     if df.empty:
         pytest.skip("no training features")
     X = design_matrix(df).values
     y = df["label"].astype(int).values
-    rng = np.random.default_rng(0)
-    tr, te = (df["split"] == "train").values, (df["split"] == "test").values
-    ys = y.copy()
-    ys[tr] = rng.permutation(ys[tr])
-    m = xgb.XGBClassifier(n_estimators=150, max_depth=4, learning_rate=0.1, subsample=0.8, n_jobs=4, eval_metric="logloss")
-    m.fit(X[tr], ys[tr])
-    auc = roc_auc_score(y[te], m.predict_proba(X[te])[:, 1])
-    assert 0.45 <= auc <= 0.55, auc
+    tr, va, te = ((df["split"] == s_).values for s_ in ("train", "val", "test"))
+    params = dict(models_cfg()["tier2"]["params"])
+    aucs = []
+    for seed in range(5):
+        rng = np.random.default_rng(seed)
+        ys = y.copy()
+        ys[tr] = rng.permutation(ys[tr])
+        ys[va] = rng.permutation(ys[va])
+        m = xgb.XGBClassifier(**params, n_jobs=4, eval_metric="logloss", random_state=seed)
+        m.fit(X[tr], ys[tr], eval_set=[(X[va], ys[va])], verbose=False)
+        aucs.append(roc_auc_score(y[te], m.predict_proba(X[te])[:, 1]))
+    assert 0.45 <= float(np.mean(aucs)) <= 0.55, aucs

@@ -10,6 +10,9 @@ const VARS: { key: string; label: string; order: string[]; name: (v: string) => 
   { key: "age_band", label: "Age band", order: ["<50", "50-64", "65+"], name: (v) => (v === "<50" ? "Under 50" : v === "65+" ? "65 and over" : v.replace("-", "–")) },
   { key: "province", label: "Province", order: ["KGL", "NOR", "SOU", "EAS", "WES", "unknown"], name: (v) => PROVINCE[v] ?? v },
   { key: "facility_tier", label: "Home facility tier", order: ["low", "medium", "high", "unknown"], name: (v) => TIER_LABEL[v] ?? v },
+  // the triage population a clinician actually faces: recently symptomatic patients (harder than the whole cohort)
+  { key: "recent_gi_visit", label: "Seen for GI complaints", order: ["seen <=90 d", "not seen <=90 d"],
+    name: (v) => (v === "seen <=90 d" ? "In the last 90 days" : "Not in the last 90 days") },
 ];
 
 /** Subgroup performance (SPEC §13.8): AUROC as a dot on a 0.5–1 scale against the overall AUROC, sensitivity at the HIGH threshold as a bar. */

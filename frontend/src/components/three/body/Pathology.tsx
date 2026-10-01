@@ -137,7 +137,8 @@ export function Pathology({ state, anchors, organs }: {
   const les = state.lesion;
   const pos = useMemo(() => (les ? anchorFor(les.region, anchors, organs) : null), [les?.region, anchors, organs]);   // eslint-disable-line
   const stations = useNodeStations(organs, pos);
-  if (!les || !pos || les.suspected) return null;
+  if (les && pos && les.suspected) return <SuspectHalo position={pos} strength={les.level} />;
+  if (!les || !pos) return null;
   const litCount = les.nodes === 0 ? 0 : les.nodes === 1 ? 3 : les.nodes === 2 ? 6 : 10;
   // radius from the endoscopic size when recorded (a 54 mm mass -> ~2.3 cm radius), else from the T stage
   const r = les.region === "diffuse" ? 0.008
@@ -161,6 +162,34 @@ export function Pathology({ state, anchors, organs }: {
           </group>
         );
       })}
+    </group>
+  );
+}
+
+
+/** Suspected (undiagnosed) region: expanding "search" rings drawn through tissue, so it is visible from any angle. */
+function SuspectHalo({ position, strength }: { position: THREE.Vector3; strength: number }) {
+  const rings = useRef<THREE.Group>(null);
+  const mats = useMemo(() => [0, 1, 2].map(() => new THREE.MeshBasicMaterial({
+    color: "#f2a541", transparent: true, opacity: 0.6, depthTest: false, depthWrite: false, side: THREE.DoubleSide })), []);
+  const core = useMemo(() => new THREE.MeshBasicMaterial({ color: "#ffcf7a", transparent: true, opacity: 0.35, depthTest: false }), []);
+  useFrame(({ camera }) => {
+    const t = shared.uTime.value;
+    if (!rings.current) return;
+    rings.current.quaternion.copy(camera.quaternion);   // rings always face the viewer
+    rings.current.children.forEach((m, i) => {
+      if (i === 0) return;
+      const ph = ((t * 0.6 + (i - 1) / 3) % 1);
+      m.scale.setScalar(0.4 + 1.4 * ph);
+      mats[i - 1].opacity = (1 - ph) * (0.35 + 0.45 * Math.min(1, strength));
+    });
+  });
+  return (
+    <group ref={rings} position={position} renderOrder={14}>
+      <mesh material={core} renderOrder={14} raycast={() => {}}><circleGeometry args={[0.006, 24]} /></mesh>
+      {mats.map((m, i) => (
+        <mesh key={i} material={m} renderOrder={14} raycast={() => {}}><ringGeometry args={[0.02, 0.0225, 48]} /></mesh>
+      ))}
     </group>
   );
 }
