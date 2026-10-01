@@ -3,7 +3,7 @@ import { EChart, base } from "@/components/charts/EChart";
 import { useGeo } from "@/api/hooks";
 import { seqColor } from "@/lib/viz";
 import { tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "../quality/kit";
-import { colLabel, fmtVal, isNumCol } from "./format";
+import { colLabel, fmtVal, isNumCol, isPct } from "./format";
 import type { AskResult, ChartSpec } from "./store";
 
 /** The API's chart spec (SPEC §15.2 step 7) with a client-side fallback using the same heuristic. */
@@ -95,7 +95,7 @@ function Bar({ r, x, y }: { r: AskResult; x: string; y: string }) {
       ...base(), grid: { left: Math.min(200, 16 + longest * 6.2), right: 58, top: 6, bottom: 22 }, legend: { show: false },
       tooltip: tooltip({ trigger: "item", formatter: (p: any) => { const row = r.rows[p.dataIndex];
         return ttHead(cats[p.dataIndex]) + r.columns.filter((_, j) => j !== nameIdx).map((cc) => ttRow(cc === y ? S[0] : k.secondary, colLabel(cc), fmtVal(cc, row[col(r, cc)]), "dot")).join(""); } }),
-      xAxis: xAxis({ type: "value", splitLine: { show: true, lineStyle: { color: k.grid } }, axisLine: { show: false }, axisLabel: { color: k.muted, hideOverlap: true } }),
+      xAxis: xAxis({ type: "value", splitLine: { show: true, lineStyle: { color: k.grid } }, axisLine: { show: false }, axisLabel: { color: k.muted, hideOverlap: true, formatter: (v: number) => (isPct(y) ? `${v}%` : v.toLocaleString("en-GB")) } }),
       yAxis: yAxis({ type: "category", inverse: true, data: cats, axisLine: { show: false }, axisLabel: { color: k.secondary, interval: 0, fontSize: 11 } }),
       series: [{ type: "bar", barMaxWidth: 16, data: r.rows.map((row) => row[yi]), itemStyle: { color: S[0], borderRadius: [0, 4, 4, 0] },
         label: { show: true, position: "right", color: k.secondary, fontSize: 10, formatter: (p: any) => fmtVal(y, p.value) } }],

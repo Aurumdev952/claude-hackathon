@@ -44,9 +44,9 @@ const ENDO_ICON = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
 
 function fitView(w: number, h: number, mini: boolean): MapViewState {
   const vp = new WebMercatorViewport({ width: Math.max(w, 200), height: Math.max(h, 200) });
-  const pad = mini ? { top: 20, bottom: 30, left: 20, right: 20 } : { top: 90, bottom: 96, left: Math.min(250, w * 0.2), right: 24 };
+  const pad = mini ? { top: 10, bottom: 10, left: 6, right: 6 } : { top: 90, bottom: 96, left: Math.min(250, w * 0.2), right: 24 };
   const { longitude, latitude, zoom } = vp.fitBounds(BOUNDS, { padding: pad });
-  return { longitude: longitude + 0.03, latitude: latitude - (mini ? 0.16 : 0.2), zoom: zoom + (mini ? 0.05 : 0.12), pitch: mini ? 50 : 48, bearing: mini ? -14 : -12 };
+  return { longitude: longitude + 0.03, latitude: latitude - (mini ? 0.12 : 0.2), zoom: zoom + (mini ? 0.12 : 0.12), pitch: mini ? 46 : 48, bearing: mini ? -14 : -12 };
 }
 
 function ringOf(geom: any): [number, number][] {

@@ -147,7 +147,7 @@ function Provenance({ t }: { t: Turn }) {
     <div className="mt-2.5 pt-2 border-t border-line/40 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-fog tabular">
       <span className="inline-flex items-center gap-1"><Wand2 size={10} aria-hidden />SQL by {src}</span>
       {r.sql && <span className="inline-flex items-center gap-1"><ShieldAlert size={10} aria-hidden />read-only · validated</span>}
-      {(r.rows.length > 0) && <span className="inline-flex items-center gap-1" style={{ color: c }}>{ok ? <CheckCircle2 size={10} aria-hidden /> : <AlertTriangle size={10} aria-hidden />}{ok ? "numbers checked against result" : "number check failed — template answer"}</span>}
+      {(r.rows.length > 0) && <span className="inline-flex items-center gap-1">{ok ? <CheckCircle2 size={10} color={c} aria-hidden /> : <AlertTriangle size={10} color={c} aria-hidden />}{ok ? "numbers checked against result" : "number check failed — template answer"}</span>}
       {r.latency_ms !== undefined && <span className="inline-flex items-center gap-1"><Clock size={10} aria-hidden />{r.latency_ms} ms</span>}
       {t.runId !== undefined && t.runId !== null && <span>run #{t.runId}</span>}
       <span>synthetic data</span>
