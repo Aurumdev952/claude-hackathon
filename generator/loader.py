@@ -1,0 +1,65 @@
+"""Bulk-load MySQL (SPEC §8.11 step 7): DDL -> reference tables -> LOAD DATA LOCAL INFILE per TSV -> indexes."""
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+import polars as pl
+import pymysql
+
+from shared.config import mysql_params
+
+from .writers import ALL_TABLES, COLUMNS
+
+SQL_DIR = Path(__file__).parent / "sql"
+
+
+def _exec_script(cur, text: str):
+    for stmt in [s.strip() for s in text.split(";")]:
+        lines = [ln for ln in stmt.splitlines() if not ln.strip().startswith("--")]
+        stmt = "\n".join(lines).strip()
+        if stmt:
+            cur.execute(stmt)
+
+
+def connect(database: str | None = "openmrs", **kw):
+    p = mysql_params(database)
+    return pymysql.connect(**p, local_infile=True, autocommit=True, charset="utf8mb4", **kw)
+
+
+def load_all(bulk_dir: Path, ref: dict[str, pl.DataFrame], log=print):
+    t0 = time.time()
+    conn = connect(None)
+    cur = conn.cursor()
+    cur.execute("DROP DATABASE IF EXISTS openmrs")
+    ddl = (SQL_DIR / "ddl.sql").read_text()
+    _exec_script(cur, ddl)
+    cur.execute("USE openmrs")
+    cur.execute("SET foreign_key_checks=0")
+    cur.execute("SET unique_checks=0")
+    for name, df in ref.items():
+        cols = df.columns
+        rows = [tuple(r) for r in df.iter_rows()]
+        if rows:
+            cur.executemany(f"INSERT INTO {name} ({','.join(cols)}) VALUES ({','.join(['%s'] * len(cols))})", rows)
+    log(f"reference tables loaded ({time.time() - t0:.1f}s)")
+    for name in ALL_TABLES:
+        files = sorted((bulk_dir / "tsv" / name).glob("*.tsv"))
+        n = 0
+        for f in files:
+            cur.execute(f"LOAD DATA LOCAL INFILE '{f.as_posix()}' INTO TABLE {name} CHARACTER SET utf8mb4 "
+                        f"FIELDS TERMINATED BY '\\t' LINES TERMINATED BY '\\n' ({','.join(COLUMNS[name])})")
+            n += cur.rowcount
+        log(f"  {name}: {n:,} rows ({time.time() - t0:.1f}s)")
+    _exec_script(cur, (SQL_DIR / "indexes.sql").read_text())
+    cur.execute("SET foreign_key_checks=1")
+    cur.execute("SET unique_checks=1")
+    # ETL user (read-only)
+    for stmt in ("CREATE USER IF NOT EXISTS 'etl'@'%' IDENTIFIED BY 'change_me'",
+                 "GRANT SELECT ON openmrs.* TO 'etl'@'%'"):
+        try:
+            cur.execute(stmt)
+        except pymysql.MySQLError:
+            pass
+    conn.close()
+    log(f"MySQL load complete in {time.time() - t0:.1f}s")

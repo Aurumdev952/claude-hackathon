@@ -44,12 +44,18 @@ def build_facilities(cfg: dict, seed: int) -> list[dict]:
     n_hc = int(fcfg.get("n_health_centres", 200))
 
     # district rollout dates (INS-7): Kigali first, the rest spread to mid-2019
+    # ~20% of the population is covered through 2015 (Kigali + 3 pilot districts), the rest roll out to mid-2019,
+    # so crude counts rise ~4-6x by 2019 from coverage alone (INS-7)
     order = sorted(DISTRICTS, key=lambda k: (0 if k.startswith("KGL") else 1, rnd.random()))
     lo, hi = d("2015-01-01"), d("2019-06-30")
+    n_pilot = 6
     rollout = {}
     for i, k in enumerate(order):
-        frac = i / (len(order) - 1)
-        rollout[k] = int(lo + (hi - lo) * (frac ** 0.9) + rnd.uniform(-45, 45))
+        if i < n_pilot:
+            rollout[k] = lo + rnd.randint(0, 45)
+        else:
+            frac = (i - n_pilot) / (len(order) - n_pilot - 1)
+            rollout[k] = int(lo + 300 + (hi - lo - 300) * frac + rnd.uniform(-30, 30))
         rollout[k] = max(lo, min(hi, rollout[k]))
 
     facs: list[dict] = []
@@ -97,7 +103,7 @@ def build_facilities(cfg: dict, seed: int) -> list[dict]:
             sec = pool[j % len(pool)]
             suffix = "" if j < len(pool) else " II"
             add(hc_id, f"{sec['sector']}{suffix} Health Centre (Synthetic)", "HEALTH_CENTRE", dcode, sector=sec,
-                go_live=rollout[dcode] + rnd.randint(0, 200))
+                go_live=rollout[dcode] + rnd.randint(0, 60))
             facs[-1]["catchment_weight"] = round(rnd.uniform(0.6, 1.6), 3)
             hc_id += 1
 

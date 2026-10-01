@@ -18,7 +18,7 @@ class Recorder:
         self.go_live_min = {k: v * 1440 for k, v in go_live.items()}
         self.next_visit = chunk_idx * 10**7 + 1
         self.next_enc = chunk_idx * 10**7 + 1
-        self.next_obs = chunk_idx * 10**9 + 1
+        self.next_obs = chunk_idx * 10**8 + 1
         self.next_order = chunk_idx * 10**7 + 1
         self.visits: list[tuple] = []     # visit_id, patient_id, visit_type_id, start, stop, location_id
         self.encs: list[tuple] = []       # encounter_id, type, patient_id, location_id, visit_id, t
@@ -34,6 +34,27 @@ class Recorder:
     def begin_patient(self, pid: int, emr_start_day: int):
         self.pid = pid
         self.emr_start_min = emr_start_day * 1440
+        self._marks = (len(self.visits), len(self.encs), len(self.obs_rows), len(self.orders),
+                       len(self.drug_orders), len(self.programs))
+
+    def truncate_patient(self, t_max: int):
+        """Drop this patient's rows dated after t_max (death). DEATH encounters (type 14) are kept."""
+        mv, me, mo, mr, md, mp = self._marks
+        drop_enc = {e[0] for e in self.encs[me:] if e[5] > t_max and e[1] != 14}
+        if not drop_enc and all(v[3] <= t_max for v in self.visits[mv:]):
+            return
+        keep_visits = {e[4] for e in self.encs[me:] if e[0] not in drop_enc}
+        self.encs[me:] = [e for e in self.encs[me:] if e[0] not in drop_enc]
+        self.visits[mv:] = [v for v in self.visits[mv:] if v[0] in keep_visits]
+        self.obs_rows[mo:] = [o for o in self.obs_rows[mo:] if o[3] not in drop_enc]
+        dropped_orders = {o[0] for o in self.orders[mr:] if o[4] in drop_enc}
+        self.orders[mr:] = [o for o in self.orders[mr:] if o[4] not in drop_enc]
+        self.drug_orders[md:] = [o for o in self.drug_orders[md:] if o[0] not in dropped_orders]
+        self.programs[mp:] = [x for x in self.programs[mp:] if x[2] <= t_max]
+        if self.encs[me:]:
+            self.first_enc[self.pid] = min(e[5] for e in self.encs[me:])
+        else:
+            self.first_enc.pop(self.pid, None)
 
     def recordable(self, t: int, loc: int) -> bool:
         return t >= self.emr_start_min and t >= self.go_live_min.get(loc, 0)
