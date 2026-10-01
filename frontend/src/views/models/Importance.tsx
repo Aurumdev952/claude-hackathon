@@ -4,7 +4,7 @@ import { DataTable } from "@/components/ui";
 import { fmt } from "@/lib/format";
 import { tooltip, ttHead, ttNote, ttRow, usePalette, xAxis, yAxis } from "../quality/kit";
 import { featureLabel } from "./labels";
-import { TIER_META, type Importance } from "./types";
+import type { Importance } from "./types";
 
 /** Mean |SHAP| bars for the XGBoost model; the HIV negative control is always shown (pinned below a gap if outside the top N). */
 export function ImportanceBars({ rows, hiv, top = 15 }: { rows: Importance[]; hiv?: { rank?: number; mean_abs_shap?: number } | null; top?: number }) {
@@ -13,7 +13,7 @@ export function ImportanceBars({ rows, hiv, top = 15 }: { rows: Importance[]; hi
     const head = rows.slice(0, top);
     const pinned = hiv?.rank && hiv.rank > top ? [{ feature: "__gap", mean_abs_shap: 0, rank: 0 }, { feature: "hiv", mean_abs_shap: hiv.mean_abs_shap ?? 0, rank: hiv.rank }] : [];
     const all = [...head, ...pinned];
-    const c = S[TIER_META[2].slot];
+    const c = S[0]; // data hue (the identity colour of XGBoost is kept for the curve charts)
     const max = Math.max(...all.map((r) => r.mean_abs_shap), 0.001);
     return {
       ...base(),
@@ -25,7 +25,7 @@ export function ImportanceBars({ rows, hiv, top = 15 }: { rows: Importance[]; hi
           const r = all[p.dataIndex];
           if (!r || r.feature === "__gap") return "";
           return ttHead(featureLabel(r.feature)) + ttRow(p.color, "Mean |SHAP|", fmt(r.mean_abs_shap, 4)) + ttRow(k.secondary, "Rank", `#${r.rank} of ${rows.length >= 30 ? "30+" : rows.length}`) +
-            (r.feature === "hiv" ? ttNote("Negative control — should be near zero (rank > 30)") : ttNote(`<code>${r.feature}</code>`));
+            (r.feature === "hiv" ? ttNote("Negative control: should be near zero (rank above 30)") : ttNote(`<code>${r.feature}</code>`));
         },
       }),
       xAxis: xAxis({ type: "value", min: 0, max: max * 1.05, axisLabel: { color: k.muted, formatter: (v: number) => fmt(v, 2) },
@@ -35,7 +35,7 @@ export function ImportanceBars({ rows, hiv, top = 15 }: { rows: Importance[]; hi
         axisLabel: { interval: 0, fontSize: 11, formatter: (f: string) => (f === "__gap" ? "{g|· · ·}" : f === "hiv" ? `{h|${featureLabel(f)}}` : `{n|${featureLabel(f)}}`),
                      rich: { n: { color: k.secondary, fontSize: 11 }, h: { color: k.primary, fontSize: 11, fontWeight: 700 }, g: { color: k.muted } } } }),
       series: [{
-        type: "bar", barWidth: 12,
+        type: "bar", barWidth: 10,
         data: all.map((r) => ({
           value: r.feature === "__gap" ? null : r.mean_abs_shap,
           itemStyle: r.feature === "hiv" ? { color: "transparent", borderColor: k.secondary, borderWidth: 1.25, borderType: "solid", borderRadius: [0, 4, 4, 0] }
