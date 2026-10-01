@@ -2,6 +2,7 @@
  * Everything here builds on the shared base() chrome and the validated SERIES / SEQ palettes in lib/viz. */
 import { ReactNode } from "react";
 import { base, useThemeMode } from "@/components/charts/EChart";
+import { MetricCard } from "@/components/ui/MetricCard";
 import { SEQ_DARK, SEQ_LIGHT, SERIES, ink, type Mode } from "@/lib/viz";
 
 /** Re-render on theme flips and hand back the theme-correct palettes. */
@@ -33,7 +34,7 @@ export const ttNote = (s: string) => `<div style="opacity:.7;font-size:11px;marg
 /** HTML legend (used where ECharts' built-in legend would collide with direct labels). */
 export function Legend({ items, className = "" }: { items: { label: string; color: string; shape?: "dot" | "line" | "square" | "dash" }[]; className?: string }) {
   return (
-    <ul className={`flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fog ${className}`} aria-label="Legend">
+    <ul className={`flex flex-wrap gap-x-5 gap-y-1 text-micro text-muted ${className}`} aria-label="Legend">
       {items.map((i) => (
         <li key={i.label} className="inline-flex items-center gap-1.5">
           <Key color={i.color} shape={i.shape} />{i.label}
@@ -50,19 +51,13 @@ export function Key({ color, shape = "line" }: { color: string; shape?: "dot" | 
   return <span className="inline-block w-3.5 h-[2px] rounded shrink-0" style={{ background: color }} aria-hidden />;
 }
 
-/** Stat tile: label · value · optional sub-line. Text stays in ink tokens. */
+/** Stat tile → v2 MetricCard (the sub-line moves into the ⓘ). Signature unchanged. */
 export function Stat({ label, value, sub, accent }: { label: ReactNode; value: ReactNode; sub?: ReactNode; accent?: ReactNode }) {
-  return (
-    <div className="rounded-lg bg-ridge2/50 border border-line/50 px-3 py-2.5 min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.12em] text-fog font-semibold flex items-center gap-1.5">{accent}{label}</div>
-      <div className="text-xl font-semibold tabular leading-tight mt-0.5">{value}</div>
-      {sub && <div className="text-[11px] text-fog mt-0.5 leading-snug">{sub}</div>}
-    </div>
-  );
+  return <MetricCard label={label} value={value} info={sub} icon={accent} />;
 }
 
 export function Empty({ h = 220, children }: { h?: number; children: ReactNode }) {
-  return <div className="flex items-center justify-center text-center text-xs text-fog px-6 border border-dashed border-line/60 rounded-lg" style={{ minHeight: h }}>{children}</div>;
+  return <div className="flex items-center justify-center text-center text-label font-normal text-muted px-6 rounded-tile bg-tile" style={{ minHeight: h }}>{children}</div>;
 }
 
 /** p-value in reporting style. */

@@ -1,0 +1,16 @@
+[project]
+name = "early-signals-sandbox"
+version = "0.1.0"
+description = "Isolated Python environment for the Early Signals agent's run_python visualisation sandbox"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "numpy>=2.1",
+  "pandas>=2.2",
+  "pyarrow>=17",
+  "matplotlib>=3.9",
+  "plotly>=5.24",
+  "scipy>=1.14",
+]
+
+[tool.uv]
+package = false

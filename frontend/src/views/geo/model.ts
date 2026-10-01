@@ -8,7 +8,7 @@ export type RGBA = [number, number, number, number];
 
 export type MetricDef = {
   key: MetricKey; short: string; label: string; unit: string;
-  /** "heat" = laterite sequential (high = bad), "blue" = coverage sequential (high = good), "div" = diverging around 1, "cat" = LISA classes */
+  /** "heat" = signal sequential #F3F4F7 -> #F8C9B5 -> #F05A28 -> #B83A12 (high = bad), "blue" = coverage sequential (high = good), "div" = diverging around 1, "cat" = LISA classes */
   ramp: "heat" | "blue" | "div" | "cat";
   /** Does the value change with the time slider? (SIR/LISA are 2019–2025 pooled; HP testing/stage IV are all-years facility marts) */
   periodic: boolean; staticNote?: string;
@@ -52,9 +52,10 @@ export const METRICS: Record<MetricKey, MetricDef> = {
 };
 export const METRIC_ORDER: MetricKey[] = ["asr", "crude_rate", "sir", "lisa_quadrant", "hp_test_rate", "pct_stage4"];
 
-/** Single-hue blue for coverage metrics (higher = better), dim -> bright on dark, light -> dark on light. */
-const BLUE_DARK = ["#1e3244", "#22466a", "#285b8c", "#3274ad", "#468fcb", "#6eaddf", "#a3cdef"];
-const BLUE_LIGHT = ["#e3eef8", "#c2d9ef", "#98bde2", "#6c9fd0", "#4783bd", "#2d67a1", "#1c4a7c"];
+/** Single-hue sky blue for coverage metrics (higher = better), dim -> bright on dark, light -> dark on light.
+ * Design v3: anchored to the data hue sky (#5AB4E5 / #6CC0EC); single hue, monotone lightness. */
+const BLUE_DARK = ["#1A2129", "#1C3240", "#22475C", "#2B6280", "#3C84AE", "#5AB4E5", "#9AD3F2"];
+const BLUE_LIGHT = ["#F3F4F7", "#D9EEF9", "#B3DCF3", "#84C6EB", "#5AB4E5", "#3593CC", "#1F6FA3"];
 
 function interp(ramp: string[], t: number): RGB {
   const r = ramp.map(hexToRgb);
@@ -92,12 +93,12 @@ export function lisaRgb(q: string | null | undefined): RGB {
 /** Scene chrome that follows the theme (text stays in ink tokens; the map surface is part of the console). */
 export function theme() {
   return mode() === "dark"
-    ? { land: [58, 72, 86] as RGB, landBase: [35, 46, 58] as RGB, edge: [230, 236, 238, 46] as RGBA, outline: [230, 236, 238, 150] as RGBA,
-        halo: [62, 124, 168, 60] as RGBA, grid: [230, 236, 238, 16] as RGBA, label: [230, 236, 238, 255] as RGBA, labelBg: [17, 24, 32, 215] as RGBA,
-        muted: [138, 150, 162, 255] as RGBA, suppressed: [72, 82, 92] as RGB, focus: [242, 190, 92, 255] as RGBA, ring: [27, 36, 48, 255] as RGBA }
-    : { land: [206, 214, 219] as RGB, landBase: [226, 231, 234] as RGB, edge: [27, 36, 48, 50] as RGBA, outline: [27, 36, 48, 150] as RGBA,
-        halo: [46, 104, 146, 45] as RGBA, grid: [27, 36, 48, 18] as RGBA, label: [27, 36, 48, 255] as RGBA, labelBg: [255, 255, 255, 225] as RGBA,
-        muted: [88, 102, 114, 255] as RGBA, suppressed: [196, 202, 206] as RGB, focus: [176, 112, 10, 255] as RGBA, ring: [255, 255, 255, 255] as RGBA };
+    ? { land: [44, 48, 58] as RGB, landBase: [29, 33, 40] as RGB, edge: [242, 243, 245, 40] as RGBA, outline: [242, 243, 245, 150] as RGBA,
+        halo: [255, 109, 58, 60] as RGBA, grid: [242, 243, 245, 16] as RGBA, label: [242, 243, 245, 255] as RGBA, labelBg: [22, 25, 31, 230] as RGBA,
+        muted: [139, 144, 158, 255] as RGBA, suppressed: [58, 62, 72] as RGB, focus: [242, 243, 245, 255] as RGBA, ring: [14, 16, 20, 255] as RGBA }
+    : { land: [226, 228, 234] as RGB, landBase: [236, 237, 242] as RGB, edge: [21, 23, 28, 40] as RGBA, outline: [21, 23, 28, 140] as RGBA,
+        halo: [240, 90, 40, 45] as RGBA, grid: [21, 23, 28, 16] as RGBA, label: [21, 23, 28, 255] as RGBA, labelBg: [255, 255, 255, 235] as RGBA,
+        muted: [107, 112, 128, 255] as RGBA, suppressed: [214, 216, 223] as RGB, focus: [21, 23, 28, 255] as RGBA, ring: [255, 255, 255, 255] as RGBA };
 }
 
 export const isLowCoverage = (r: Pick<MapRow, "coverage_flag">) => !!r.coverage_flag;
