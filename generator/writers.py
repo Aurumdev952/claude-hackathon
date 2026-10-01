@@ -3,6 +3,7 @@ future (> history_end), which the simulator replays in time order (docs/decision
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -250,6 +251,7 @@ def finalize_future(bulk_dir: Path) -> dict:
         df.write_parquet(out / f"{n}.parquet", compression="zstd")
         counts[n] = df.height
     pmap.write_parquet(out / "_person_id_map.parquet")
+    shutil.rmtree(fp)  # per-chunk parts are merged into future/ now (saves ~0.5 GB at scale 1.0)
     return {"future_rows": counts, "bulk_max_ids": maxes}
 
 
