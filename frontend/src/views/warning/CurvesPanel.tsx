@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { Waves } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
 import { bandSeries, chartBase, Key, tipHead, tipRow, usePalette } from "../trends/kit";
 import { CurveRow, useCurves } from "./api";
@@ -10,7 +12,7 @@ const METRICS = [
   { id: "gi_visits", title: "GI visits", unit: "per 100 patients per month", nd: 1 },
   { id: "ppi_rx", title: "PPI prescriptions", unit: "% prescribed that month", nd: 1 },
   { id: "mean_hb", title: "Mean haemoglobin", unit: "g/dL, among those tested", nd: 2 },
-  { id: "weight", title: "Weight change", unit: "% vs months −24…−19", nd: 1 },
+  { id: "weight", title: "Weight change", unit: "% vs 19 to 24 months before", nd: 1 },
 ] as const;
 
 /** Aligned pre-diagnostic curves (INS-3): one small multiple per signal, each with its own axis; cases vs matched controls. */
@@ -31,7 +33,7 @@ export function CurvesPanel() {
     const series: any[] = [];
     METRICS.forEach((m, i) => {
       const cs = get(m.id, "case"), ct = get(m.id, "control");
-      series.push(bandSeries(`${m.id}-ctrl-band`, ct.map((r) => ({ x: r.month_before, lo: r.lci, hi: r.uci })), "#8696a2", { xAxisIndex: i, yAxisIndex: i, opacity: 0.18 }));
+      series.push(bandSeries(`${m.id}-ctrl-band`, ct.map((r) => ({ x: r.month_before, lo: r.lci, hi: r.uci })), pal.mode === "dark" ? "#8B909E" : "#6B7080", { xAxisIndex: i, yAxisIndex: i, opacity: 0.12 }));
       series.push(bandSeries(`${m.id}-case-band`, cs.map((r) => ({ x: r.month_before, lo: r.lci, hi: r.uci })), caseC, { xAxisIndex: i, yAxisIndex: i, opacity: 0.22 }));
       series.push({ type: "line", name: `${m.id}|control`, xAxisIndex: i, yAxisIndex: i, data: ct.map((r) => [r.month_before, r.value]), showSymbol: false, connectNulls: false, lineStyle: { width: 2, color: ctrlC }, itemStyle: { color: ctrlC }, z: 3 });
       series.push({ type: "line", name: `${m.id}|case`, xAxisIndex: i, yAxisIndex: i, data: cs.map((r) => [r.month_before, r.value]), showSymbol: false, connectNulls: false, lineStyle: { width: 2, color: caseC }, itemStyle: { color: caseC }, z: 4,
@@ -76,24 +78,23 @@ export function CurvesPanel() {
       { key: "group", label: "Group" }, { key: "value", label: "Value", num: true, fmt: (v) => fmt(v, 2) }, { key: "ci", label: "95% CI", num: true }]}
       rows={rows.filter((r) => r.month_before < 0 && METRICS.some((m) => m.id === r.metric)).map((r) => ({ ...r, ci: r.lci !== null && r.uci !== null ? `${fmt(r.lci, 2)}–${fmt(r.uci, 2)}` : "—" }))} />
   );
+  const method = "Nested case–control within the GI cohort: up to 5 controls per case, matched on sex, age ±5 years, province and cohort entry year, cancer-free at the case's index date (incidence-density sampling). Curves are monthly group means for months −24 to −1; bands are bootstrap 95% CIs (200 resamples). The diagnosis month itself is not plotted. Each panel has its own y-axis.";
   return (
-    <Panel
-      title="Months before diagnosis · cases vs matched controls"
-      subtitle={<>Every patient aligned on their diagnosis date (controls on their matched case's date). {nCase ? <span className="tabular">{int(nCase)} cases · {int(nCtrl)} controls.</span> : null}</>}
-      method="Nested case–control within the GI cohort: up to 5 controls per case, matched on sex, age ±5 years, province and cohort entry year, cancer-free at the case's index date (incidence-density sampling). Curves are monthly group means for months −24 to −1; bands are bootstrap 95% CIs (200 resamples). The diagnosis month itself is not plotted."
-      table={table}
+    <Card
+      title="Signals before diagnosis" icon={<Waves size={16} />}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>Every patient aligned on their diagnosis date (controls on their matched case's date).</p><p className="mt-2">{method}</p></> }), defaultTab: "table" }} detailLabel="Signals before diagnosis: view as table"
     >
+      {nCase ? <p className="text-label font-normal text-muted -mt-1 mb-4 tabular">{int(nCase)} future cases against {int(nCtrl)} matched controls, months before diagnosis.</p> : null}
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={250} /> : (
         <>
-          <EChart option={option} height={250} ariaLabel="Pre-diagnostic signal curves: GI visits, PPI prescriptions, haemoglobin and weight, cases versus controls" />
-          <div className="flex items-center gap-4 mt-1">
+          <EChart option={option} height={260} ariaLabel="Pre-diagnostic signal curves: GI visits, PPI prescriptions, haemoglobin and weight, cases versus controls" />
+          <div className="flex items-center gap-5 mt-2">
             <Key color={caseC} label="Cases (gastric cancer)" />
             <Key color={ctrlC} label="Matched controls" />
             <Key color={caseC} kind="band" label="95% CI" />
-            <span className="text-[11px] text-fog ml-auto">Each panel has its own y-axis.</span>
           </div>
         </>
       )}
-    </Panel>
+    </Card>
   );
 }

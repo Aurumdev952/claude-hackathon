@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(PYTHONPATH=. uv run:*)",
+      "Bash(make dev-data)",
+      "Bash(make bootstrap)",
+      "Bash(make train)",
+      "Bash(make serve)",
+      "Bash(make down)",
+      "Bash(make generate:*)",
+      "Bash(make report)",
+      "Bash(make validate-cases:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(test -f:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch --show-current)",
+      "Bash(git add reports/:*)",
+      "Bash(git add .claude/:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull --rebase:*)",
+      "Read(reports/**)",
+      "Write(reports/**)",
+      "Edit(reports/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(mysql:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}

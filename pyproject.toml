@@ -35,6 +35,8 @@ dependencies = [
 llm = ["anthropic>=0.70"]   # only needed when LLM_PROVIDER=anthropic
 dl = ["jax==0.10.2", "jaxlib==0.10.2", "optax>=0.2.4"]   # D-18: JAX instead of PyTorch (CUDA wheels too large for this disk)
 dev = ["pytest>=8", "pytest-timeout>=2.3"]
+report = ["reportlab>=4.2", "matplotlib>=3.8", "pypdf>=5"]   # scripts/daily_report.py
+eval = ["deepeval==4.2.7", "httpx>=0.27", "jsonschema>=4.21"]   # evals/agent (DeepEval gate for the AI agent)
 
 [tool.uv]
 package = false
