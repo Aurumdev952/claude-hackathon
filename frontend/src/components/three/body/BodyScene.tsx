@@ -57,7 +57,7 @@ function CameraRig({ organs, controls }: { organs: Record<string, OrganInfo>; co
     c.getTarget(target);
     const dir = camera.position.clone().sub(target).normalize();
     if (dir.z < 0.35) dir.set(0.35, 0.25, 1).normalize();   // keep a front-ish view so labels read
-    const dist = Math.min(0.9, Math.max(0.22, size * 2.4));
+    const dist = Math.min(1.1, Math.max(0.32, size * 3));   // keep some anatomy around the organ for context
     const p = o.center.clone().add(dir.multiplyScalar(dist));
     c.setLookAt(p.x, p.y, p.z, o.center.x, o.center.y, o.center.z, true);
   }, [selected, introDone, organs, camera, controls]);
