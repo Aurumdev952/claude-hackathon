@@ -58,3 +58,14 @@ test("case analysis: 3D body renders, hover links panel and body, replay advance
   await expect(page.getByRole("table", { name: /Organ involvement/ })).toContainText("Stomach");
   expect(errors).toEqual([]);
 });
+
+test("facility picker: a doctor with no facility yet can search and choose one", async ({ page }) => {
+  await asRole(page, "doctor");
+  await page.goto("/doctor");
+  await page.getByRole("textbox", { name: "Search facilities" }).fill("Kirehe");
+  const choice = page.getByRole("button", { name: /Kirehe District Hospital/ }).first();
+  await expect(choice).toBeVisible();
+  await choice.click();
+  await expect(page.getByRole("list", { name: "Patients" }).getByRole("button").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Doctor · Kirehe District Hospital/ })).toBeVisible();
+});
