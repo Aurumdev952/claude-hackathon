@@ -166,3 +166,22 @@ validate-cases:             ## newest HIGH-risk cases not yet validated, as JSON
 
 e2e:                        ## Playwright journeys (API on :8000 and Vite on :5173 must be running)
 	cd frontend && npx playwright test
+
+# ---- v3 L1: closed-loop simulation, external sources (docs/contracts/v3-loop.md §2, §3, §6) ----
+.PHONY: external-data sim-local advance dev-data-next
+external-data:              ## external synthetic sources -> $(DATA_DIR)/external (registry 2000-2026, surveys, population 2000-2035)
+	$(PY) -m generator.external --out $(or $(DATA_DIR),data)/external
+
+sim-local:                  ## MySQL-free auto sim clock (paced by data/sim_state/control.json); stop with Ctrl-C
+	EMR_MODE=local $(PY) -m simulator.local --auto
+
+advance:                    ## advance the MySQL-free sim clock by DAYS (default 7): replay, care world, pipeline, publish
+	EMR_MODE=local $(PY) -m simulator.local --days $(or $(DAYS),7)
+
+dev-data-next:              ## regenerate the dev dataset into data/next (generate -> bootstrap -> train -> external), data/ untouched
+	rm -rf data/next/bulk data/next/analytics data/next/models data/next/sim_state data/next/external
+	mkdir -p data/next && rm -rf data/next/reference && cp -r data/reference data/next/reference
+	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1) DATA_DIR=data/next
+	$(MAKE) bootstrap DATA_DIR=data/next
+	$(MAKE) train DATA_DIR=data/next
+	$(MAKE) external-data DATA_DIR=data/next
