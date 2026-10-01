@@ -1,5 +1,6 @@
 /** libsql client + Drizzle. The schema is created on startup (idempotent DDL mirrors src/db/schema.ts). */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
@@ -19,12 +20,13 @@ const DDL = [
   `CREATE UNIQUE INDEX IF NOT EXISTS messages_conv_seq_idx ON messages (conversation_id, seq)`,
 ];
 
+/** ":memory:" means a throw-away database (libsql would otherwise create a file literally named ":memory:"). */
 export async function openDb(file = config().dbPath): Promise<DB> {
-  const url = file === ":memory:" ? ":memory:" : `file:${file}`;
-  if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
-  const client = createClient({ url });
+  const real = file === ":memory:" || file === "" ? path.join(mkdtempSync(path.join(os.tmpdir(), "es-agent-db-")), "agent.sqlite") : file;
+  mkdirSync(path.dirname(real), { recursive: true });
+  const client = createClient({ url: `file:${real}` });
   await client.execute("PRAGMA foreign_keys = ON");
-  if (file !== ":memory:") await client.execute("PRAGMA journal_mode = WAL");
+  await client.execute("PRAGMA journal_mode = WAL");
   for (const sql of DDL) await client.execute(sql);
   return drizzle(client, { schema }) as DB;
 }

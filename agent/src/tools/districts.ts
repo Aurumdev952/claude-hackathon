@@ -80,7 +80,7 @@ export const getDistrictRanking = defineTool({
     const num = (z: RowObject) => (typeof z[i.metric] === "number" ? (z[i.metric] as number) : null);
     rows.sort((a, b) => {
       const va = num(a), vb = num(b);
-      if (va === null && vb === null) return String(a.geo_code).localeCompare(String(b.geo_code));
+      if (va === null && vb === null) return 0; // stable: keeps query order like the Python sort
       if (va === null) return 1;
       if (vb === null) return -1;
       return i.order === "desc" ? vb - va : va - vb;

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Hexagon, Info, Map as MapIcon, RotateCcw, Route, Scale, Sparkles, Table2, Building2, X, Crosshair } from "lucide-react";
+import { Button, Tooltip } from "@heroui/react";
+import { BarChart3, Building2, Crosshair, Flame, Hexagon, Map as MapIcon, RotateCcw, Route, Scale, Sparkles, Table2 } from "lucide-react";
 import type { MapRow } from "@/api/types";
 import { useGeo, useProvGeo } from "@/api/hooks";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { BentoGrid, Card, chartDetailTabs, DataTable, DeltaChip, FloatingGlassCard, GridItem, InfoHint, Loading, PageHeader, Seg, StatusChip } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/Panel";
 import { useThemeMode } from "@/components/charts/EChart";
 import { fmt, int } from "@/lib/format";
 import { useFilters } from "@/state/filters";
@@ -15,7 +17,6 @@ import { DistrictPanel } from "./geo/DistrictPanel";
 import { Ranking } from "./geo/Ranking";
 
 const PANEL_W = 384;
-const SMALL_BTN = "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium border border-line/70 bg-ridge2/60 hover:bg-ridge2 text-mist focus-visible:ring-2 ring-kivu";
 
 /** V2 Geo Explorer (hero view, SPEC §16.3): extruded district map + hex cases + facilities + referral arcs, time slider, drill-down. */
 export default function GeoExplorer() {
@@ -39,7 +40,6 @@ export default function GeoExplorer() {
   const [playing, setPlaying] = useState(false);
   const [reset, setReset] = useState(0);
   const [riseToken, setRiseToken] = useState(0);
-  const [methodOpen, setMethodOpen] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
 
   // Default period = the latest complete period inside the global filter range; re-anchor when the range or mode changes.
@@ -117,35 +117,36 @@ export default function GeoExplorer() {
   const ready = geo.data && prov.data && rows.length > 0;
   const n = rank.size;
   const w = stage.current?.clientWidth ?? 1000;
+  const moran = spatialQ.data?.data.global;
+  const natRef = metricKey === "crude_rate" ? nationalCrude : national;
+  const districtTable = <DistrictTable rows={rows} rank={rank} spatial={spatial} onSelect={select} />;
 
   return (
-    <div className="flex flex-col gap-3 min-w-0">
-      <div className="flex items-end gap-3 flex-wrap">
-        <div className="min-w-0">
-          <div className="panel-title">V2 · Geo Explorer</div>
-          <h1 className="text-xl font-bold leading-tight">Where gastric cancer concentrates</h1>
-        </div>
-        <p className="text-xs text-fog max-w-[460px] leading-snug">
-          Districts rise by {metric.short === "LISA" ? "age-standardised rate" : metric.label.toLowerCase()}; colour repeats the value on a single-hue ramp.
-          {spatialQ.data?.data.global.morans_i !== undefined && spatialQ.data?.data.global.morans_i !== null && <> Global Moran's I <b className="text-mist tabular">{fmt(spatialQ.data.data.global.morans_i, 2)}</b> (p {fmt(spatialQ.data.data.global.p, 3)}, {spatialQ.data.data.global.period}).</>}
-        </p>
-      </div>
+    <div className="flex flex-col gap-4 min-w-0">
+      <PageHeader icon={<MapIcon size={18} />} title="Where gastric cancer concentrates"
+        info={{ about: <>Districts rise by {metric.short === "LISA" ? "age-standardised rate" : metric.label.toLowerCase()}; colour repeats the value on a single-hue ramp.</>,
+                method: metric.method,
+                notes: moran?.morans_i !== undefined && moran?.morans_i !== null ? <>Global Moran's I {fmt(moran.morans_i, 2)} (p {fmt(moran.p, 3)}, {moran.period}): rates cluster in space more than chance would explain.</> : undefined }}
+        right={moran?.morans_i !== undefined && moran?.morans_i !== null ? (
+          <StatusChip status="info" size="md" title={`Global Moran's I, ${moran.period} (p ${fmt(moran.p, 3)})`} label={<span className="tabular">Moran's I <b>{fmt(moran.morans_i, 2)}</b> · p {fmt(moran.p, 3)}</span>} />
+        ) : undefined} />
 
-      <div ref={stage} className={`relative rounded-xl border border-line/60 overflow-hidden ${asTable ? "" : "h-[calc(100vh-196px)] min-h-[600px]"}`}
-           style={{ background: "radial-gradient(70% 60% at 50% 45%, rgb(var(--ridge) / 0.95), rgb(var(--basalt)) 100%)" }}
+      <div ref={stage} className={`relative rounded-card border border-border shadow-card overflow-hidden ${asTable ? "bg-surface" : "h-[calc(100vh-196px)] min-h-[600px]"}`}
+           style={asTable ? undefined : { background: "radial-gradient(70% 60% at 50% 45%, rgb(var(--surface)), rgb(var(--surface-2)) 100%)" }}
            onMouseLeave={() => setHover(null)}>
         {asTable ? (
-          <div className="p-4 bg-ridge/80">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="panel-title">Districts · {period?.id} · sorted by {metric.short}</h2>
-              <button className={SMALL_BTN} onClick={() => setAsTable(false)}><MapIcon size={13} /> Back to 3D map</button>
+          <div className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="text-title flex-1">Districts · {period?.id} · by {metric.short}</h2>
+              <Button size="sm" radius="full" variant="flat" startContent={<MapIcon size={14} />} onPress={() => setAsTable(false)}
+                      className="bg-surface-2 border border-border text-fg">Back to 3D map</Button>
             </div>
-            <DistrictTable rows={rows} rank={rank} spatial={spatial} onSelect={(c) => { select(c); setAsTable(false); }} />
+            <div className="overflow-auto rounded-tile border border-border"><DistrictTable rows={rows} rank={rank} spatial={spatial} onSelect={(c) => { select(c); setAsTable(false); }} /></div>
           </div>
         ) : (
           <>
             {(geo.error || series.error) && <div className="absolute inset-0 flex items-center justify-center p-6"><ErrorNote error={geo.error ?? series.error} /></div>}
-            {!ready && !geo.error && !series.error && <div className="absolute inset-0 flex items-center justify-center"><Loading h={200} label="Raising the highlands" /></div>}
+            {!ready && !geo.error && !series.error && <div className="absolute inset-0 flex items-center justify-center px-10"><Loading h={200} label="Raising the highlands" /></div>}
             {ready && (
               <div role="application" aria-label="3D district map. Use the district list or View as table for keyboard access." className="absolute inset-0">
                 <GeoScene districts={geo.data} provinces={prov.data} rows={rows} metric={metric} domain={domain}
@@ -157,65 +158,52 @@ export default function GeoExplorer() {
 
             {/* Top-left: metric + layers */}
             <div className="absolute top-3 left-3 z-10 flex flex-col gap-2 items-start" style={{ maxWidth: `calc(100% - ${selected ? PANEL_W + 24 : 230}px)` }}>
-              <div className={`${HUD} p-1.5 flex items-center gap-1.5 flex-wrap`}>
-                <span className="text-[10px] uppercase tracking-[0.14em] text-fog px-1.5">Metric</span>
-                <div className="seg" role="group" aria-label="Map metric">
-                  {METRIC_ORDER.map((k) => <button key={k} aria-pressed={metricKey === k} onClick={() => switchMetric(k)} title={METRICS[k].label}>{METRICS[k].short}</button>)}
-                </div>
-                <div className="relative">
-                  <button className="p-1 text-fog hover:text-mist rounded focus-visible:ring-2 ring-kivu" aria-label="Method" aria-expanded={methodOpen} onClick={() => setMethodOpen((v) => !v)} onBlur={() => setMethodOpen(false)}><Info size={14} /></button>
-                  {methodOpen && <div role="tooltip" className="absolute left-0 top-7 z-30 w-72 panel bg-ridge p-3 text-xs leading-relaxed"><div className="panel-title mb-1">Method · {metric.label}</div>{metric.method}</div>}
-                </div>
+              <div className={`${HUD} !rounded-full p-1 flex items-center gap-0.5 flex-wrap`}>
+                <Seg label="Map metric" value={metricKey} onChange={switchMetric}
+                     options={METRIC_ORDER.map((k) => ({ value: k, label: METRICS[k].short, title: METRICS[k].label }))} className="!bg-transparent !border-0" />
+                <InfoHint title={`Method · ${metric.label}`} content={metric.method} label="Method" placement="bottom-start" />
               </div>
-              <div className={`${HUD} p-1.5 flex items-center gap-1`} role="group" aria-label="Layers">
-                <span className="text-[10px] uppercase tracking-[0.14em] text-fog px-1.5">Layers</span>
-                <LayerBtn on={showHex} onClick={() => setHex((v) => !v)} icon={<Hexagon size={13} />} label="Case hexbins" />
-                <LayerBtn on={showFac && !showHex} disabled={showHex} onClick={() => setFac((v) => !v)} icon={<Building2 size={13} />} label="Facilities" />
-                <LayerBtn on={showArcs} onClick={() => setArcs((v) => !v)} icon={<Route size={13} />} label="Referral arcs" />
+              <div className={`${HUD} !rounded-full p-1 flex items-center gap-0.5`} role="group" aria-label="Layers">
+                <LayerBtn on={showHex} onClick={() => setHex((v) => !v)} icon={<Hexagon size={15} />} label="Case hexbins" />
+                <LayerBtn on={showFac && !showHex} disabled={showHex} onClick={() => setFac((v) => !v)} icon={<Building2 size={15} />} label="Facilities" />
+                <LayerBtn on={showArcs} onClick={() => setArcs((v) => !v)} icon={<Route size={15} />} label="Referral arcs" />
               </div>
-              {callout && decoy && (metricKey === "crude_rate" || metricKey === "asr") && (
-                <div className={`${HUD} p-3 w-[340px] text-xs border-sorghum/60 animate-rise`} role="status" aria-live="polite">
-                  <div className="flex items-start gap-2">
-                    <Scale size={15} className="text-sorghum shrink-0 mt-0.5" aria-hidden />
-                    <div className="flex-1">
-                      <div className="font-semibold text-[13px] leading-snug">Age-structure check: {decoy.name}</div>
-                      <p className="text-fog leading-relaxed mt-1">
-                        On <b className="text-mist">crude</b> rates {decoy.name} ranks <b className="text-mist">#{decoy.crudeRank}</b>; age-standardised it ranks <b className="text-mist">#{decoy.asrRank}</b> of {decoy.n}.
-                        Its crude rate is <b className="text-mist">{Math.round(decoy.ratio * 100)}%</b> of its ASR versus a median of {Math.round(decoy.median * 100)}% — an older population, not a higher risk.
-                        {metricKey === "crude_rate" ? " Raw numbers would send resources here." : " Age adjustment puts it back in line."}
-                      </p>
-                      <div className="flex gap-2 mt-2">
-                        <button className={SMALL_BTN} onClick={() => { select(decoy.code); setCallout(false); }}><Crosshair size={12} /> Fly to {decoy.name}</button>
-                        <button className={SMALL_BTN} onClick={() => switchMetric(metricKey === "asr" ? "crude_rate" : "asr")}>Show {metricKey === "asr" ? "crude" : "ASR"}</button>
-                      </div>
-                    </div>
-                    <button className="text-fog hover:text-mist" onClick={() => setCallout(false)} aria-label="Dismiss"><X size={14} /></button>
-                  </div>
-                </div>
+              {decoy && (metricKey === "crude_rate" || metricKey === "asr") && (
+                <FloatingGlassCard open={callout} position="none" role="status" ariaLabel="Age-structure check" icon={<Scale size={17} />} className="!w-[330px]"
+                  title={<span className="inline-flex items-center">Age-structure check<InfoHint size={13} title={`Age-structure check: ${decoy.name}`} label="About the age-structure check" placement="bottom-start" content={<>
+                    On <b>crude</b> rates {decoy.name} ranks <b>#{decoy.crudeRank}</b>; age-standardised it ranks <b>#{decoy.asrRank}</b> of {decoy.n}.
+                    Its crude rate is <b>{Math.round(decoy.ratio * 100)}%</b> of its ASR versus a median of {Math.round(decoy.median * 100)}% — an older population, not a higher risk.
+                    {metricKey === "crude_rate" ? " Raw numbers would send resources here." : " Age adjustment puts it back in line."}</>} /></span>}
+                  body={<span className="flex items-center gap-1.5 flex-wrap"><b className="text-fg mr-0.5">{decoy.name}</b>
+                    <StatusChip status="warning" label={<span className="tabular">crude #{decoy.crudeRank}</span>} />
+                    <StatusChip status="good" label={<span className="tabular">ASR #{decoy.asrRank} of {decoy.n}</span>} /></span>}
+                  cta={{ label: `Fly to ${decoy.name}`, icon: <Crosshair size={15} />, onPress: () => { select(decoy.code); setCallout(false); } }}
+                  onDismiss={() => setCallout(false)} />
               )}
             </div>
 
             {/* Top-right: view controls (stacked; slides left of the district panel) */}
             <div className="absolute top-3 z-10 flex items-start gap-1.5 transition-[right] duration-300" style={{ right: selected ? PANEL_W + 12 : 12 }}>
               {!selected && (
-                <label className={`${HUD} flex items-center gap-1 px-2 py-1 text-xs h-8`}>
+                <label className={`${HUD} !rounded-full flex items-center gap-1.5 pl-3 pr-2 h-9 text-[13px]`}>
+                  <Crosshair size={14} className="text-fg-muted" aria-hidden />
                   <span className="sr-only">Jump to district</span>
-                  <select className="bg-transparent text-mist text-xs outline-none max-w-[140px]" value="" onChange={(e) => e.target.value && select(e.target.value)} aria-label="Jump to district">
+                  <select className="bg-transparent text-fg text-[13px] outline-none max-w-[150px] cursor-pointer" value="" onChange={(e) => e.target.value && select(e.target.value)} aria-label="Jump to district">
                     <option value="">Jump to district…</option>
                     {[...rows].sort((a, b) => a.name.localeCompare(b.name)).map((r) => <option key={r.geo_code} value={r.geo_code}>{r.name}</option>)}
                   </select>
                 </label>
               )}
               <div className={`flex gap-1.5 ${selected ? "flex-col" : ""}`}>
-                <IconBtn label="Replay rise" onClick={() => setRiseToken((x) => x + 1)}><Sparkles size={14} /></IconBtn>
-                <IconBtn label="Reset view" onClick={() => { select(null); setReset((x) => x + 1); }}><RotateCcw size={14} /></IconBtn>
-                <IconBtn label="View as table" onClick={() => setAsTable(true)}><Table2 size={14} /></IconBtn>
+                <IconBtn label="Replay rise" onClick={() => setRiseToken((x) => x + 1)}><Sparkles size={15} /></IconBtn>
+                <IconBtn label="Reset view" onClick={() => { select(null); setReset((x) => x + 1); }}><RotateCcw size={15} /></IconBtn>
+                <IconBtn label="View as table" onClick={() => setAsTable(true)}><Table2 size={15} /></IconBtn>
               </div>
             </div>
 
             {/* Bottom: legend + time slider */}
-            <div className="absolute left-3 bottom-[78px] z-10">
-              <Legend metric={metric} domain={domain} national={metricKey === "crude_rate" ? nationalCrude : national} period={period?.id ?? ""}
+            <div className="absolute left-3 bottom-[84px] z-10">
+              <Legend metric={metric} domain={domain} national={natRef} period={period?.id ?? ""}
                       showFacilities={showFac && !showHex} showHex={showHex} showArcs={showArcs}
                       hasLowCov={rows.some((r) => r.coverage_flag)} hasSuppressed={rows.some((r) => r.suppressed)} />
             </div>
@@ -236,36 +224,49 @@ export default function GeoExplorer() {
         )}
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3">
-        <Panel title={`District ranking · ${metric.short}`} subtitle={`${metric.periodic ? period?.id : metric.staticNote} · dots = estimate, whiskers = 95% CI · click to drill down`}
-               method={metric.method} table={<DistrictTable rows={rows} rank={rank} spatial={spatial} onSelect={select} />}>
-          {rows.length ? <Ranking rows={rows} metric={metric} spatial={spatial} national={metricKey === "crude_rate" ? nationalCrude : national} selected={selected} highlight={callout ? decoy?.code ?? null : null} onSelect={select} /> : <Loading h={300} />}
-        </Panel>
-        <div className="flex flex-col gap-3">
-          <Panel title="Hotspot read-out" subtitle="LISA, 2019–2025 pooled, EB-smoothed" method={METRICS.lisa_quadrant.method}>
+      <BentoGrid>
+        <GridItem span={{ lg: 7 }}>
+          <Card title={`District ranking · ${metric.short}`} icon={<BarChart3 size={16} />}
+                info={{ about: <>{metric.periodic ? period?.id : metric.staticNote}. Dots = estimate, whiskers = 95% CI. Click a district to drill down.</>, method: metric.method }}
+                detail={{ tabs: chartDetailTabs({ table: districtTable, method: metric.method }), defaultTab: "table", subtitle: `${period?.id ?? ""} · sorted by ${metric.short}` }}
+                detailLabel="View as table">
+            {rows.length ? <Ranking rows={rows} metric={metric} spatial={spatial} national={natRef} selected={selected} highlight={callout ? decoy?.code ?? null : null} onSelect={select} /> : <Loading h={300} />}
+          </Card>
+        </GridItem>
+        <GridItem span={{ lg: 5 }} className="gap-4">
+          <Card title="Hotspots" icon={<Flame size={16} />} iconTone="danger" className="!flex-none"
+                info={{ about: "LISA, 2019–2025 pooled, EB-smoothed rates.", method: METRICS.lisa_quadrant.method,
+                        notes: `${LISA_LABEL.HH}: high rate surrounded by high-rate neighbours (999 permutations). An SIR CI that includes 1.0 means the district alone is not significantly above the national level.` }}>
             <HotspotList rows={rows} spatial={spatial} onSelect={select} />
-          </Panel>
+          </Card>
           {decoy && (
-            <Panel title="Crude vs age-standardised" subtitle={`${period?.id} · how age structure moves the ranking`} method="Crude rates rank districts by raw burden; ASR removes differences in age structure. A district whose crude rate is close to its ASR has an older population than average.">
+            <Card title="Crude vs age-standardised" icon={<Scale size={16} />} iconTone="warning" className="flex-1"
+                  info={{ about: `${period?.id} · how age structure moves the ranking. Highlighted row = oldest age profile.`, method: "Crude rates rank districts by raw burden; ASR removes differences in age structure. A district whose crude rate is close to its ASR has an older population than average. ↗ = places worse on crude than on ASR." }}>
               <CrudeAsrShift rows={rows} onSelect={select} decoy={decoy.code} />
-            </Panel>
+            </Card>
           )}
-        </div>
-      </div>
+        </GridItem>
+      </BentoGrid>
     </div>
   );
 }
 
 function LayerBtn({ on, onClick, icon, label, disabled }: { on: boolean; onClick: () => void; icon: React.ReactNode; label: string; disabled?: boolean }) {
   return (
-    <button aria-pressed={on} onClick={onClick} disabled={disabled}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition focus-visible:ring-2 ring-kivu disabled:opacity-40 ${on ? "bg-kivu/30 text-mist" : "text-fog hover:text-mist hover:bg-ridge2"}`}>
-      {icon}{label}
-    </button>
+    <Tooltip content={label} placement="bottom" delay={200} closeDelay={0} classNames={{ content: "bg-surface text-fg border border-border shadow-float text-xs" }}>
+      <button aria-pressed={on} onClick={onClick} disabled={disabled} aria-label={label}
+              className={`w-9 h-8 grid place-items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40 ${on ? "bg-accent text-white shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.6)]" : "text-fg-muted hover:text-fg hover:bg-fg/5"}`}>
+        {icon}
+      </button>
+    </Tooltip>
   );
 }
 function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return <button className={`${HUD} w-8 h-8 flex items-center justify-center text-fog hover:text-mist focus-visible:ring-2 ring-kivu`} onClick={onClick} aria-label={label} title={label}>{children}</button>;
+  return (
+    <Tooltip content={label} placement="bottom" delay={200} closeDelay={0} classNames={{ content: "bg-surface text-fg border border-border shadow-float text-xs" }}>
+      <button className={`${HUD} !rounded-full w-9 h-9 grid place-items-center text-fg-muted hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`} onClick={onClick} aria-label={label}>{children}</button>
+    </Tooltip>
+  );
 }
 
 function DistrictTable({ rows, rank, spatial, onSelect }: { rows: MapRow[]; rank: Map<string, number>; spatial: Map<string, any>; onSelect: (c: string) => void }) {
@@ -273,12 +274,12 @@ function DistrictTable({ rows, rank, spatial, onSelect }: { rows: MapRow[]; rank
   return (
     <DataTable rows={sorted} columns={[
       { key: "rank", label: "#", num: true, fmt: (_, r) => rank.get(r.geo_code) ?? "—" },
-      { key: "name", label: "District", fmt: (v, r) => <button className="text-kivu hover:underline" onClick={() => onSelect(r.geo_code)}>{v}</button> },
+      { key: "name", label: "District", fmt: (v, r) => <button className="text-accent hover:underline" onClick={() => onSelect(r.geo_code)}>{v}</button> },
       { key: "cases", label: "Cases", num: true, fmt: (v, r) => (r.suppressed ? "<5" : int(v)) },
       { key: "crude_rate", label: "Crude", num: true, fmt: (v, r) => (r.suppressed ? "—" : fmt(v)) },
-      { key: "asr", label: "ASR [95% CI]", num: true, fmt: (v, r) => (r.suppressed ? <span className="text-fog">suppressed</span> : <span>{fmt(v)} <span className="text-fog">[{fmt(r.asr_lci)}–{fmt(r.asr_uci)}]</span></span>) },
-      { key: "sir", label: "SIR [95% CI]", num: true, fmt: (v, r) => <span>{fmt(v, 2)} <span className="text-fog">[{fmt(spatial.get(r.geo_code)?.sir_lci, 2)}–{fmt(spatial.get(r.geo_code)?.sir_uci, 2)}]</span></span> },
-      { key: "lisa_quadrant", label: "LISA", fmt: (v) => (v && v !== "NS" ? v : <span className="text-fog">NS</span>) },
+      { key: "asr", label: "ASR [95% CI]", num: true, fmt: (v, r) => (r.suppressed ? <span className="text-fg-muted">suppressed</span> : <span>{fmt(v)} <span className="text-fg-muted">[{fmt(r.asr_lci)}–{fmt(r.asr_uci)}]</span></span>) },
+      { key: "sir", label: "SIR [95% CI]", num: true, fmt: (v, r) => <span>{fmt(v, 2)} <span className="text-fg-muted">[{fmt(spatial.get(r.geo_code)?.sir_lci, 2)}–{fmt(spatial.get(r.geo_code)?.sir_uci, 2)}]</span></span> },
+      { key: "lisa_quadrant", label: "LISA", fmt: (v) => (v && v !== "NS" ? v : <span className="text-fg-muted">NS</span>) },
       { key: "hp_test_rate", label: "HP test %", num: true, fmt: (v) => fmt(v) },
       { key: "pct_stage4", label: "Stage IV %", num: true, fmt: (v) => fmt(v) },
       { key: "coverage_flag", label: "Flags", fmt: (v, r) => [v && "low coverage", r.suppressed && "suppressed"].filter(Boolean).join(", ") || "" },
@@ -292,18 +293,22 @@ function HotspotList({ rows, spatial, onSelect }: { rows: MapRow[]; spatial: Map
   const fdr = hh.filter((r) => spatial.get(r.geo_code)?.lisa_quadrant_fdr === "HH").length;
   if (!rows.length) return <Loading h={80} />;
   return (
-    <div className="text-xs">
-      <p className="text-fog mb-2 leading-snug">{hh.length} {hh.length === 1 ? "district forms" : "districts form"} a High–High cluster at p &lt; 0.05 ({fdr} survive{fdr === 1 ? "s" : ""} FDR correction); {other.length} other{other.length === 1 ? " is a" : "s are"} spatial outlier{other.length === 1 ? "" : "s"} or cold spot{other.length === 1 ? "" : "s"}.</p>
-      <ul className="divide-y divide-line/40">
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap gap-1.5">
+        <StatusChip status="critical" label={<span className="tabular">{hh.length} High–High</span>} title={`${hh.length} district(s) in a High–High cluster at p < 0.05`} />
+        <StatusChip status="serious" label={<span className="tabular">{fdr} survive FDR</span>} title="Clusters that survive false-discovery-rate correction" />
+        <StatusChip status="neutral" label={<span className="tabular">{other.length} outliers / cold spots</span>} title="Spatial outliers (HL, LH) and cold spots (LL)" />
+      </div>
+      <ul className="flex flex-col gap-0.5">
         {hh.map((r) => { const s = spatial.get(r.geo_code); return (
-          <li key={r.geo_code}><button className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-ridge2/40 rounded px-1 focus-visible:ring-2 ring-kivu" onClick={() => onSelect(r.geo_code)}>
-            <span className="chip bg-ridge2 text-mist">HH</span><span className="font-medium flex-1">{r.name}</span>
-            <span className="tabular text-fog w-[52px] text-right" title="Permutation p-value (FDR q in brackets)">p {fmt(s?.lisa_p, 3)}</span>
-            <span className="tabular text-fog w-[148px] text-right">SIR <b className="text-mist">{fmt(s?.sir, 2)}</b> ({fmt(s?.sir_lci, 2)}–{fmt(s?.sir_uci, 2)})</span>
+          <li key={r.geo_code}><button className="w-full flex items-center gap-2.5 py-1.5 px-2 text-left text-[13px] rounded-[10px] hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => onSelect(r.geo_code)}
+                    title={`${r.name}: SIR ${fmt(s?.sir, 2)} (95% CI ${fmt(s?.sir_lci, 2)}–${fmt(s?.sir_uci, 2)}), permutation p ${fmt(s?.lisa_p, 3)}`}>
+            <StatusChip status="critical" label="HH" /><span className="font-medium flex-1 truncate">{r.name}</span>
+            <span className="tabular text-micro text-fg-muted">p {fmt(s?.lisa_p, 3)}</span>
+            <span className="tabular w-[84px] text-right text-micro text-fg-muted">SIR <b className="text-fg text-[13px]">{fmt(s?.sir, 2)}</b></span>
           </button></li>
         ); })}
       </ul>
-      <p className="text-[10px] text-fog mt-2">{LISA_LABEL.HH}: high rate surrounded by high-rate neighbours (999 permutations). An SIR CI that includes 1.0 means the district alone is not significantly above the national level.</p>
     </div>
   );
 }
@@ -314,14 +319,15 @@ function CrudeAsrShift({ rows, onSelect, decoy }: { rows: MapRow[]; onSelect: (c
     .map((r) => ({ r, d: (ra.get(r.geo_code) ?? 0) - (rc.get(r.geo_code) ?? 0) }))
     .sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 5);
   return (
-    <table className="w-full text-xs tabular">
-      <thead><tr className="text-fog"><th className="text-left font-semibold pb-1">District</th><th className="text-right font-semibold">Crude rank</th><th className="text-right font-semibold">ASR rank</th><th className="text-right font-semibold">Shift</th></tr></thead>
+    <table className="w-full text-[13px] tabular">
+      <thead><tr className="text-micro text-fg-muted"><th className="text-left font-medium pb-1.5">District</th><th className="text-right font-medium">Crude</th><th className="text-right font-medium">ASR</th><th className="text-right font-medium">Shift</th></tr></thead>
       <tbody>
         {moves.map(({ r, d }) => (
-          <tr key={r.geo_code} className={`border-t border-line/40 ${r.geo_code === decoy ? "bg-sorghum/10" : ""}`}>
-            <td className="py-1"><button className="hover:underline text-left" onClick={() => onSelect(r.geo_code)}>{r.name}</button>{r.geo_code === decoy && <span className="text-[10px] text-sorghum ml-1">oldest age profile</span>}</td>
-            <td className="text-right">#{rc.get(r.geo_code)}</td><td className="text-right">#{ra.get(r.geo_code)}</td>
-            <td className="text-right font-semibold">{d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : "–"}<span className="sr-only">{d > 0 ? " places worse on crude" : " places better on crude"}</span></td>
+          <tr key={r.geo_code} className={`border-t border-border/70 ${r.geo_code === decoy ? "bg-warning/10" : ""}`}>
+            <td className="py-1.5"><button className="hover:underline text-left font-medium" onClick={() => onSelect(r.geo_code)} title={r.geo_code === decoy ? "Oldest age profile" : undefined}>{r.name}</button>{r.geo_code === decoy && <span className="sr-only"> (oldest age profile)</span>}</td>
+            <td className="text-right text-fg-muted">#{rc.get(r.geo_code)}</td><td className="text-right text-fg-muted">#{ra.get(r.geo_code)}</td>
+            <td className="text-right py-1"><DeltaChip delta={{ text: String(Math.abs(d)), dir: d > 0 ? 1 : d < 0 ? -1 : 0, tone: d > 0 ? "bad" : d < 0 ? "good" : "neutral" }} />
+              <span className="sr-only">{d > 0 ? " places worse on crude" : " places better on crude"}</span></td>
           </tr>
         ))}
       </tbody>

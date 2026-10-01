@@ -1,6 +1,9 @@
-import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock } from "lucide-react";
 import { useThemeMode } from "@/components/charts/EChart";
-import { ink, SERIES, STATUS } from "@/lib/viz";
+import { BentoGrid, GridItem } from "@/components/ui/BentoGrid";
+import { DataTable } from "@/components/ui/DataTable";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { ink, SERIES } from "@/lib/viz";
 
 export type KpiPoint = { year: number; value: number | null; flag?: "low" | "partial" | null };
 export type KpiDef = {
@@ -10,40 +13,49 @@ export type KpiDef = {
   format: (v: number | null) => string;
 };
 
-/** KPI stat tiles (dataviz stat-tile contract): label · value · delta vs a named period · 12-point sparkline (muted line, current in accent). */
+/** Headline indicators as v2 MetricCards ("Key areas of concern" layout): number + unit, delta chip, YTD chip, animated
+ * sparkline. Sub-lines, scope and comparison notes live in the ⓘ; the full annual series + table open in the detail modal. */
 export function KpiStrip({ items }: { items: KpiDef[] }) {
+  const m = useThemeMode();
   return (
-    <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(300px,1fr))]" role="list" aria-label="Headline indicators">
-      {items.map((k) => <Tile key={k.id} k={k} />)}
-    </div>
+    <BentoGrid as="ul" role="list" aria-label="Headline indicators">
+      {items.map((k) => (
+        <GridItem key={k.id} as="li" role="listitem" span={{ sm: 6, lg: 4, xl: 2 }} aria-label={`${k.label}: ${k.value}${k.unit ? " " + k.unit : ""}`}>
+          <MetricCard
+            label={k.label} value={k.value} unit={k.unit}
+            delta={k.delta ? { text: k.delta.text, dir: k.delta.dir, tone: k.delta.tone } : null}
+            status={k.partial ? { status: "warning", label: "YTD" } : k.id === "await" && !k.missing?.startsWith("Not") ? { status: "critical", label: "HIGH band" } : null}
+            spark={k.spark.length > 1 ? k.spark.map((p) => p.value) : undefined} sparkColor={SERIES[m][0]}
+            info={{ about: k.missing ?? k.sub, notes: [k.delta?.note && `Change ${k.delta.note}.`, k.partial && "Current year is year-to-date (annualised where noted).", k.scope].filter(Boolean).join(" ") || undefined }}
+            detail={k.spark.length > 1 ? { children: <KpiDetail k={k} />, size: "2xl", subtitle: k.sub } : undefined}
+            className="h-full"
+          />
+        </GridItem>
+      ))}
+    </BentoGrid>
   );
 }
 
-function Tile({ k }: { k: KpiDef }) {
-  const tone = k.delta?.tone === "good" ? STATUS.good : k.delta?.tone === "bad" ? STATUS.serious : undefined;
-  const Icon = !k.delta ? ArrowRight : k.delta.dir > 0 ? ArrowUpRight : k.delta.dir < 0 ? ArrowDownRight : ArrowRight;
+function KpiDetail({ k }: { k: KpiDef }) {
   return (
-    <article role="listitem" className="panel px-3.5 py-3 grid grid-cols-[minmax(0,1fr)_118px] gap-x-3 min-w-0 animate-rise" aria-label={`${k.label}: ${k.value}${k.unit ? " " + k.unit : ""}`}>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-[11.5px] leading-tight text-fog font-medium truncate">{k.label}</h3>
-          {k.partial && <span className="chip bg-sorghum/15 text-sorghum !px-1.5 !py-0 !text-[10px] shrink-0" title="Current year is year-to-date (annualised where noted)"><CalendarClock size={10} aria-hidden />YTD</span>}
+    <div className="flex flex-col gap-4">
+      <div className="rounded-tile bg-surface-2 border border-border/70 px-4 pt-5 pb-3">
+        <KpiSpark pts={k.spark} format={k.format} label={k.label} height={150} />
+        <div className="flex justify-between text-micro text-fg-muted tabular mt-2">
+          <span>{k.spark[0]?.year}</span><span>{k.spark[k.spark.length - 1]?.year}</span>
         </div>
-        <div className="flex items-baseline gap-1 mt-1">
-          <span className="text-[28px] font-bold leading-none tracking-tight">{k.value}</span>
-          {k.unit && <span className="text-xs text-fog">{k.unit}</span>}
-        </div>
-        <div className="text-[11px] text-fog tabular mt-1.5 truncate" title={k.missing ?? k.sub}>{k.missing ?? k.sub ?? ""}</div>
-        {k.scope && <div className="text-[10px] text-fog/80 truncate" title={k.scope}>{k.scope}</div>}
       </div>
-      <div className="flex flex-col justify-between min-w-0">
-        <KpiSpark pts={k.spark} format={k.format} label={k.label} height={34} />
-        <div className="text-[11px] mt-1.5 flex items-center gap-1 tabular justify-end whitespace-nowrap" style={{ color: tone }}>
-          {k.delta ? (<><Icon size={13} aria-hidden className={tone ? "" : "text-fog"} /><span className={tone ? "font-semibold" : "text-fog"}>{k.delta.text}</span></>) : <span className="text-fog">no comparison</span>}
-        </div>
-        {k.delta?.note && <div className="text-[10px] text-fog text-right">{k.delta.note}</div>}
+      <div className="flex flex-wrap gap-1.5">
+        {k.spark.some((p) => p.flag === "low") && <StatusChip status="neutral" label="Dashed = low EMR coverage" />}
+        {k.spark.some((p) => p.flag === "partial") && <StatusChip status="warning" label="Hollow = year to date" />}
       </div>
-    </article>
+      <div className="overflow-auto max-h-[40vh] rounded-tile border border-border">
+        <DataTable rows={[...k.spark].reverse()} columns={[
+          { key: "year", label: "Year" }, { key: "value", label: k.label, num: true, fmt: (v) => k.format(v) },
+          { key: "flag", label: "Flag", fmt: (v) => (v === "partial" ? "year to date" : v === "low" ? "low EMR coverage" : "") },
+        ]} />
+      </div>
+    </div>
   );
 }
 
@@ -54,7 +66,7 @@ export function KpiSpark({ pts, format, label, height = 30 }: { pts: KpiPoint[];
   const fin = pts.filter((p) => p.value !== null && Number.isFinite(p.value));
   if (fin.length < 2) return <div style={{ height }} />;
   const vals = fin.map((p) => p.value as number);
-  const min = Math.min(...vals), max = Math.max(...vals), W = 100, pad = 3;
+  const min = Math.min(...vals), max = Math.max(...vals), W = 100, pad = 6;
   const x = (i: number) => (i / (pts.length - 1)) * W;
   const y = (v: number) => height - pad - ((v - min) / (max - min || 1)) * (height - 2 * pad);
   const segs: { d: string; dashed: boolean }[] = [];
@@ -65,16 +77,16 @@ export function KpiSpark({ pts, format, label, height = 30 }: { pts: KpiPoint[];
   }
   const lastI = pts.length - 1, last = pts[lastI];
   return (
-    <div className="relative mt-1" style={{ height }}>
+    <div className="relative" style={{ height }}>
       <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
-        {segs.map((s, i) => <path key={i} d={s.d} fill="none" stroke={k.muted} strokeWidth={1.4} vectorEffect="non-scaling-stroke" strokeDasharray={s.dashed ? "3 3" : undefined} strokeLinecap="round" />)}
+        {segs.map((s, i) => <path key={i} d={s.d} fill="none" stroke={accent} strokeOpacity={s.dashed ? 0.6 : 1} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeDasharray={s.dashed ? "4 4" : undefined} strokeLinecap="round" />)}
       </svg>
       {/* HTML dots keep their shape under the stretched SVG; each point has a native tooltip */}
       {pts.map((p, i) => p.value === null ? null : (
         <span key={p.year} title={`${p.year}: ${format(p.value)}${p.flag === "low" ? " (low EMR coverage)" : p.flag === "partial" ? " (year to date)" : ""}`}
               className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={{ left: `${(x(i) / W) * 100}%`, top: y(p.value), width: i === lastI ? 7 : 10, height: i === lastI ? 7 : 10,
-                       background: i === lastI ? (last.flag === "partial" ? k.surface : accent) : "transparent", boxShadow: i === lastI ? `0 0 0 1.6px ${accent}` : undefined }} />
+              style={{ left: `${(x(i) / W) * 100}%`, top: y(p.value), width: 9, height: 9,
+                       background: i === lastI && last.flag === "partial" ? k.surface : p.flag ? k.surface : accent, boxShadow: `0 0 0 1.8px ${accent}` }} />
       ))}
       <span className="sr-only">{label} trend: {pts.map((p) => `${p.year} ${format(p.value)}`).join(", ")}</span>
     </div>
