@@ -79,7 +79,7 @@ function ImageFile({ file, title }: { file: ArtifactFile; title?: string }) {
       </div>
       <figcaption className="sr-only">{file.name}</figcaption>
       <DetailModal {...d.modalProps} title={title ?? file.name} size="5xl" icon={<ImageIcon size={16} />}
-                   footer={<a href={file.url} download={file.name} className="btn"><Download size={14} aria-hidden />Download PNG</a>}>
+                   footer={<a href={file.url} download={file.name} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium text-fg border border-border bg-surface shadow-tile hover:bg-surface-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"><Download size={14} aria-hidden />Download PNG</a>}>
         <img src={file.url} alt={title ?? file.name} className="w-full h-auto rounded-tile border border-border bg-white" />
       </DetailModal>
     </figure>

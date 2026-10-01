@@ -35,7 +35,7 @@ const dark = {
 };
 
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}", "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx,mjs}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}", "./node_modules/@heroui/theme/dist/components/(accordion|avatar|badge|button|chip|divider|drawer|dropdown|input|kbd|listbox|menu|modal|popover|ripple|scroll-shadow|select|skeleton|spinner|tabs|toggle).js"],
   // HeroUI components use `dark:`; we toggle both the data-theme attribute and the `dark` class (Providers / TopNav).
   darkMode: ["class", '[data-theme="dark"]'],
   theme: {
@@ -52,10 +52,6 @@ export default {
         /** Status text that stays legible on white (darker steps) and on the dark surface. */
         tone: { success: v("success-text"), warning: v("warning-text"), serious: v("serious-text"), danger: v("danger-text") },
         glass: v("glass"),
-        // temporary old-name aliases (Phase 4 codemod: basalt→bg, ridge→surface, ridge2→surface-2, line→border,
-        // mist→fg, fog→fg-muted, kivu→accent, tea→success, sorghum→warning, laterite→danger)
-        basalt: v("basalt"), ridge: v("ridge"), ridge2: v("ridge2"), mist: v("mist"), fog: v("fog"),
-        kivu: v("kivu"), tea: v("tea"), sorghum: v("sorghum"), laterite: v("laterite"), line: v("line"),
       },
       fontFamily: { sans: ['"Inter Variable"', "Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"] },
       fontSize: {
@@ -71,7 +67,6 @@ export default {
         card: "var(--shadow-card)",
         float: "var(--shadow-float)",
         tile: "var(--shadow-tile)",
-        panel: "var(--shadow-card)", // alias (old name)
       },
       backgroundImage: {
         "range-gradient": "linear-gradient(90deg, #22C55E 0%, #84CC16 28%, #F59E0B 58%, #F97316 78%, #EF4444 100%)",

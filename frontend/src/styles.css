@@ -56,29 +56,17 @@
   --shadow-tile: 0 1px 2px rgba(0, 0, 0, .3);
   color-scheme: dark;
 }
-/* Old token names, aliased onto the new ones until the Phase 4 codemod (status names map to the legible text steps). */
-:root, [data-theme] {
-  --basalt: var(--bg); --ridge: var(--surface); --ridge2: var(--surface-2); --line: var(--border);
-  --mist: var(--fg); --fog: var(--fg-muted); --kivu: var(--accent);
-  --tea: var(--success-text); --sorghum: var(--warning-text); --laterite: var(--danger-text);
-}
-
 html, body, #root { height: 100%; }
+/* HeroUIProvider (react-aria OverlayProvider) adds a wrapper div: let it fill #root so the Shell can be full-height. */
+#root > div { height: 100%; }
 body { @apply bg-bg text-fg font-sans antialiased; font-feature-settings: "cv11", "ss01"; }
 .tabular { font-variant-numeric: tabular-nums; }
-
-/* Legacy component classes restyled onto the new tokens (removed in Phase 4 once unused). */
-.panel { @apply bg-surface border border-border rounded-card shadow-card; }
-.panel-title { @apply text-label font-semibold text-fg-muted; }
-.chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-4; }
-.btn { @apply inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium text-fg border border-border bg-surface shadow-tile hover:bg-surface-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60; }
-.btn-primary { @apply bg-accent border-accent text-white hover:bg-accent-hover; }
-.seg { @apply inline-flex items-center gap-0.5 rounded-full bg-surface-2 border border-border p-0.5; }
-.seg > button { @apply rounded-full px-3 py-1 text-xs font-medium text-fg-muted hover:text-fg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60; }
-.seg > button[aria-pressed="true"] { @apply bg-surface text-fg shadow-tile; }
+/* Horizontal scrollers on narrow screens (tab strips) without a visible bar. */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 
 /* App background: airy tint with a soft accent glow (replaces .terrain-bg). */
-.page-bg, .terrain-bg {
+.page-bg {
   background-color: rgb(var(--bg));
   background-image:
     radial-gradient(1100px 520px at 8% -10%, rgb(var(--accent) / 0.10), transparent 62%),
@@ -116,11 +104,5 @@ body { @apply bg-bg text-fg font-sans antialiased; font-feature-settings: "cv11"
 }
 .case-label.is-strong { border-color: #f2a541; box-shadow: 0 0 0 1px rgb(242 165 65 / 0.35), 0 0 22px rgb(255 106 58 / 0.3); }
 .case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(230 236 238 / 0.45); }
-/* HUD = glass panel over a 3D stage; follows the theme. */
-.hud { @apply rounded-tile text-[11px] text-fg shadow-tile; background: rgb(var(--glass) / 0.78); border: 1px solid rgb(var(--border) / 0.9); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3); }
-.hud-btn { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-fg-muted transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60; }
-.hud-btn:hover { @apply text-fg bg-fg/5; }
-.hud-btn[aria-pressed="true"] { @apply text-white bg-accent; }
-.hud-btn:disabled { @apply opacity-50 cursor-not-allowed; }
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.28); } 22% { transform: scale(1.05); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } }
 .beat { animation: heartbeat var(--beat, 0.85s) ease-in-out infinite; transform-origin: center; }

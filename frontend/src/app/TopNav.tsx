@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Chip, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Kbd, Tooltip } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Building2, Check, ChevronDown, Database, Landmark, Moon, Search, Stethoscope, Sun } from "lucide-react";
+import { Bell, Building2, Check, ChevronDown, Database, Landmark, Menu, Moon, Search, Stethoscope, Sun } from "lucide-react";
 import { useStatus } from "@/api/hooks";
 import { InfoHint } from "@/components/ui/InfoHint";
 import { PillTabs } from "@/components/ui/PillTabs";
@@ -21,7 +21,7 @@ export function Logo() {
       <span className="w-9 h-9 rounded-[12px] bg-cta-gradient grid place-items-center shadow-[0_8px_18px_-8px_rgb(var(--accent)/0.8)]" aria-hidden>
         <svg viewBox="0 0 32 32" className="w-6 h-6"><path d="M3 23 L10.5 12.5 L15 18 L21 8 L29 23" fill="none" stroke="white" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" /><circle cx="21" cy="8" r="2.6" fill="white" /></svg>
       </span>
-      <div className="leading-tight">
+      <div className="leading-tight hidden sm:block">
         <div className="font-semibold tracking-tight text-[16px] text-fg">Early Signals</div>
         <div className="text-micro text-fg-muted">Gastric cancer · Rwanda</div>
       </div>
@@ -59,7 +59,7 @@ function LiveIndicator() {
                  <dt className="text-fg-muted">Live updates</dt><dd>{live.connected ? "connected" : "polling"}</dd>
                </dl>
              }>
-      <button type="button" className="hidden xl:flex items-center gap-2 h-9 px-3 rounded-full text-xs text-fg-muted hover:text-fg hover:bg-fg/5 tabular focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      <button type="button" className="hidden 2xl:flex items-center gap-2 h-9 px-3 rounded-full text-xs text-fg-muted hover:text-fg hover:bg-fg/5 tabular focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               aria-label={`Data updated ${ago(published)}${failed ? ", last run failed" : ""}`}>
         <span className="relative flex w-2 h-2" aria-hidden>
           {!stale && !failed && <span className={`absolute inset-0 rounded-full ${dot} animate-ping2`} />}
@@ -92,10 +92,10 @@ function RoleMenu() {
   return (
     <Dropdown placement="bottom-end" classNames={{ content: "bg-surface border border-border shadow-float rounded-tile min-w-[260px]" }}>
       <DropdownTrigger>
-        <Button size="sm" radius="full" variant="flat" className="h-9 pl-1 pr-3 min-w-[120px] max-w-[280px] shrink-0 bg-surface border border-border shadow-tile text-fg data-[hover=true]:bg-surface-2"
+        <Button size="sm" radius="full" variant="flat" aria-label={label} className="h-9 pl-1 pr-2 sm:pr-3 min-w-0 sm:min-w-[120px] max-w-[280px] shrink-0 gap-1 sm:gap-2 bg-surface border border-border shadow-tile text-fg data-[hover=true]:bg-surface-2"
                 startContent={<span className="w-7 h-7 rounded-full bg-accent-soft text-accent grid place-items-center shrink-0" aria-hidden>{role === "doctor" ? <Stethoscope size={14} /> : <Landmark size={14} />}</span>}
                 endContent={<ChevronDown size={14} className="text-fg-muted shrink-0" aria-hidden />}>
-          <span className="truncate text-[13px] font-medium">{label}</span>
+          <span className="truncate text-[13px] font-medium hidden sm:inline">{label}</span>
         </Button>
       </DropdownTrigger>
       <DropdownMenu aria-label="Switch role" onAction={(k) => {
@@ -113,6 +113,43 @@ function RoleMenu() {
   );
 }
 
+/** Compact navigation for narrow screens: the current view as a pill that opens a menu of views (+ search and data
+ * quality, whose icon buttons are hidden there). */
+function NavMenu({ items, current, onCmd, onDq }: { items: ReturnType<typeof navFor>; current: string; onCmd: () => void; onDq: () => void }) {
+  const navigate = useNavigate();
+  const cur = items.find((i) => i.to === current);
+  const Icon = cur?.icon ?? Menu;
+  return (
+    <Dropdown placement="bottom" classNames={{ content: "bg-surface border border-border shadow-float rounded-tile min-w-[220px]" }}>
+      <DropdownTrigger>
+        <Button size="sm" radius="full" variant="flat" aria-label={`Views${cur ? `, current: ${cur.label}` : ""}`}
+                className="h-9 pl-1.5 pr-3 min-w-0 max-w-full bg-surface border border-border shadow-tile text-fg data-[hover=true]:bg-surface-2 gap-1.5"
+                startContent={<span className="w-7 h-7 rounded-full bg-nav text-nav-fg grid place-items-center shrink-0" aria-hidden><Icon size={14} /></span>}
+                endContent={<ChevronDown size={14} className="text-fg-muted shrink-0" aria-hidden />}>
+          <span className="truncate text-[13px] font-medium">{cur?.label ?? "Menu"}</span>
+        </Button>
+      </DropdownTrigger>
+      <DropdownMenu aria-label="Views" selectionMode="single" selectedKeys={current ? [current] : []} disallowEmptySelection={false}
+                    onAction={(k) => {
+                      const key = String(k);
+                      if (key === "__search") return onCmd();
+                      if (key === "__dq") return onDq();
+                      navigate(key);
+                    }}>
+        <DropdownSection title="Views" showDivider classNames={{ heading: "text-micro text-fg-muted px-2" }}>
+          {items.map((i) => (
+            <DropdownItem key={i.to} startContent={<i.icon size={16} className="text-accent" aria-hidden />}>{i.label}</DropdownItem>
+          ))}
+        </DropdownSection>
+        <DropdownSection title="Tools" classNames={{ heading: "text-micro text-fg-muted px-2" }}>
+          <DropdownItem key="__search" startContent={<Search size={16} className="text-fg-muted" aria-hidden />}>Search</DropdownItem>
+          <DropdownItem key="__dq" startContent={<Database size={16} className="text-fg-muted" aria-hidden />}>Data quality</DropdownItem>
+        </DropdownSection>
+      </DropdownMenu>
+    </Dropdown>
+  );
+}
+
 /** Top navigation (plan §A3): logo, centred navy pill tabs by role, live indicator and icon actions, role pill. */
 export function TopNav({ onCmd, onDq, extra }: { onCmd: () => void; onDq: () => void; extra?: ReactNode }) {
   const role = useRole((s) => s.role);
@@ -124,23 +161,24 @@ export function TopNav({ onCmd, onDq, extra }: { onCmd: () => void; onDq: () => 
   const setInsights = useInsightsUi((s) => s.setOpen);
   const n = cards.length;
   return (
-    <header className="h-16 shrink-0 flex items-center gap-4 px-5">
+    <header className="h-16 shrink-0 flex items-center gap-2 sm:gap-4 px-3 sm:px-5">
       <div className="flex items-center gap-3 shrink-0">
         <Logo />
         <SyntheticNote />
       </div>
       <nav aria-label="Primary" className="flex-1 min-w-0 flex justify-center">
-        <PillTabs variant="navy" ariaLabel="Views" selectedKey={sel} size="md"
+        <PillTabs variant="navy" ariaLabel="Views" selectedKey={sel} size="md" className="hidden xl:flex" tabClassName="px-3 2xl:px-4"
                   items={items.map((i) => ({ key: i.to, href: i.to, label: i.label, icon: <i.icon size={14} className="hidden min-[1700px]:block" aria-hidden /> }))} />
+        <div className="xl:hidden min-w-0 flex justify-start sm:justify-center w-full"><NavMenu items={items} current={sel} onCmd={onCmd} onDq={onDq} /></div>
       </nav>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <LiveIndicator />
         {extra}
         <Tooltip content={<span className="flex items-center gap-1.5 text-xs">Search <Kbd keys={["ctrl"]}>K</Kbd></span>} delay={300} placement="bottom">
-          <Button isIconOnly size="sm" radius="full" variant="flat" className={iconBtn} aria-label="Search" aria-keyshortcuts="Control+K" onPress={onCmd}><Search size={16} aria-hidden /></Button>
+          <Button isIconOnly size="sm" radius="full" variant="flat" className={`${iconBtn} hidden sm:inline-flex`} aria-label="Search" aria-keyshortcuts="Control+K" onPress={onCmd}><Search size={16} aria-hidden /></Button>
         </Tooltip>
         <Tooltip content="Data quality" delay={300} placement="bottom">
-          <Button isIconOnly size="sm" radius="full" variant="flat" className={iconBtn} aria-label="Data quality" onPress={onDq}><Database size={16} aria-hidden /></Button>
+          <Button isIconOnly size="sm" radius="full" variant="flat" className={`${iconBtn} hidden sm:inline-flex`} aria-label="Data quality" onPress={onDq}><Database size={16} aria-hidden /></Button>
         </Tooltip>
         <Badge content={n} isInvisible={!n} color="primary" size="sm" shape="circle" placement="top-right" classNames={{ badge: "border-surface text-[10px] font-semibold" }}>
           <Button isIconOnly size="sm" radius="full" variant="flat" className={iconBtn} aria-label={n ? `AI insights, ${n} new` : "AI insights, none for this view"} isDisabled={!n} onPress={() => setInsights(true)}>

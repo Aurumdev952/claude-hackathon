@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Tooltip } from "@heroui/react";
+import { usePortalContainer } from "@/components/ui";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crosshair, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useCaseUI } from "./store";
 
-/** Is `el` (or any element) in browser fullscreen? */
-function useFullscreen(target: React.RefObject<HTMLElement>) {
+/** Is `target` the browser-fullscreen element? Returns [on, toggle]. */
+export function useFullscreen(target: React.RefObject<HTMLElement>) {
   const [on, setOn] = useState(false);
   useEffect(() => {
     const h = () => setOn(!!document.fullscreenElement && document.fullscreenElement === target.current);
@@ -20,8 +21,9 @@ function useFullscreen(target: React.RefObject<HTMLElement>) {
 }
 
 function RoundBtn({ label, onPress, children, active }: { label: string; onPress: () => void; children: React.ReactNode; active?: boolean }) {
+  const portal = usePortalContainer();
   return (
-    <Tooltip content={label} placement="left" delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
+    <Tooltip content={label} placement="left" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
       <motion.button type="button" onClick={onPress} aria-label={label} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.92 }}
                      className={`w-10 h-10 rounded-full grid place-items-center glass shadow-tile focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                                  ${active ? "!bg-accent text-white" : "text-fg hover:!bg-surface"}`}>
@@ -33,11 +35,10 @@ function RoundBtn({ label, onPress, children, active }: { label: string; onPress
 
 /** Floating round zoom + / − / fullscreen buttons (reference bottom-right of the body); a reset button appears once the
  * camera has moved to an organ. Zoom goes through the case store (`zoomDelta`) to the scene's CameraControls. */
-export function StageControls({ stage }: { stage: React.RefObject<HTMLElement> }) {
+export function StageControls({ fullscreen: [fs, toggleFs] }: { fullscreen: readonly [boolean, () => void] }) {
   const zoom = useCaseUI((s) => s.zoom);
   const selected = useCaseUI((s) => s.selectedOrgan);
   const set = useCaseUI((s) => s.set);
-  const [fs, toggleFs] = useFullscreen(stage);
   return (
     <div className="flex flex-col items-center gap-2 pointer-events-auto" role="group" aria-label="Camera">
       <AnimatePresence>

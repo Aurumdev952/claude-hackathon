@@ -1,7 +1,7 @@
 import { type Key, type MouseEvent, type ReactNode, useId } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Tab, Tabs } from "@heroui/react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { SPRING } from "@/lib/motion";
 
 export type PillTabItem<K extends string = string> = {
@@ -29,32 +29,41 @@ export type PillTabsProps<K extends string = string> = {
   fullWidth?: boolean;
   className?: string;
   panelClassName?: string;
+  /** Extra classes for every tab (e.g. tighter padding). */
+  tabClassName?: string;
 };
 
 const LOOK = {
   light: {
     tabList: "bg-surface-2 border border-border",
     cursor: "bg-surface dark:bg-content3 shadow-tile",
+    /** Selected background drawn on the tab itself when HeroUI drops the cursor (disableAnimation / reduced motion). */
+    still: "data-[selected=true]:bg-surface dark:data-[selected=true]:bg-content3 data-[selected=true]:shadow-tile",
     text: "text-fg-muted group-data-[selected=true]:text-fg group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-accent-soft group-data-[selected=true]:text-accent",
   },
   navy: {
     tabList: "bg-surface border border-border shadow-tile",
     cursor: "bg-nav dark:bg-nav shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
+    still: "data-[selected=true]:bg-nav dark:data-[selected=true]:bg-nav data-[selected=true]:shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
     text: "text-fg-muted group-data-[selected=true]:text-nav-fg group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-nav-fg/20 group-data-[selected=true]:text-nav-fg",
   },
   glass: {
     tabList: "glass shadow-tile",
     cursor: "bg-accent dark:bg-accent shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.6)]",
+    still: "data-[selected=true]:bg-accent dark:data-[selected=true]:bg-accent",
     text: "text-fg-muted group-data-[selected=true]:text-white group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-white/25 group-data-[selected=true]:text-white",
   },
 } as const;
 
 /** Pill tabs (plan §A2) on HeroUI Tabs: rounded-full track, sliding cursor, optional count chips. role="tablist". */
-export function PillTabs<K extends string = string>({ items, selectedKey, onSelectionChange, variant = "light", size = "md", ariaLabel, fullWidth, className = "", panelClassName = "" }: PillTabsProps<K>) {
+export function PillTabs<K extends string = string>({ items, selectedKey, onSelectionChange, variant = "light", size = "md", ariaLabel, fullWidth, className = "", panelClassName = "", tabClassName = "" }: PillTabsProps<K>) {
   const look = LOOK[variant];
+  // Providers sets HeroUI's global disableAnimation under reduced motion, which removes the sliding cursor: paint the
+  // selected pill on the tab instead so the active state (e.g. white text on navy) is always visible.
+  const still = useReducedMotion();
   const navigate = useNavigate();
   const location = useLocation();
   return (
@@ -70,7 +79,7 @@ export function PillTabs<K extends string = string>({ items, selectedKey, onSele
       classNames={{
         base: className,
         tabList: `p-1 gap-0.5 ${look.tabList}`,
-        tab: `${size === "sm" ? "h-7 px-3" : "h-9 px-4"} data-[focus-visible=true]:outline-accent`,
+        tab: `${size === "sm" ? "h-7 px-3" : "h-9 px-4"} data-[focus-visible=true]:outline-accent ${still ? look.still : ""} ${tabClassName}`,
         tabContent: `${look.text} font-medium ${size === "sm" ? "text-xs" : "text-[13px]"} transition-colors`,
         cursor: look.cursor,
         panel: `px-0 pt-3 pb-0 ${panelClassName}`,

@@ -4,7 +4,7 @@ import { Tooltip } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bone, ChevronLeft, Droplet, Hand, HeartPulse, Gauge, ScanLine, Shapes, Table2, Thermometer, Weight, Wind, BicepsFlexed } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatedNumber, DetailModal, InfoHint, useDetailModal } from "@/components/ui";
+import { AnimatedNumber, DetailModal, InfoHint, PortalContainerContext, useDetailModal, usePortalContainer } from "@/components/ui";
 import { date, signed } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { detectWebGL, labelOf } from "@/components/three/body/util";
@@ -15,7 +15,7 @@ import { bodyStateAt } from "./bodyState";
 import { PHYSIOLOGY_NOTES } from "./measureOrgans";
 import { ReplayBar } from "./ReplayBar";
 import { SystemRail } from "./SystemRail";
-import { StageControls } from "./StageControls";
+import { StageControls, useFullscreen } from "./StageControls";
 
 const BodyScene = lazy(() => import("@/components/three/body/BodyScene").then((m) => ({ default: m.BodyScene })));
 
@@ -38,7 +38,9 @@ export function BodyStage({ data, bottomLeft }: { data: CaseData; bottomLeft?: R
   const light = theme === "light";
   const stage = useRef<HTMLDivElement>(null);
   const table = useDetailModal();
+  const fullscreen = useFullscreen(stage);
   return (
+    <PortalContainerContext.Provider value={fullscreen[0] ? stage.current ?? undefined : undefined}>
     <div ref={stage} className={`relative h-full min-h-[640px] rounded-card overflow-hidden border border-border shadow-card ${light ? "" : "case-stage"}`}
          style={light ? { background: LIGHT_STAGE } : undefined}>
       {light && <div className="absolute inset-0 pointer-events-none" aria-hidden
@@ -63,7 +65,7 @@ export function BodyStage({ data, bottomLeft }: { data: CaseData; bottomLeft?: R
         <div className="flex items-end gap-3">
           <div className="pointer-events-auto">{bottomLeft}</div>
           <div className="flex-1" />
-          {webgl && <StageControls stage={stage} />}
+          {webgl && <StageControls fullscreen={fullscreen} />}
         </div>
         <ReplayBar data={data} />
       </div>
@@ -76,14 +78,16 @@ export function BodyStage({ data, bottomLeft }: { data: CaseData; bottomLeft?: R
         <OrganTable data={data} state={state} />
       </DetailModal>
     </div>
+    </PortalContainerContext.Provider>
   );
 }
 
 function PatientChip({ data }: { data: CaseData }) {
   const h = data.header;
+  const portal = usePortalContainer();
   return (
     <div className="glass rounded-full shadow-tile pl-1 pr-2 py-1 flex items-center gap-2 pointer-events-auto min-w-0">
-      <Tooltip content="Doctor workspace" placement="bottom" delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg" }}>
+      <Tooltip content="Doctor workspace" placement="bottom" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg" }}>
         <Link to="/doctor" aria-label="Doctor workspace" className="w-8 h-8 shrink-0 rounded-full grid place-items-center text-fg-muted hover:text-fg hover:bg-fg/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
           <ChevronLeft size={17} aria-hidden />
         </Link>
@@ -105,8 +109,9 @@ const LAYER_ICON: Record<keyof Layers, ReactNode> = {
 };
 
 function IconToggle({ label, pressed, onPress, children }: { label: string; pressed?: boolean; onPress: () => void; children: ReactNode }) {
+  const portal = usePortalContainer();
   return (
-    <Tooltip content={label} placement="bottom" delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg" }}>
+    <Tooltip content={label} placement="bottom" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg" }}>
       <button type="button" onClick={onPress} aria-label={label} aria-pressed={pressed}
               className={`relative w-8 h-8 rounded-full grid place-items-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
                           ${pressed ? "text-white" : "text-fg-muted hover:text-fg hover:bg-fg/5"}`}>
