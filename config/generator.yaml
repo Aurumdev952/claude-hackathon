@@ -34,7 +34,7 @@ gastric_cancer:
   # symptomatic-phase stage durations (gamma shape 2), months. SPEC says 5/5/6 but that cannot give both a
   # 7-10 month diagnostic interval and 45-55% stage IV (D-06); tuned to the outcome targets.
   stage_months: [3.6, 3.6, 4.5]
-  terminal_admission_prob: 0.75
+  terminal_admission_prob: 0.8    # D-33: undiagnosed share <= 10%
   untreated_iv_survival_months: 9
   prodrome_months: [6, 24]
   pct_clinical_only: 0.04   # + terminal clinical diagnoses at DH -> ~12% probable overall
@@ -43,7 +43,7 @@ gastric_cancer:
   # SPEC §8.8 targets conflict: ASR 12 in this young pyramid gives ~90 cases/yr at scale 1.0, while the case-count
   # targets (2,000-3,000 confirmed; ~1 dx every 1-2 days; 402 cases/yr in §14.3) need ASR ~30-33.
   # We calibrate to the case counts (statistical power for INS-1..8). See docs/decisions.md D-03.
-  calibration: {target_asr_2024: 32, diag_fraction: 0.85, onset_reference_year: 2022}
+  calibration: {target_asr_2024: 34, diag_fraction: 0.85, onset_reference_year: 2022}   # D-33: 32 gave 1,889 confirmed (target 2,000-3,000)
   trend_lag_years: 3.0   # D-29: onset trend leads the diagnosis-year joinpoint by ~3 years (sojourn + symptomatic phase)
   rr_hp_young: 1.3
   rr_male_young: 1.05
