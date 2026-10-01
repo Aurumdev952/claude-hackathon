@@ -4,7 +4,7 @@ import { Activity, BarChart3, Brain, Command, Database, FlaskConical, Map, Messa
 import { useFilters } from "@/state/filters";
 import { useLive } from "@/state/live";
 import { useRole } from "@/state/role";
-import { useFiltersMeta, useInsights, useStatus } from "@/api/hooks";
+import { aiInsightCards, useFiltersMeta, useInsights, useStatus } from "@/api/hooks";
 import { ago, date } from "@/lib/format";
 import { useLiveSocket } from "@/lib/useLiveSocket";
 import { DataQualityDrawer } from "./DataQuality";
@@ -153,16 +153,16 @@ function Seg<T extends string>({ value, options, onChange, label }: { value: T; 
 }
 
 function InsightRail({ view }: { view: string }) {
-  const { data, isLoading } = useInsights(view);
-  const cards = data?.data ?? [];
+  const { data } = useInsights(view);
+  const cards = aiInsightCards(data);
   const tone = { info: "border-kivu/60", warning: "border-sorghum/70", critical: "border-laterite/70" } as const;
+  if (!cards) return null;
   return (
     <aside className="w-80 shrink-0 border-l border-line/60 p-3 overflow-auto bg-basalt/30" aria-label="AI insights">
       <div className="flex items-center justify-between mb-2">
         <h2 className="panel-title">Insights</h2>
-        <span className="text-[10px] text-fog">{(data as any)?.provider === "template" ? "template summaries" : `AI · ${(data as any)?.provider ?? ""}`}</span>
+        <span className="text-[10px] text-fog">AI · {String(data?.provider)}</span>
       </div>
-      {isLoading && <div className="text-xs text-fog animate-pulse">Reading the marts…</div>}
       <div className="flex flex-col gap-2.5">
         {cards.map((c) => (
           <article key={c.id} className={`panel p-3 border-l-[3px] ${tone[c.severity] ?? tone.info} animate-rise`}>
@@ -170,7 +170,7 @@ function InsightRail({ view }: { view: string }) {
             <p className="text-xs text-fog leading-relaxed">{c.body}</p>
           </article>
         ))}
-        {!isLoading && cards.length === 0 && <p className="text-xs text-fog">No insight cards for this view yet.</p>}
+        {cards.length === 0 && <p className="text-xs text-fog">No insight cards for this view yet.</p>}
       </div>
     </aside>
   );
