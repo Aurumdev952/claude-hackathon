@@ -18,7 +18,8 @@
     "spike": "tsx scripts/spike.ts",
     "smoke": "tsx scripts/smoke.ts",
     "mcp:check": "tsx scripts/mcp-check.ts",
-    "sandbox:setup": "uv sync --project sandbox"
+    "sandbox:setup": "uv sync --project sandbox",
+    "export:widget-schema": "tsx scripts/export-widget-schema.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.62",

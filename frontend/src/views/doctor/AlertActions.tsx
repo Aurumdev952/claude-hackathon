@@ -18,7 +18,7 @@ export const triggerLabel = (t: string) => TRIGGER[t] ?? t.charAt(0) + t.slice(1
 const STATUS_KIND = { NEW: "info", ACKNOWLEDGED: "neutral", REFERRED: "good", DISMISSED: "neutral" } as const;
 const statusLabel = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-const btn = "h-8 min-w-0 px-3 text-xs font-medium bg-surface border border-border text-fg data-[hover=true]:bg-surface-2";
+const btn = "h-7 min-w-0 px-2.5 gap-1 text-[11.5px] font-medium bg-surface border border-border text-fg data-[hover=true]:bg-surface-2";
 
 /** Alert cards with the doctor's actions (Acknowledge / Mark referred / Dismiss with a reason). Summary + action text live
  * behind ⓘ; the suggested action stays as one line. `columns` = 2 lays the cards out in two columns. */
@@ -54,12 +54,12 @@ export function AlertActions({ alerts, columns = 1 }: { alerts: Alert[]; columns
             </div>
             <p className="text-micro text-tone-warning mt-1 line-clamp-1" title={a.suggested_action}>{a.suggested_action}</p>
             {open && (
-              <div className="flex flex-wrap gap-1.5 mt-2.5">
-                {a.status === "NEW" && <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Check size={13} aria-hidden />}
+              <div className="flex flex-wrap gap-1 mt-2.5">
+                {a.status === "NEW" && <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Check size={12} aria-hidden />}
                                                isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}>Acknowledge</Button>}
-                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Send size={13} aria-hidden />}
+                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Send size={12} aria-hidden />}
                         isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "REFERRED" })}>Mark referred</Button>
-                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<X size={13} aria-hidden />}
+                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<X size={12} aria-hidden />}
                         onPress={() => setDismissing(dismissing === a.alert_id ? null : a.alert_id)}>Dismiss</Button>
               </div>
             )}

@@ -40,6 +40,8 @@ export function topOrgan(data: CaseData, scores = scoresOf(data), among?: string
 }
 
 export function defaultSystem(data: CaseData): SystemKey {
+  // gastric surveillance: lead with the digestive system whenever the stomach is involved at all
+  if ((scoresOf(data).stomach ?? 0) > 0) return "digestive";
   const o = topOrgan(data);
   return ((o && data.body_map.organs[o]?.system) as SystemKey) || "digestive";
 }

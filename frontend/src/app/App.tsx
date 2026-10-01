@@ -12,12 +12,12 @@ const CareQuality = lazy(() => import("@/views/CareQuality"));
 const ModelArena = lazy(() => import("@/views/ModelArena"));
 const DoctorWorkspace = lazy(() => import("@/views/DoctorWorkspace"));
 const CaseAnalysis = lazy(() => import("@/views/CaseAnalysis"));
-const AskData = lazy(() => import("@/views/AskData"));
+const AgentView = lazy(() => import("@/views/agent/AgentView"));
 
-/** Temporary: the AI agent (Track B) replaces this route; until then /agent keeps the query (?q=) and opens Ask the Data. */
-function AgentRedirect() {
+/** The old "Ask the data" route now opens the AI agent (plan §B7), keeping the question (?q=). */
+function AskRedirect() {
   const { search } = useLocation();
-  return <Navigate to={{ pathname: "/ask", search }} replace />;
+  return <Navigate to={{ pathname: "/agent", search }} replace />;
 }
 
 export function App() {
@@ -34,8 +34,8 @@ export function App() {
           <Route path="/models" element={<ModelArena />} />
           <Route path="/doctor" element={<DoctorWorkspace />} />
           <Route path="/doctor/case/:patientId" element={<CaseAnalysis />} />
-          <Route path="/agent" element={<AgentRedirect />} />
-          <Route path="/ask" element={<AskData />} />
+          <Route path="/agent" element={<AgentView />} />
+          <Route path="/ask" element={<AskRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

@@ -10,7 +10,8 @@ import { Pathology } from "./Pathology";
 import { shared } from "./organMaterial";
 import { labelOf } from "./util";
 
-const HOME = { pos: [0.36, 1.31, 0.86] as const, target: [0.02, 1.17, 0.03] as const };
+// portrait half-width stage: head-to-hips framing, slightly from the right so the stomach (left of midline) faces the camera
+const HOME = { pos: [0.40, 1.36, 2.03] as const, target: [0.0, 1.18, 0.03] as const };
 const FAR = { pos: [0.0, 1.0, 3.6] as const, target: [0.0, 0.92, 0.0] as const };
 const SCAN_FROM = 1.82, SCAN_TO = -0.05, SCAN_S = 2.8;
 

@@ -139,7 +139,7 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
                     </span>
                   </span>
                   {status === "flagged" ? (
-                    <span className="w-[112px] shrink-0 flex flex-col gap-1.5">
+                    <span className="w-[132px] shrink-0 flex flex-col gap-1.5">
                       <span className="flex items-center justify-between gap-1">
                         <BandChip band={p.risk_band} />
                         <span className="text-[13px] font-semibold tabular text-fg">{fmt(100 * (p.ensemble_prob ?? 0))}%</span>
@@ -159,25 +159,29 @@ function PatientList({ status, selected, onSelect }: { status: "flagged" | "diag
   );
 }
 
-/** Small "Latest blood test"-style tile (MedEx): label pill, value + unit, sparkline, status; opens a chart modal. */
+/** Small "Latest blood test"-style tile (MedEx): label pill, value + unit, status + sparkline; opens a chart modal. */
 function MeasureTile({ label, icon, value, unit, decimals = 1, status, statusLabel, spark, onPress }: {
   label: string; icon: React.ReactNode; value: number | null | undefined; unit?: string; decimals?: number; status?: StatusKind | null; statusLabel?: string;
   spark?: number[]; onPress?: () => void;
 }) {
-  const Tag = onPress ? motion.button : motion.div;
-  return (
-    <Tag type={onPress ? "button" : undefined} onClick={onPress} variants={itemEnter} whileHover={onPress ? { y: -2 } : undefined} aria-label={onPress ? `${label}: open chart` : undefined}
-         className={`text-left rounded-tile bg-surface-2 border border-border/70 p-3 min-w-0 flex flex-col gap-1.5 ${onPress ? "cursor-pointer hover:shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" : ""}`}>
-      <span className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft text-accent px-2 py-0.5 text-[11px] font-semibold">{icon}{label}</span>
-        {status && <StatusChip status={status} label={statusLabel} />}
-      </span>
-      <span className="flex items-baseline gap-1">
+  const body = (
+    <>
+      <span className="inline-flex self-start items-center gap-1 rounded-full bg-accent-soft text-accent px-2 py-0.5 text-[11px] font-semibold">{icon}{label}</span>
+      <span className="flex items-baseline gap-1 min-w-0">
         <span className="text-[22px] leading-7 font-semibold tabular text-fg">{value === null || value === undefined ? "—" : fmt(value, decimals)}</span>
-        {unit && <span className="text-micro text-fg-muted">{unit}</span>}
+        {unit && <span className="text-micro text-fg-muted truncate">{unit}</span>}
       </span>
-      {spark && spark.length > 1 ? <Sparkline values={spark} height={26} /> : <span className="h-[26px]" />}
-    </Tag>
+      <span className="flex items-center justify-between gap-2 min-h-[24px]">
+        {status ? <StatusChip status={status} label={statusLabel} /> : <span />}
+        {spark && spark.length > 1 && <span className="w-[64px] shrink-0"><Sparkline values={spark} height={22} /></span>}
+      </span>
+    </>
+  );
+  const cls = "text-left rounded-tile bg-surface-2 border border-border/70 p-3 min-w-0 flex flex-col gap-1.5";
+  if (!onPress) return <motion.div variants={itemEnter} className={cls}>{body}</motion.div>;
+  return (
+    <motion.button type="button" onClick={onPress} variants={itemEnter} whileHover={{ y: -2 }} aria-label={`${label}: open chart`}
+                   className={`${cls} cursor-pointer hover:shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}>{body}</motion.button>
   );
 }
 
@@ -253,12 +257,12 @@ function PatientPanel({ patientId }: { patientId: number }) {
       </GridItem>
       <GridItem span={{ md: 12, lg: 5 }}>
         <Card title="Alerts" icon={<BellRing size={16} />} iconTone="warning" info="Open alerts for this patient. Acknowledge, mark as referred, or dismiss with a reason; every action is logged."
-              actions={myAlerts.length ? <span className="text-micro text-fg-muted tabular">{myAlerts.length}</span> : undefined}>
+>
           {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} />}
         </Card>
       </GridItem>
 
-      <GridItem span={{ md: 12, lg: 8 }}>
+      <GridItem span={{ md: 12, lg: 7 }}>
         <Card title="Timeline" icon={<History size={16} />} info={{ about: "Last 3 years of visits, symptoms, diagnoses, labs, medicines, orders and endoscopy. Dashed rings mark events the models weighed most. Hover a dot for details." }}
               detail={{ title: "Haemoglobin and weight", icon: <Activity size={18} />, size: "3xl",
                         tabs: [{ key: "hb", label: "Haemoglobin", content: <MiniSeries title="Haemoglobin" unit="g/dL" points={hb} threshold={hbThr} height={300} /> },
@@ -267,14 +271,14 @@ function PatientPanel({ patientId }: { patientId: number }) {
           {tl.isLoading ? <Loading h={210} /> : <Timeline events={recent} />}
         </Card>
       </GridItem>
-      <GridItem span={{ md: 12, lg: 4 }}>
+      <GridItem span={{ md: 12, lg: 5 }}>
         <Card title="Latest measurements" icon={<FlaskConical size={16} />} iconTone="success" info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
           <motion.div className="grid grid-cols-2 gap-2" variants={stagger(0.05)} initial="hidden" animate="show">
             <MeasureTile label="Hb" icon={<Droplet size={11} aria-hidden />} value={hbLast} unit="g/dL" spark={hb.map((x) => x.value)}
                          status={hbLast === null ? null : hbLast < hbThr ? "critical" : "optimal"} statusLabel={hbLast !== null && hbLast < hbThr ? "Low" : "Normal"} onPress={() => openChart("hb")} />
             <MeasureTile label="Weight" icon={<Weight size={11} aria-hidden />} value={wLast} unit={wChange === null ? "kg" : `kg · ${signed(wChange, 1, "%")}`} spark={wt.map((x) => x.value)}
                          status={wChange === null ? null : wChange <= -5 ? "critical" : wChange <= -2 ? "suboptimal" : "optimal"} statusLabel={wChange !== null && wChange <= -5 ? "Loss" : undefined} onPress={() => openChart("weight")} />
-            <MeasureTile label="Abnormal labs" icon={<FlaskConical size={11} aria-hidden />} value={abnormalLabs} decimals={0} unit="in 3 y"
+            <MeasureTile label="Labs" icon={<FlaskConical size={11} aria-hidden />} value={abnormalLabs} decimals={0} unit="abnormal · 3 y"
                          status={abnormalLabs ? "suboptimal" : "optimal"} statusLabel={abnormalLabs ? "Review" : "None"} />
             <MeasureTile label="Visits" icon={<CalendarDays size={11} aria-hidden />} value={visits12} decimals={0} unit="in 12 mo"
                          status={visits12 >= 6 ? "suboptimal" : null} statusLabel="Frequent" />
