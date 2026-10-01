@@ -43,12 +43,13 @@ test("case analysis: 3D body renders, hover links panel and body, replay advance
   await page.getByRole("button", { name: "Play replay" }).click();
   const readout = page.getByLabel("Timeline replay").locator("[aria-live=polite]");
   const first = await readout.textContent();
-  await page.waitForTimeout(2500);
-  expect(await readout.textContent()).not.toBe(first);
+  // software WebGL can stall a frame for seconds on a loaded CI box; the playhead follows the wall clock, so poll
+  await expect.poll(async () => readout.textContent(), { timeout: 30_000 }).not.toBe(first);
   await page.getByRole("button", { name: "Pause replay" }).click();
+  await page.getByRole("button", { name: "Back to current state" }).click();
 
   // accessible fallback
   await page.getByRole("button", { name: "View as table" }).click();
-  await expect(page.getByRole("table")).toContainText("Stomach");
+  await expect(page.getByRole("table", { name: /Organ involvement/ })).toContainText("Stomach");
   expect(errors).toEqual([]);
 });
