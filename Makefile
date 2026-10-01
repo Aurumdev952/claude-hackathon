@@ -14,7 +14,7 @@ PY := PYTHONPATH=. uv run python
 SNAP := data/snapshots/latest
 MYSQL_CLI = mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_ROOT_PASSWORD)
 .PHONY: setup seed seed-full load snapshot restore bootstrap pipeline-once train up down up-docker down-docker demo \
-        reset-demo test test-insights test-fast e2e frontend api sim lint doctor reproduce reproduce-no-mysql verify serve
+        reset-demo test test-insights test-fast e2e frontend api sim lint generate doctor reproduce reproduce-no-mysql verify serve
 
 setup:                      ## toolchains + deps (run before the event, on good internet)
 	uv sync --all-extras
@@ -27,7 +27,7 @@ doctor:                     ## check this machine (tools, RAM, disk, MySQL) befo
 reproduce:                  ## everything from scratch: generate (scale 1.0) -> bootstrap -> train -> MySQL load -> verify (~1.5 h)
 	bash scripts/doctor.sh
 	@echo "== 1/5 generate synthetic EMR, scale $(SCALE) (~5 min on 4 cores)"
-	$(PY) -m generator --scale $(SCALE)
+	$(MAKE) generate
 	@echo "== 2/5 DuckDB bootstrap: staging, core, marts, publish (~5 min)"
 	$(MAKE) bootstrap
 	@echo "== 3/5 train the 3 model tiers, then score + publish (~25 min)"
@@ -39,7 +39,7 @@ reproduce:                  ## everything from scratch: generate (scale 1.0) -> 
 
 reproduce-no-mysql:         ## same, without MySQL (dashboard only, no live loop)
 	SKIP_MYSQL=1 bash scripts/doctor.sh
-	$(PY) -m generator --scale $(SCALE)
+	$(MAKE) generate
 	$(MAKE) bootstrap
 	$(MAKE) train
 	$(MAKE) verify
@@ -47,6 +47,9 @@ reproduce-no-mysql:         ## same, without MySQL (dashboard only, no live loop
 verify:                     ## published results vs the reference run (docs/reference_results.json), then all Python tests
 	$(PY) scripts/verify_results.py
 	PYTHONPATH=. uv run pytest -q
+
+generate:                   ## synthetic EMR at SCALE -> data/bulk (Parquet) + data/ground_truth.json, no MySQL
+	$(PY) -m generator --scale $(SCALE)
 
 seed:                       ## generate + load a dataset at SCALE (default 1.0; e.g. make seed SCALE=0.05 for quick dev)
 	$(PY) -m generator --scale $(SCALE)

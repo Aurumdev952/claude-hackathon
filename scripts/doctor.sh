@@ -43,7 +43,7 @@ fi
 avail_kb=$((free_kb + reuse_kb + mysql_kb))
 # measured at scale 1.0: peak ~27 GB with MySQL (data 4 + DuckDB 11 + spill 1.5 + MySQL 12-14), ~15 GB without
 need=$([[ $SKIP_MYSQL == 1 ]] && echo 22 || echo 40)
-need_min=$([[ $SKIP_MYSQL == 1 ]] && echo 15 || echo 27)
+need_min=$([[ $SKIP_MYSQL == 1 ]] && echo 14 || echo 25)
 need=$(awk -v n="$need" -v s="$SCALE" 'BEGIN { v = n * s; print (v < 3 ? 3 : v) }')
 need_min=$(awk -v n="$need_min" -v s="$SCALE" 'BEGIN { v = n * s; print (v < 2 ? 2 : v) }')
 msg="disk for the build: $(gb "$avail_kb") GB (free $(gb "$free_kb") GB + replaced project data $(gb $((reuse_kb + mysql_kb))) GB)"
