@@ -131,7 +131,7 @@ def _eradication_model(con) -> list[dict]:
         FROM lm l JOIN core_dim_patient p USING (patient_id)
         LEFT JOIN erad e USING (patient_id) LEFT JOIN im USING (patient_id) LEFT JOIN hot USING (patient_id)
         LEFT JOIN core_gc_case c USING (patient_id)
-        WHERE (c.dx_date IS NULL OR c.dx_date > l.landmark + INTERVAL 30 DAY)
+        WHERE (c.dx_date IS NULL OR c.dx_date > l.landmark + INTERVAL 30 DAY) AND l.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)
           AND (p.death_date IS NULL OR p.death_date > l.landmark) AND l.landmark < (SELECT max(dx_date) FROM core_gc_case)
     """).df()
     if d.empty:
@@ -157,6 +157,7 @@ def _hiv_negative_control(con) -> list[dict]:
         FROM core_gi_cohort g JOIN core_dim_patient p USING (patient_id) LEFT JOIN hiv h USING (patient_id)
         LEFT JOIN core_gc_case c USING (patient_id)
         WHERE date_diff('year', p.birthdate, g.entry_date) >= 18 AND (c.dx_date IS NULL OR c.dx_date > g.entry_date + INTERVAL 30 DAY)
+          AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)
     """).df()
     if d.empty:
         return []

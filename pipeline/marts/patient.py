@@ -29,12 +29,15 @@ def build_patient_tables(con, sim_time, log=print):
     CREATE OR REPLACE TABLE pt_patient AS
     SELECT g.patient_id, i.display_id, n.given_name, n.family_name, p.sex,
            date_diff('year', p.birthdate, DATE '{sim_time:%Y-%m-%d}') AS age, p.birthdate, p.district_code, p.province_code,
-           p.home_facility_id, g.entry_date, g.entry_reason, g.entry_facility_id, c.patient_id IS NOT NULL AS is_case, c.case_status,
-           c.dx_date, p.dead, p.death_date, p.last_encounter_date
+           p.home_facility_id, g.entry_date, g.entry_reason, g.entry_facility_id,
+           c.patient_id IS NOT NULL OR pv.patient_id IS NOT NULL AS is_case,   -- prevalent = known cancer diagnosed pre-EMR
+           coalesce(c.case_status, CASE WHEN pv.patient_id IS NOT NULL THEN 'PREVALENT' END) AS case_status,
+           coalesce(c.dx_date, pv.first_c16_date) AS dx_date, p.dead, p.death_date, p.last_encounter_date
     FROM core_gi_cohort g JOIN core_dim_patient p USING (patient_id)
     LEFT JOIN stg_identifier i ON i.person_id = g.patient_id
     LEFT JOIN stg_name n ON n.person_id = g.patient_id
-    LEFT JOIN core_gc_case c USING (patient_id)""")
+    LEFT JOIN core_gc_case c USING (patient_id)
+    LEFT JOIN core_gc_prevalent pv USING (patient_id)""")
     con.execute(f"""
     CREATE OR REPLACE TABLE pt_patient_facility AS
     SELECT DISTINCT patient_id, facility_id FROM (

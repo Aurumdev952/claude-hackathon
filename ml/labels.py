@@ -44,6 +44,7 @@ def build_landmarks(con, seed: int = 42) -> pd.DataFrame:
               AND date_diff('year', p.birthdate, CAST(d.L AS DATE)) >= 18
               AND (p.death_date IS NULL OR p.death_date > CAST(d.L AS DATE))
               AND (c.dx_date IS NULL OR c.dx_date > CAST(d.L AS DATE))
+              AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)   -- known (prevalent) cancer: neither a negative nor a target
         """).df()
         con.unregister("_lm_dates")
         df["label"] = df["label"].fillna(False).astype(bool)

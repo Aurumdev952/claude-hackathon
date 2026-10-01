@@ -21,7 +21,8 @@ def _matched_sets(con, n_controls: int, seed: int = 42) -> pd.DataFrame:
     pool = con.execute("""SELECT g.patient_id, g.entry_date, year(g.entry_date) AS ey, p.sex, p.birthdate, p.province_code,
                                  p.death_date, c.dx_date
                           FROM core_gi_cohort g JOIN core_dim_patient p USING (patient_id)
-                          LEFT JOIN core_gc_case c USING (patient_id)""").df()
+                          LEFT JOIN core_gc_case c USING (patient_id)
+                          WHERE g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)   -- known pre-EMR cancers are not cancer-free controls""").df()
     rng = np.random.default_rng(seed)
     pool["bd"] = pd.to_datetime(pool["birthdate"])
     pool["entry_date"] = pd.to_datetime(pool["entry_date"])
@@ -228,12 +229,14 @@ def _warning_summary(con, sets, subj, gi, hbsum, hbn):
         warnings.simplefilter("ignore")
         hbv = np.where(hbn > 0, hbsum / np.maximum(hbn, 1), np.nan)
         n_hb = (hbn[:, 12:24] > 0).sum(axis=1)
-        # decline = largest fall from an earlier value to a later one in the last 12 months (a rise is not a decline)
-        win = np.where(np.isnan(hbv[:, 12:24]), -np.inf, hbv[:, 12:24])
-        run_max = np.maximum.accumulate(win, axis=1)
-        later = np.where(np.isnan(hbv[:, 13:24]), np.inf, hbv[:, 13:24])
-        drop = np.max(run_max[:, :-1] - later, axis=1)
-        drop = np.where(np.isfinite(drop), drop, np.nan)
+        # decline over the last 12 months = first measured value - last measured value: a progressive fall counts,
+        # a transient dip that recovers (e.g. treated iron deficiency) or a rise does not
+        win = hbv[:, 12:24]
+        has = ~np.isnan(win)
+        first_i = np.where(has.any(axis=1), has.argmax(axis=1), 0)
+        last_i = np.where(has.any(axis=1), win.shape[1] - 1 - has[:, ::-1].argmax(axis=1), 0)
+        rows_ = np.arange(len(win))
+        drop = np.where(has.sum(axis=1) >= 2, win[rows_, first_i] - win[rows_, last_i], np.nan)
     ge3 = gi.sum(axis=1) >= 3
     hb_ok = n_hb >= 2
     missed = con.execute("""

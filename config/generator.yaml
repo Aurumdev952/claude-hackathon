@@ -61,7 +61,7 @@ insights:
          pre_access_terminal_dx: 0.5, pre_access_workup_dx: 0.6,   # D-24: 0.35/0.45/0.2 gave +185%
          pre_access_referral_completion: 0.3}   # without local endoscopy many cases die undiagnosed
   ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.55,   # D-23
-         suppress_days: [300, 450], anchor_after: 0.15}
+         suppress_days: [360, 540], anchor_after: 0.15}
   ins7: {enabled: true}
   ins8: {enabled: true, factor: hiv}
 quality_noise:
