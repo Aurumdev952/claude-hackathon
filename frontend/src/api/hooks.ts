@@ -8,9 +8,9 @@ import type { Insight, Kpis } from "./types";
 export const useKpis = (year?: number) => useQuery({ queryKey: ["kpis", year], queryFn: () => get<Kpis>(`/kpis${qs({ year })}`) });
 export const useStatus = () => useQuery({ queryKey: ["status"], queryFn: () => get<any>("/status"), refetchInterval: 15_000 });
 export const useFiltersMeta = () => useQuery({ queryKey: ["meta"], queryFn: () => get<any>("/meta/filters"), staleTime: Infinity });
-export const useInsights = (view: string) => {
+export const useInsights = (view: string, enabled = true) => {
   const role = useRole((s) => s.role);
-  return useQuery({ queryKey: ["kpis", "insights", view, role], queryFn: () => get<Insight[]>(`/insights?view=${view}`) });
+  return useQuery({ queryKey: ["kpis", "insights", view, role], queryFn: () => get<Insight[]>(`/insights?view=${view}`), enabled });
 };
 /** Insight cards are shown only when a real LLM provider is configured; template-mode cards stay hidden until then. */
 export const aiInsightCards = (env: Envelope<Insight[]> | undefined): Insight[] | null =>

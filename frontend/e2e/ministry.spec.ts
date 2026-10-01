@@ -49,11 +49,16 @@ test("ask: destructive request is refused safely", async ({ page }) => {
   await expect(page.getByText(/can't change or delete|couldn't answer that safely/i).first()).toBeVisible({ timeout: 30_000 });
 });
 
-test("insights: the AI insight rail is hidden until a real LLM provider is configured", async ({ page }) => {
+test("insights: the floating AI insights card is hidden until a real LLM provider is configured", async ({ page }) => {
   const res = await (await page.request.get(`${API}/insights?view=overview`, { headers: { "X-Role": "ministry" } })).json();
   await page.goto("/");
   await expect(page.getByRole("list", { name: "Headline indicators" }).getByRole("listitem").first()).toBeVisible();
-  const rail = page.getByRole("complementary", { name: "AI insights" });
-  if (res.provider === "template") await expect(rail).toHaveCount(0);
-  else await expect(rail).toBeVisible();
+  // v2 shell: the right-hand rail became a floating glass card (bottom-left) that opens the insights modal
+  const card = page.getByRole("complementary", { name: "AI insights" });
+  if (res.provider === "template") await expect(card).toHaveCount(0);
+  else {
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: "Review insights" }).click();
+    await expect(page.getByRole("dialog", { name: /AI insights/ })).toBeVisible();
+  }
 });

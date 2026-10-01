@@ -65,7 +65,7 @@ function LiveIndicator() {
           {!stale && !failed && <span className={`absolute inset-0 rounded-full ${dot} animate-ping2`} />}
           <span className={`relative w-2 h-2 rounded-full ${dot}`} />
         </span>
-        <span aria-live="polite">Updated {ago(published)}</span>
+        <span aria-live="polite" className="whitespace-nowrap">Updated {ago(published)}</span>
       </button>
     </Tooltip>
   );
@@ -92,7 +92,7 @@ function RoleMenu() {
   return (
     <Dropdown placement="bottom-end" classNames={{ content: "bg-surface border border-border shadow-float rounded-tile min-w-[260px]" }}>
       <DropdownTrigger>
-        <Button size="sm" radius="full" variant="flat" className="h-9 pl-1 pr-3 max-w-[300px] bg-surface border border-border shadow-tile text-fg data-[hover=true]:bg-surface-2"
+        <Button size="sm" radius="full" variant="flat" className="h-9 pl-1 pr-3 min-w-[120px] max-w-[280px] shrink-0 bg-surface border border-border shadow-tile text-fg data-[hover=true]:bg-surface-2"
                 startContent={<span className="w-7 h-7 rounded-full bg-accent-soft text-accent grid place-items-center shrink-0" aria-hidden>{role === "doctor" ? <Stethoscope size={14} /> : <Landmark size={14} />}</span>}
                 endContent={<ChevronDown size={14} className="text-fg-muted shrink-0" aria-hidden />}>
           <span className="truncate text-[13px] font-medium">{label}</span>
@@ -124,16 +124,16 @@ export function TopNav({ onCmd, onDq, extra }: { onCmd: () => void; onDq: () => 
   const setInsights = useInsightsUi((s) => s.setOpen);
   const n = cards.length;
   return (
-    <header className="h-16 shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
-      <div className="flex items-center gap-4 min-w-0">
+    <header className="h-16 shrink-0 flex items-center gap-4 px-5">
+      <div className="flex items-center gap-3 shrink-0">
         <Logo />
         <SyntheticNote />
       </div>
-      <nav aria-label="Primary" className="justify-self-center">
+      <nav aria-label="Primary" className="flex-1 min-w-0 flex justify-center">
         <PillTabs variant="navy" ariaLabel="Views" selectedKey={sel} size="md"
-                  items={items.map((i) => ({ key: i.to, href: i.to, label: i.label, icon: <i.icon size={14} aria-hidden /> }))} />
+                  items={items.map((i) => ({ key: i.to, href: i.to, label: i.label, icon: <i.icon size={14} className="hidden min-[1700px]:block" aria-hidden /> }))} />
       </nav>
-      <div className="flex items-center gap-2 justify-self-end">
+      <div className="flex items-center gap-2 shrink-0">
         <LiveIndicator />
         {extra}
         <Tooltip content={<span className="flex items-center gap-1.5 text-xs">Search <Kbd keys={["ctrl"]}>K</Kbd></span>} delay={300} placement="bottom">

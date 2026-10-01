@@ -9,7 +9,9 @@ export default defineConfig({
     proxy: {
       "/api": { target: process.env.VITE_API_URL ?? "http://127.0.0.1:8000", changeOrigin: true, ws: true },
       // AI agent (agent/, Hono): chat SSE stream, conversations, artifacts, and the MCP endpoint
-      "/agent": { target: process.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787", changeOrigin: true, proxyTimeout: 300_000, timeout: 300_000 },
+      // browser navigations (Accept: text/html) to /agent... are SPA routes, not API calls: let Vite serve index.html
+      "/agent": { target: process.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787", changeOrigin: true, proxyTimeout: 300_000, timeout: 300_000,
+        bypass: (req) => (req.headers.accept?.includes("text/html") ? "/index.html" : undefined) },
       "/mcp": { target: process.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787", changeOrigin: true, proxyTimeout: 300_000, timeout: 300_000 },
     },
   },

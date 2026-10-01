@@ -25,7 +25,7 @@ export function useRouteInsights(): { view: string | null; cards: Insight[]; pro
   const nav = activeNav(pathname);
   const enabled = !!nav && nav.role !== "doctor" && !pathname.startsWith("/doctor/case") && !["/agent", "/ask"].includes(nav.to);
   const view = enabled ? nav!.view : "overview";
-  const { data } = useInsights(view);
+  const { data } = useInsights(view, enabled);
   const cards = enabled ? aiInsightCards(data) ?? [] : [];
   return { view: enabled ? view : null, cards, provider: data?.provider ? String(data.provider) : null };
 }

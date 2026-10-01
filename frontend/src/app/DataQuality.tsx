@@ -41,7 +41,7 @@ export function DataQualityDrawer({ isOpen, onClose }: { isOpen: boolean; onClos
                 <div key={label}>
                   <div className="flex justify-between text-label mb-0.5"><span className="text-fg">{label}</span><span className="tabular font-semibold text-fg">{v === undefined ? "—" : `${fmt(v, 0)}%`}</span></div>
                   <GradientRangeBar value={v ?? null} min={0} max={100} reverse markers={[{ value: thr, label: `target ${thr}%` }]} format={(n) => `${fmt(n, 0)}%`}
-                                    label={`${label}, target ${thr}%`} minLabel="0%" maxLabel={`target ${thr}%`} height={6} />
+                                    label={`${label}, target ${thr}%`} showMinMax={false} height={6} />
                 </div>
               ))}
             </div>
