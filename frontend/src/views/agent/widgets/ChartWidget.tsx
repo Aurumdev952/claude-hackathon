@@ -100,7 +100,8 @@ function KpiTiles({ tiles, unit }: { tiles: KpiTile[]; unit?: string }) {
   return (
     <div className={`grid gap-3 ${cols}`}>
       {tiles.map((t) => {
-        const u = t.unit ?? unit;
+        // the chart-level unit only applies to tiles that are rates / plain numbers (not counts or percentages)
+        const u = t.unit ?? (t.format === "integer" || t.format === "percent" || t.format === "fraction_percent" ? undefined : unit);
         const fmt = (n: number) => fmtValue(n, t.format, u);
         const dir = t.delta === null || t.delta === undefined ? 0 : t.delta > 0 ? 1 : t.delta < 0 ? -1 : 0;
         const DeltaIcon = dir > 0 ? TrendingUp : dir < 0 ? TrendingDown : Minus;

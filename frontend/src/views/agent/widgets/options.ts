@@ -180,12 +180,16 @@ export function barOption(spec: Bar, S: string[], k: Ink) {
 export function forestOption(spec: Forest, S: string[], k: Ink) {
   const labels = spec.data.map((r) => xText(r[spec.labelKey]));
   const est = spec.data.map((r) => asNum(r[spec.estimateKey]));
-  const lo = spec.data.map((r) => asNum(r[spec.lciKey]));
-  const hi = spec.data.map((r) => asNum(r[spec.uciKey]));
-  const vals = [...est, ...lo, ...hi].filter((v): v is number => v !== null && (!spec.logScale || v > 0));
+  const lcis = spec.data.map((r) => asNum(r[spec.lciKey]));
+  const ucis = spec.data.map((r) => asNum(r[spec.uciKey]));
+  const vals = [...est, ...lcis, ...ucis].filter((v): v is number => v !== null && (!spec.logScale || v > 0));
   const ref = spec.reference;
-  const min = Math.min(...vals, ref ?? Infinity), max = Math.max(...vals, ref ?? -Infinity);
-  const pad = (max - min) * 0.08 || 1;
+  const lo = Math.min(...vals, ref ?? Infinity), hi = Math.max(...vals, ref ?? -Infinity);
+  // round the axis out to a "nice" step so the end labels read as normal ticks
+  const raw = (hi - lo) / 5 || 1;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw) ?? raw;
+  const min = Math.floor(lo / step) * step, max = Math.ceil(hi / step) * step;
   const c = S[0];
   return {
     ...base(),
@@ -199,12 +203,12 @@ export function forestOption(spec: Forest, S: string[], k: Ink) {
       },
     },
     xAxis: spec.logScale
-      ? { ...(base().yAxis as object), type: "log", logBase: 10, min: Math.max(min * 0.8, 1e-6), max: max * 1.2, axisLabel: { color: k.muted, formatter: (v: number) => fmtNumber(v) } }
-      : { ...(base().yAxis as object), type: "value", min: min - pad, max: max + pad, axisLabel: { color: k.muted, formatter: (v: number) => fmtNumber(v) } },
+      ? { ...(base().yAxis as object), type: "log", logBase: 10, min: Math.max(lo * 0.8, 1e-6), max: hi * 1.2, axisLabel: { color: k.muted, formatter: (v: number) => fmtNumber(v) } }
+      : { ...(base().yAxis as object), type: "value", min, max, interval: step, axisLabel: { color: k.muted, formatter: (v: number) => fmtNumber(v) } },
     yAxis: { ...(base().xAxis as object), type: "category", data: labels, inverse: true, axisLine: { show: false }, axisLabel: { color: k.secondary, fontSize: 11, width: 150, overflow: "truncate" } },
     series: [{
       type: "custom", name: colLabel(spec.estimateKey),
-      data: spec.data.map((_, j) => [j, est[j], lo[j], hi[j]]),
+      data: spec.data.map((_, j) => [j, est[j], lcis[j], ucis[j]]),
       encode: { x: [1, 2, 3], y: 0 },
       renderItem: (params: any, api: any) => {
         const j = api.value(0), e = api.value(1), l = api.value(2), u = api.value(3);

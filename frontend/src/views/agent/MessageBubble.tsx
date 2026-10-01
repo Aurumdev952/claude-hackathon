@@ -73,6 +73,8 @@ type Props = {
   /** Any request in flight (actions are disabled). */
   busy: boolean;
   isLast: boolean;
+  /** The last turn ended with an error (the thread shows the error card instead of the "interrupted" hint). */
+  errored?: boolean;
   animateIn: boolean;
   onEdit: (id: string, text: string) => void;
   onRewind: (id: string) => void;
@@ -132,7 +134,7 @@ function UserMessage({ message, busy, isLast, onEdit, onRewind }: Props) {
   );
 }
 
-function AssistantMessage({ message, role, streaming, busy, isLast, onRegenerate, onRewind }: Props) {
+function AssistantMessage({ message, role, streaming, busy, isLast, errored, onRegenerate, onRewind }: Props) {
   const blocks = useMemo(() => toBlocks(message, streaming), [message, streaming]);
   const text = messageText(message);
   const lastTextIdx = blocks.reduce((acc, b, i) => (b.kind === "text" ? i : acc), -1);
@@ -148,7 +150,7 @@ function AssistantMessage({ message, role, streaming, busy, isLast, onRegenerate
           return <div key={b.key} className="min-w-0">{b.node}</div>;
         })}
         {streaming && !empty && blocks[blocks.length - 1]?.kind === "widget" && <div className="h-5 flex items-center text-[13px] agent-shimmer font-medium">Writing</div>}
-        {!streaming && isLast && !blocks.some((b) => b.kind !== "steps") && (
+        {!streaming && isLast && !errored && !blocks.some((b) => b.kind !== "steps") && (
           <div className="flex items-center gap-2 text-label text-fg-muted">
             <span>The answer was interrupted.</span>
             <button type="button" onClick={() => onRegenerate(message.id)} disabled={busy}

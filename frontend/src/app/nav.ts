@@ -15,7 +15,7 @@ export type NavItem = {
   match?: readonly string[];
 };
 
-/** App navigation (plan §A3). `/agent` is the AI agent (Track B); until it lands it redirects to `/ask`. */
+/** App navigation (plan §A3). `/agent` is the AI agent chat (src/views/agent); `/ask` redirects to it. */
 export const NAV: readonly NavItem[] = [
   { to: "/", label: "Overview", title: "National overview", icon: Activity, view: "overview", role: "ministry" },
   { to: "/geo", label: "Geo", title: "Geo explorer", icon: Map, view: "geo", role: "ministry" },
