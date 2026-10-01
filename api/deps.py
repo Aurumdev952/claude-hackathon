@@ -107,18 +107,22 @@ def envelope(data, **extra) -> dict:
 
 
 class Role:
-    def __init__(self, role: str, facility_id: int | None):
+    def __init__(self, role: str, facility_id: int | None, patient_id: int | None = None):
         self.role = role
         self.facility_id = facility_id
+        self.patient_id = patient_id  # v3 patient role (docs/contracts/v3-loop.md §4.2)
 
 
-def role(x_role: str | None = Header(default="ministry"), x_facility_id: int | None = Header(default=None)) -> Role:
+def role(x_role: str | None = Header(default="ministry"), x_facility_id: int | None = Header(default=None),
+         x_patient_id: int | None = Header(default=None)) -> Role:
     r = (x_role or "ministry").lower()
-    if r not in ("ministry", "doctor"):
-        raise APIError(400, "INVALID_ROLE", "X-Role must be 'ministry' or 'doctor'")
+    if r not in ("ministry", "doctor", "patient"):
+        raise APIError(400, "INVALID_ROLE", "X-Role must be 'ministry', 'doctor' or 'patient'")
     if r == "doctor" and x_facility_id is None:
         raise APIError(400, "FACILITY_REQUIRED", "Doctor requests need an X-Facility-Id header")
-    return Role(r, x_facility_id)
+    if r == "patient" and x_patient_id is None:
+        raise APIError(400, "PATIENT_REQUIRED", "Patient requests need an X-Patient-Id header")
+    return Role(r, None if r == "patient" else x_facility_id, x_patient_id if r == "patient" else None)
 
 
 def ministry(r: Role) -> Role:
@@ -130,6 +134,13 @@ def ministry(r: Role) -> Role:
 def doctor(r: Role) -> Role:
     if r.role != "doctor":
         raise APIError(403, "FORBIDDEN", "Patient-level data is only available to the doctor role (SPEC §18)")
+    return r
+
+
+def patient(r: Role) -> Role:
+    """The patient app: every /me endpoint is scoped to X-Patient-Id (v3 contract §4.2)."""
+    if r.role != "patient":
+        raise APIError(403, "FORBIDDEN", "This endpoint is only available in the patient app")
     return r
 
 
