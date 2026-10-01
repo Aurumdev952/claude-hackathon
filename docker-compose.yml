@@ -1,0 +1,62 @@
+# SPEC §17.2. Native mode (Makefile `up`) is what the build container verifies; this file is the deployment layout.
+services:
+  mysql:
+    image: mysql:8.0
+    command: ["--local-infile=1", "--innodb-buffer-pool-size=4G", "--max-allowed-packet=256M",
+              "--innodb-flush-log-at-trx-commit=2"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: openmrs
+    volumes: ["mysql_data:/var/lib/mysql", "./data/bulk:/bulk:ro"]
+    ports: ["3306:3306"]
+    healthcheck: {test: ["CMD", "mysqladmin", "ping", "-h", "localhost"], interval: 10s, retries: 10}
+
+  generator:            # one-off: `docker compose run --rm generator --scale 1.0`
+    build: {context: ., dockerfile: docker/python.Dockerfile}
+    entrypoint: ["python", "-m", "generator", "--load-mysql"]
+    profiles: ["seed"]
+    env_file: .env
+    environment: {MYSQL_HOST: mysql}
+    volumes: ["./data:/data", "./config:/config:ro"]
+    depends_on: {mysql: {condition: service_healthy}}
+
+  simulator:
+    build: {context: ., dockerfile: docker/python.Dockerfile}
+    command: ["python", "-m", "simulator.tick"]
+    env_file: .env
+    environment: {MYSQL_HOST: mysql}
+    volumes: ["./data:/data", "./config:/config:ro"]
+    depends_on: {mysql: {condition: service_healthy}}
+
+  pipeline:
+    build: {context: ., dockerfile: docker/python.Dockerfile}
+    command: ["python", "-m", "pipeline.scheduler"]
+    env_file: .env
+    environment: {MYSQL_HOST: mysql}
+    volumes: ["./data:/data", "./config:/config:ro"]
+    depends_on: {mysql: {condition: service_healthy}}
+
+  api:
+    build: {context: ., dockerfile: docker/python.Dockerfile}
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    # analytics is mounted read-write only so app_state.sqlite (alert status, notes) can be written; serve DBs are opened read-only
+    volumes: ["./data/analytics:/data/analytics", "./data/reference:/data/reference:ro", "./data/sim_state:/data/sim_state:ro",
+              "./config:/config:ro"]
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-template}
+      OLLAMA_BASE_URL: http://ollama:11434
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on: [pipeline, ollama]
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes: ["ollama_models:/root/.ollama"]
+    ports: ["11434:11434"]
+
+  frontend:
+    build: {context: ., dockerfile: docker/frontend.Dockerfile}
+    ports: ["5173:80"]
+    depends_on: [api]
+
+volumes: {mysql_data: {}, ollama_models: {}}

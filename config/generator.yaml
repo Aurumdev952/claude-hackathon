@@ -11,6 +11,8 @@ population:
   chunk_size: 25000
   # routine acute OPD visits are thinned so scale 1.0 fits this container's disk (~50M obs); see D-17
   background_visit_factor: 0.5
+  # D-23: the INS-1b decoy and INS-5 districts are enlarged so their district-level findings rise above Poisson noise
+  district_weight_multiplier: {SOU-NYG: 2.5, WES-RUS: 2.0}
 facilities:
   go_live_start: 2015-01-01
   go_live_end: 2019-12-31
@@ -47,7 +49,7 @@ gastric_cancer:
   rr_male_young: 1.05
 insights:
   ins1: {enabled: true, districts: [WES-NYB, NOR-MUS, WES-RUT], hp_prev: 0.78,
-         smoked_food_prev: 0.55, high_salt_prev: 0.55, residual_rr: 1.4,
+         smoked_food_prev: 0.55, high_salt_prev: 0.55, residual_rr: 2.0,   # D-23: 1.4 gave 2.0x national ASR
          micro_cluster: {district: NOR-MUS, sector: auto, rr: 2.5}}
   ins1b: {enabled: true, district: SOU-NYG, age60plus_multiplier: 2.2}
   ins2: {enabled: true, age_lt: 50, start_year: 2019, annual_multiplier: 1.08,
@@ -57,7 +59,8 @@ insights:
   ins5: {enabled: true, district: WES-RUS, endoscopy_from: 2021-07-01,
          pre_access_terminal_dx: 0.35, pre_access_workup_dx: 0.45,
          pre_access_referral_completion: 0.2}   # without local endoscopy many cases die undiagnosed
-  ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.45}
+  ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.55,   # D-23
+         suppress_days: [300, 450], anchor_after: 0.15}
   ins7: {enabled: true}
   ins8: {enabled: true, factor: hiv}
 quality_noise:

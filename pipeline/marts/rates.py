@@ -100,6 +100,11 @@ def build_joinpoint(con, sim_time, log=print):
         a = np.array([x[1] if x[1] and x[1] > 0 else np.nan for x in r], float)
         v = np.array([x[2] if x[2] and x[2] > 0 else np.nan for x in r], float)
         sid = f"{'NATIONAL' if level == 'NATIONAL' else geo}|{sex}|{band}|{cd}"
+        # years with < 50% of facilities live (LOW_EMR_COVERAGE) rest on tiny person-time: they are shown (dashed)
+        # but not fitted, unless that would leave too few points for a trend
+        ok = np.array([x[6] is None for x in r])
+        if ok.sum() >= 6:
+            a, v = np.where(ok, a, np.nan), np.where(ok, v, np.nan)
         fit = fit_joinpoint(years, a, v)
         observed = [{"year": x[0], "asr": x[1], "lci": x[3], "uci": x[4], "cases": x[5], "coverage_flag": x[6]} for x in r]
         cur = con.execute("""SELECT asr, asr_lci, asr_uci, cases FROM mart_rates WHERE level = ? AND geo_code = ? AND sex = ?

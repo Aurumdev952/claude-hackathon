@@ -1,0 +1,264 @@
+"""Insight recovery (SPEC §19.3): the published marts must re-discover every planted insight in ground_truth.json.
+
+Runs against the currently published serve DB (read-only), so it checks exactly what the dashboard shows.
+Interpretations of the §19.3 table that the data size forces are recorded in docs/decisions.md (D-22, D-23).
+"""
+from __future__ import annotations
+
+import json
+import math
+
+import numpy as np
+import pytest
+
+from shared.config import ANALYTICS_DIR
+
+HOT_DEF = "CONFIRMED_PROBABLE"
+
+
+@pytest.fixture(scope="module")
+def serve():
+    import duckdb
+    cur = ANALYTICS_DIR / "current.json"
+    if not cur.exists():
+        pytest.skip("no published serve DB (run the pipeline)")
+    con = duckdb.connect(str(ANALYTICS_DIR / json.load(open(cur))["file"]), read_only=True)
+    yield con
+    con.close()
+
+
+@pytest.fixture(scope="module")
+def ins(ground_truth):
+    return ground_truth["insights"]
+
+
+def q(con, sql, params=None):
+    return con.execute(sql, params or []).fetchall()
+
+
+def district_rates(con, period="2019-2025"):
+    rows = q(con, """SELECT geo_code, asr, crude_rate, cases FROM mart_rates WHERE level = 'DISTRICT' AND sex = 'ALL'
+                     AND age_band = 'ALL' AND case_def = ? AND period = ?""", [HOT_DEF, period])
+    return {g: {"asr": a, "crude": c, "cases": n} for g, a, c, n in rows}
+
+
+def national_asr(con, period="2019-2025", band="ALL"):
+    return q(con, """SELECT asr FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL' AND age_band = ? AND case_def = ?
+                     AND period = ?""", [band, HOT_DEF, period])[0][0]
+
+
+# --------------------------------------------------------------------------------------------- INS-1 / INS-1b
+def test_ins1_hotspots(serve, ins):
+    gt = ins["INS-1"]
+    d = district_rates(serve)
+    nat = national_asr(serve)
+    top3 = sorted(d, key=lambda k: -d[k]["asr"])[:3]
+    assert set(top3) == set(gt["hotspot_districts"]), top3
+    ratios = [d[k]["asr"] / nat for k in gt["hotspot_districts"]]
+    lo, hi = gt["expected_asr_ratio"]
+    assert lo <= float(np.mean(ratios)) <= hi, ratios
+    hh = {r[0] for r in q(serve, "SELECT district_code FROM mart_spatial WHERE lisa_quadrant = 'HH' AND lisa_p < 0.05")}
+    assert len(hh & set(gt["hotspot_districts"])) >= 2, hh
+
+
+def test_ins1_micro_cluster(serve, ins, bulk_con):
+    """The planted sector inside NOR-MUS: recorded case rate clearly above the rest of the district (hexbin story)."""
+    mc = ins["INS-1"]["micro_cluster_sector"]
+    cases = [r[0] for r in q(serve, "SELECT patient_id FROM core_gc_case WHERE district_code = ?", [mc["district"]])]
+    bulk_con.execute("CREATE OR REPLACE TEMP TABLE _c AS SELECT unnest(?::BIGINT[]) AS person_id", [cases])
+    rows = bulk_con.execute("""
+        WITH a AS (SELECT person_id, any_value(address3) AS sector FROM person_address WHERE county_district = ? GROUP BY 1)
+        SELECT a.sector = ? AS micro, count(*) AS n, count(_c.person_id) AS k FROM a LEFT JOIN _c USING (person_id) GROUP BY 1
+    """, [_district_name(mc["district"]), mc["sector"]]).fetchall()
+    r = {m: k / n for m, n, k in rows}
+    assert True in r and r[True] >= 1.6 * r[False], r
+
+
+def _district_name(code):
+    from shared.geo import DISTRICTS
+    return DISTRICTS[code][1]
+
+
+def test_ins1b_decoy(serve, ins):
+    """Old population, not high risk: highest crude rate outside the (by design 2.3-3x) hotspots, ASR ~ national (D-23)."""
+    gt = ins["INS-1b"]
+    decoy = gt["decoy_district"]
+    d = district_rates(serve)
+    nat = national_asr(serve)
+    hot = set(ins["INS-1"]["hotspot_districts"])
+    by_crude = [k for k in sorted(d, key=lambda k: -d[k]["crude"]) if k not in hot]
+    assert by_crude.index(decoy) < 3, by_crude[:5]
+    lo, hi = gt["asr_ratio_to_national"]
+    assert lo <= d[decoy]["asr"] / nat <= hi, d[decoy]["asr"] / nat
+    # and the crude rate overstates it relative to the national crude/ASR ratio (the point of the toggle)
+    nat_crude = q(serve, """SELECT crude_rate FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL' AND age_band = 'ALL'
+                            AND case_def = ? AND period = '2019-2025'""", [HOT_DEF])[0][0]
+    assert d[decoy]["crude"] / d[decoy]["asr"] > 1.3 * nat_crude / nat
+
+
+# --------------------------------------------------------------------------------------------- INS-2
+def test_ins2_young_onset(serve, ins):
+    gt = ins["INS-2"]
+    segs = q(serve, """SELECT segment_no, start_year, end_year, apc, apc_lci, apc_uci FROM mart_joinpoint
+                       WHERE series_id = 'NATIONAL|ALL|<50|CONFIRMED_PROBABLE' ORDER BY segment_no""")
+    assert len(segs) >= 2, "no joinpoint found in the under-50 series"
+    jps = [s[1] for s in segs[1:]]
+    y0, y1 = gt["joinpoint_year_range"]
+    assert any(y0 <= j <= y1 for j in jps), jps
+    # the segment that starts at the in-range joinpoint carries the rise
+    seg = next(s for s in segs[1:] if y0 <= s[1] <= y1)
+    a0, a1 = gt["apc_post_range"]
+    assert a0 <= seg[3] <= a1 and seg[4] > 0, seg
+
+
+def test_ins2_older_bands_flat(serve):
+    """Age >= 50: AAPC compatible with -1..+3%/yr (CI overlaps the band)."""
+    for band in ("50-64", "65+"):
+        r = q(serve, """SELECT DISTINCT aapc_last10, aapc_lci, aapc_uci FROM mart_joinpoint
+                        WHERE series_id = ?""", [f"NATIONAL|ALL|{band}|CONFIRMED_PROBABLE"])[0]
+        assert r[1] <= 3.0 and r[2] >= -1.0, (band, r)
+
+
+# --------------------------------------------------------------------------------------------- INS-3
+def test_ins3_warning_signs(serve, ins):
+    gt = ins["INS-3"]
+    m = {k: (c, ctl) for k, c, ctl in q(serve, "SELECT metric, \"case\", control FROM mart_warning_summary")}
+    lo, hi = gt["pct_ge3_gi_visits_range"]
+    assert lo <= m["pct_ge3_gi_visits_24m"][0] <= hi, m["pct_ge3_gi_visits_24m"]
+    assert 5 <= m["pct_ge3_gi_visits_24m"][1] <= 15
+    lo, hi = gt["median_diag_interval_months_range"]
+    assert lo <= m["median_diag_interval_months"][0] <= hi, m["median_diag_interval_months"]
+
+
+def test_ins3_secondary_signals(serve):
+    """§9.5 secondary numbers: repeated PPI without endoscopy, alarm features not scoped, Hb decline vs controls."""
+    m = {k: (c, ctl) for k, c, ctl in q(serve, "SELECT metric, \"case\", control FROM mart_warning_summary")}
+    assert 45 <= m["pct_ge2_ppi_no_scope"][0] <= 55, m["pct_ge2_ppi_no_scope"]
+    assert 55 <= m["pct_alarm45_no_scope_90d_among_alarm"][0] <= 65, m["pct_alarm45_no_scope_90d_among_alarm"]
+    case, ctl = m["pct_hb_drop_ge1_5_12m"]
+    assert case >= 3 * ctl, (case, ctl)
+
+
+# --------------------------------------------------------------------------------------------- INS-4
+def test_ins4_testing(serve, ins):
+    gt = ins["INS-4"]
+    st = dict(q(serve, """SELECT first_gi_facility_tier, 100.0 * count(*) FILTER (WHERE stage_group = 'IV')
+                                 / count(*) FILTER (WHERE stage_group <> 'Unknown') FROM core_gc_case GROUP BY 1"""))
+    lo, hi = gt["stage4_low_tier_range"]
+    assert lo <= st["low"] <= hi, st
+    lo, hi = gt["stage4_high_tier_range"]
+    assert lo <= st["high"] <= hi, st
+    surv = {g: (s, p) for g, s, p in q(serve, """SELECT group_value, surv_1y, logrank_p FROM mart_survival_summary
+                                                WHERE group_var = 'facility_tier'""")}
+    assert surv["low"][1] < 0.01
+    assert 0.18 <= surv["low"][0] <= 0.26 and 0.35 <= surv["high"][0] <= 0.45, surv
+    hr = q(serve, "SELECT hr, lci, uci FROM mart_cox WHERE model_id = 'eradication_ins4' AND term = 'eradicated'")[0]
+    lo, hi = gt["eradication_hr_range"]
+    assert lo <= hr[0] <= hi and hr[2] < 1.0, hr
+
+
+def test_ins4_facility_testing_rates(serve):
+    """§9.6: HP testing among dyspepsia patients, by facility tier: low 3-8%, medium 15-25%, high 40-60%."""
+    r = dict(q(serve, """SELECT tier, 100.0 * sum(n_hp_tested) / sum(n_dyspepsia) FROM mart_facility_quality
+                         WHERE n_dyspepsia >= 10 GROUP BY 1"""))
+    assert 3 <= r["low"] <= 8 and 15 <= r["medium"] <= 25 and 40 <= r["high"] <= 60, r
+
+
+# --------------------------------------------------------------------------------------------- INS-5
+def test_ins5_access(serve, ins):
+    """Endoscopy unit opens mid-2021: diagnoses rise (2-year pooled windows, D-22) while true incidence stays flat."""
+    gt = ins["INS-5"]
+    dist = gt["district"]
+    by_year = dict(q(serve, "SELECT year(dx_date), count(*) FROM core_gc_case WHERE district_code = ? GROUP BY 1", [dist]))
+    before = by_year.get(2019, 0) + by_year.get(2020, 0)
+    after = by_year.get(2022, 0) + by_year.get(2023, 0)
+    lo, hi = gt["dx_increase_pct_range"]
+    inc = 100 * (after - before) / max(before, 1)
+    assert lo <= inc <= hi, (before, after, inc)
+    early = dict(q(serve, """SELECT year(dx_date) >= 2022, 100.0 * count(*) FILTER (WHERE stage_group IN ('I', 'II'))
+                             / count(*) FILTER (WHERE stage_group <> 'Unknown') FROM core_gc_case
+                             WHERE district_code = ? AND year(dx_date) BETWEEN 2018 AND 2025 GROUP BY 1""", [dist]))
+    assert early[True] > early[False], early
+
+
+def test_ins5_latent_incidence_flat(ins):
+    import duckdb
+    from shared.config import LATENT_DIR
+    p = LATENT_DIR / "gastric_cases.parquet"
+    if not p.exists():
+        pytest.skip("no latent cases")
+    con = duckdb.connect()
+    d0, d1 = (con.execute(f"""SELECT count(*) FROM read_parquet('{p.as_posix()}') WHERE district_code = ?
+                              AND onset_day BETWEEN ? AND ?""", [ins["INS-5"]["district"], a, b]).fetchone()[0]
+              for a, b in ((17532, 18262), (19358, 20088)))  # onsets 2018-2019 vs 2023-2024
+    assert abs(d1 - d0) <= max(0.25 * d0, 2 * math.sqrt(d0 + d1)), (d0, d1)
+
+
+# --------------------------------------------------------------------------------------------- INS-6
+def test_ins6_misattribution(serve, ins):
+    gt = ins["INS-6"]
+    med = dict(q(serve, """SELECT province_code IN (SELECT unnest(?::VARCHAR[])), median(diag_interval_days) / 30.44
+                           FROM core_gc_case WHERE diag_interval_days IS NOT NULL GROUP BY 1""", [gt["provinces"]]))
+    extra = med[True] - med[False]
+    lo, hi = gt["extra_delay_months_range"]
+    assert lo <= extra <= hi, med
+    share = q(serve, """SELECT avg(malaria_or_worm_attrib_12m::INT) FROM core_gc_case
+                        WHERE province_code IN (SELECT unnest(?::VARCHAR[]))""", [gt["provinces"]])[0][0]
+    assert 0.35 <= share <= 0.50, share
+
+
+# --------------------------------------------------------------------------------------------- INS-7
+def test_ins7_rollout(serve, ins):
+    """Crude counts rise 4-6x 2015->2019 from go-live alone; the person-time ASR (age >= 50) trend stays < 15% (D-22)."""
+    gt = ins["INS-7"]
+    c = dict(q(serve, """SELECT CAST(period AS INTEGER), cases FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL'
+                         AND age_band = 'ALL' AND case_def = ? AND period_type = 'YEAR'""", [HOT_DEF]))
+    lo, hi = gt["crude_count_ratio_2019_2015_range"]
+    assert lo <= c[2019] / c[2015] <= hi, (c[2015], c[2019])
+    for band in ("50-64", "65+"):
+        rows = q(serve, """SELECT CAST(period AS INTEGER), asr, asr_var FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL'
+                           AND age_band = ? AND case_def = ? AND period_type = 'YEAR' AND CAST(period AS INTEGER) BETWEEN 2015 AND 2019""",
+                   [band, HOT_DEF])
+        y = np.array([r[0] for r in rows], float)
+        lv = np.log([r[1] for r in rows])
+        w = np.array([r[1] ** 2 / r[2] for r in rows])  # 1 / var(log asr)
+        b = np.polyfit(y, lv, 1, w=np.sqrt(w))[0]
+        change = math.exp(4 * b) - 1
+        assert abs(change) < 0.15, (band, change)
+
+
+# --------------------------------------------------------------------------------------------- INS-8
+def test_ins8_negative_control(serve):
+    hr = q(serve, "SELECT hr, lci, uci FROM mart_cox WHERE model_id = 'hiv_negative_control' AND term = 'hiv'")[0]
+    assert hr[1] <= 1.0 <= hr[2], hr
+
+
+def test_ins8_shap_rank(serve):
+    if not q(serve, "SELECT count(*) FROM information_schema.tables WHERE table_name = 'ml_feature_importance'")[0][0]:
+        pytest.skip("models not trained")
+    rows = q(serve, """SELECT feature FROM ml_feature_importance WHERE model_id LIKE '%tier2%' OR model_id LIKE '%xgb%'
+                       ORDER BY mean_abs_shap DESC""")
+    feats = [r[0] for r in rows]
+    assert feats, "no tier-2 importances"
+    assert "hiv" not in feats[:30], feats.index("hiv")
+
+
+# --------------------------------------------------------------------------------------------- dedup
+def test_dedup():
+    """>= 85% of planted duplicate patients linked to their original; false-link rate < 0.5% of linked records."""
+    import duckdb
+    from shared.config import LATENT_DIR
+    log = LATENT_DIR / "noise_log.json"
+    if not log.exists():
+        pytest.skip("no noise log")
+    planted = {int(d): int(o) for o, d in json.load(open(log))["duplicates"]}
+    try:
+        con = duckdb.connect(str(ANALYTICS_DIR / "work.duckdb"), read_only=True)
+    except duckdb.IOException:
+        pytest.skip("work DB is locked by a running pipeline")
+    links = dict(con.execute("SELECT patient_id, master_patient_id FROM core_patient_link WHERE patient_id <> master_patient_id").fetchall())
+    con.close()
+    recall = sum(1 for d, o in planted.items() if links.get(d) == o or links.get(o) == d) / len(planted)
+    false = sum(1 for d, m in links.items() if planted.get(d) != m and planted.get(m) != d)
+    assert recall >= 0.85, recall
+    assert false / max(1, len(links)) < 0.005, (false, len(links))

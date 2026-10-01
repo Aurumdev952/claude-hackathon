@@ -21,6 +21,15 @@ def _pyramid(older_mult: float = 1.0) -> np.ndarray:
     return p / p.sum()
 
 
+def _district_weights(cfg: dict) -> dict[str, float]:
+    """Census population shares, optionally enlarged for insight districts (config population.district_weight_multiplier)."""
+    w = normalised_weights()
+    for k, m in (cfg["population"].get("district_weight_multiplier") or {}).items():
+        w[k] *= float(m)
+    s = sum(w.values())
+    return {k: v / s for k, v in w.items()}
+
+
 def build_population(cfg: dict, facs: list[dict], seed: int) -> dict[str, np.ndarray]:
     rng = np.random.default_rng(seed)
     scale = float(cfg["scale"])
@@ -28,7 +37,7 @@ def build_population(cfg: dict, facs: list[dict], seed: int) -> dict[str, np.nda
     ins = cfg["insights"]
 
     # --- district & age ------------------------------------------------------------------
-    w = normalised_weights()
+    w = _district_weights(cfg)
     dist_idx = rng.choice(len(DISTRICT_CODES), size=n0, p=[w[k] for k in DISTRICT_CODES])
     age2020 = np.empty(n0)
     decoy = DISTRICT_CODES.index(ins["ins1b"]["district"]) if ins["ins1b"]["enabled"] else -1

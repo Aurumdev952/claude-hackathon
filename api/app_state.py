@@ -11,9 +11,12 @@ from shared.config import ANALYTICS_DIR
 _LOCK = threading.Lock()
 
 
-def _con():
-    ANALYTICS_DIR.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(ANALYTICS_DIR / "app_state.sqlite", check_same_thread=False)
+def _con(path=None):
+    """path=None -> the app's state file; tests pass ':memory:' so they never touch real alert statuses or notes."""
+    if path is None:
+        ANALYTICS_DIR.mkdir(parents=True, exist_ok=True)
+        path = ANALYTICS_DIR / "app_state.sqlite"
+    c = sqlite3.connect(path, check_same_thread=False)
     c.execute("""CREATE TABLE IF NOT EXISTS alert_status (alert_id TEXT PRIMARY KEY, status TEXT, note TEXT, reason TEXT,
                  facility_id INTEGER, updated_at TEXT)""")
     c.execute("""CREATE TABLE IF NOT EXISTS case_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER, facility_id INTEGER,

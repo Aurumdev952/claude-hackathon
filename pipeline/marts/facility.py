@@ -14,10 +14,13 @@ def build_facility_quality(con, sim_time, log=print):
         WITH dysp AS (SELECT patient_id, location_id, min(dx_datetime) AS t FROM core_fact_diagnosis
                       WHERE concept_id IN (2010, 2012, 2013, 2014, 2015) AND dx_datetime >= TIMESTAMP '2019-01-01'
                       GROUP BY 1, 2),
-        hp AS (SELECT patient_id, datetime FROM core_fact_lab WHERE concept_id IN (3120, 3121, 3122)
-               UNION ALL SELECT patient_id, datetime FROM core_fact_order WHERE concept_id = 8001)
+        hp AS (SELECT patient_id, datetime, location_id FROM core_fact_lab WHERE concept_id IN (3120, 3121, 3122)
+               UNION ALL SELECT patient_id, datetime, location_id FROM core_fact_order WHERE concept_id = 8001)
+        -- a facility's practice indicator: tested AT that facility within 90 days (tests done elsewhere, e.g. at the
+        -- district hospital, say nothing about this facility's practice)
         SELECT d.location_id, count(DISTINCT d.patient_id) AS n_dyspepsia,
                count(DISTINCT d.patient_id) FILTER (WHERE EXISTS (SELECT 1 FROM hp WHERE hp.patient_id = d.patient_id
+                         AND hp.location_id = d.location_id
                          AND hp.datetime BETWEEN d.t - INTERVAL 1 DAY AND d.t + INTERVAL 90 DAY)) AS n_hp_tested
         FROM dysp d GROUP BY 1""").pl()
     out = con.execute("""

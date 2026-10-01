@@ -56,6 +56,9 @@ def run(log=print) -> dict:
     lm = build_landmarks(con)
     log(f"  landmarks: {len(lm):,} ({int(lm['label'].sum()):,} positive) by split {lm.groupby('split')['label'].agg(['size', 'sum']).to_dict()}")
     lm["L"] = pd.to_datetime(lm["L"]).astype("datetime64[ns]")
+    con.register("_lm_all", lm)
+    con.execute("CREATE OR REPLACE TABLE ml_landmarks AS SELECT * FROM _lm_all")   # kept for audits / leakage tests
+    con.unregister("_lm_all")
     feats = build_feature_table(con, lm, "ml_train_features")
     df = lm.merge(feats, on=["patient_id", "L"], how="inner")
     X = design_matrix(df)
