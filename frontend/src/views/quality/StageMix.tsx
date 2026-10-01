@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { DataTable } from "@/components/ui/Panel";
+import { DataTable } from "@/components/ui";
 import { fmt, int } from "@/lib/format";
 import { hexToRgb } from "@/lib/viz";
 import { Legend, pval, stageRamp, tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "./kit";
@@ -36,7 +36,7 @@ export function StageMix({ rows, includeUnknown }: { rows: StageTierRow[]; inclu
         trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: k.grid } },
         formatter: (ps: any[]) => {
           const t = tiers[ps[0].dataIndex];
-          return ttHead(`${TIER_LABEL[t]} · n = ${int(nOf(t))}`) + ps.map((p) => {
+          return ttHead(`${TIER_LABEL[t]}, n = ${int(nOf(t))}`) + ps.map((p) => {
             const r = rows.find((x) => x.facility_tier === t && x.stage_group === p.seriesName);
             return ttRow(p.color, `Stage ${p.seriesName}`, `${fmt(p.value, 1)}% (${int(r?.n ?? 0)})`, "dot");
           }).join("");
@@ -48,7 +48,7 @@ export function StageMix({ rows, includeUnknown }: { rows: StageTierRow[]; inclu
         axisLabel: { color: k.secondary, formatter: (t: string) => `{a|${TIER_LABEL[t]}}\n{b|n = ${int(nOf(t))}}`,
                      rich: { a: { color: k.primary, fontSize: 11, fontWeight: 600, lineHeight: 15 }, b: { color: k.muted, fontSize: 10 } } } }),
       series: stages.map((s) => ({
-        name: s, type: "bar", stack: "s", barWidth: 22,
+        name: s, type: "bar", stack: "s", barWidth: 16,
         data: tiers.map((t) => ({ value: val(t, s), itemStyle: { opacity: t === "unknown" ? 0.7 : 1 } })),
         itemStyle: { color: col[s], borderColor: k.surface, borderWidth: 2, borderRadius: 0 },
         label: { show: true, position: "inside", fontSize: 10, fontWeight: s === "IV" ? 700 : 500,
@@ -67,22 +67,27 @@ export function StageLegend({ includeUnknown }: { includeUnknown: boolean }) {
   return <Legend items={[...STAGES, ...(includeUnknown ? ["Unknown"] : [])].map((s) => ({ label: s === "Unknown" ? "Stage unknown" : `Stage ${s}`, color: col[s], shape: "square" as const }))} />;
 }
 
+/** χ² result as one muted line under the stage bars (the reading sentence lives in the detail modal via ChiSquareNote). */
+export function ChiSquareChips({ chi, rows }: { chi: ChiSquare; rows: StageTierRow[] }) {
+  const iv = (t: string) => rows.find((r) => r.facility_tier === t && r.stage_group === "IV")?.pct_known ?? null;
+  const lo = iv("low"), hi = iv("high");
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-3 text-label font-normal text-muted tabular">
+      {lo !== null && hi !== null && <span>Stage IV <span className="text-ink">{fmt(lo, 0)}%</span> at low-testing vs <span className="text-ink">{fmt(hi, 0)}%</span> at high-testing facilities</span>}
+      {chi ? <span title="Chi-square test, stage by tier (known stages)">χ² {fmt(chi.chi2, 1)}, df {chi.dof}, {pval(chi.p)}</span> : <span>χ² not available</span>}
+    </div>
+  );
+}
+
 export function ChiSquareNote({ chi, rows }: { chi: ChiSquare; rows: StageTierRow[] }) {
   const iv = (t: string) => rows.find((r) => r.facility_tier === t && r.stage_group === "IV")?.pct_known ?? null;
   const lo = iv("low"), hi = iv("high");
   return (
-    <div className="mt-2 rounded-lg border border-line/60 bg-ridge2/40 p-2.5 text-xs leading-relaxed">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-semibold">Chi-square test, stage × tier</span>
-        {chi ? <span className="tabular text-fog">χ² = {fmt(chi.chi2, 1)} · df = {chi.dof} · <b className="text-mist">{pval(chi.p)}</b></span>
-             : <span className="text-fog">not available</span>}
-      </div>
-      <p className="text-fog mt-1">
-        {lo !== null && hi !== null && <>Among cancers with a known stage, <b className="text-mist tabular">{fmt(lo, 0)}%</b> first seen at low-testing facilities were stage IV, versus <b className="text-mist tabular">{fmt(hi, 0)}%</b> at high-testing facilities. </>}
-        {chi && chi.p < 0.05 ? "The stage distribution differs by tier more than chance would explain." : chi ? "No clear difference by tier." : ""}
-        {" "}Patients with no prior GI visit are shown for completeness but excluded from the test.
-      </p>
-    </div>
+    <span>
+      {chi && <>Chi-square test, stage × tier: χ² = {fmt(chi.chi2, 1)}, df = {chi.dof}, {pval(chi.p)}. </>}
+      {lo !== null && hi !== null && <>Among cancers with a known stage, {fmt(lo, 0)}% first seen at low-testing facilities were stage IV, versus {fmt(hi, 0)}% at high-testing facilities. </>}
+      {chi && chi.p < 0.05 ? "The stage distribution differs by tier more than chance would explain." : chi ? "No clear difference by tier." : ""}
+    </span>
   );
 }
 

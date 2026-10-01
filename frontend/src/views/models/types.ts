@@ -17,8 +17,8 @@ export type Subgroup = { model_id: string; subgroup_var: string; subgroup_value:
 
 /** Model identity: colour slot follows the tier (entity), never its rank. Ensemble takes slot 4. */
 export const TIER_META: Record<number, { slot: number; name: string; short: string; blurb: string }> = {
-  1: { slot: 0, name: "Points score", short: "Points", blurb: "Transparent tally of warning signs — works on paper at any health centre." },
+  1: { slot: 0, name: "Points score", short: "Points", blurb: "Transparent tally of warning signs that works on paper at any health centre." },
   2: { slot: 1, name: "XGBoost", short: "XGBoost", blurb: "Gradient-boosted trees on ~80 engineered features, explained with SHAP." },
   3: { slot: 2, name: "Sequence model", short: "Sequence", blurb: "Recurrent network reading the patient's coded timeline event by event." },
-  0: { slot: 3, name: "Ensemble", short: "Ensemble", blurb: "Mean of XGBoost and sequence probabilities — drives the final risk band." },
+  0: { slot: 3, name: "Ensemble", short: "Ensemble", blurb: "Mean of XGBoost and sequence probabilities; it drives the final risk band." },
 };

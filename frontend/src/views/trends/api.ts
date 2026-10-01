@@ -98,6 +98,6 @@ export const SEX_LABEL: Record<Sex, string> = { ALL: "", M: "men", F: "women" };
 export function seriesLabel(s: Pick<SeriesSpec, "level" | "geo" | "sex" | "age">, names: Record<string, string>, short = false) {
   const geo = s.level === "NATIONAL" ? (short ? "RW" : "National") : names[s.geo] ?? s.geo;
   const parts = [geo, AGE_LABEL[s.age], SEX_LABEL[s.sex]].filter(Boolean);
-  if (short && s.level === "NATIONAL") return [AGE_LABEL[s.age], SEX_LABEL[s.sex]].filter(Boolean).join(" · ");
-  return parts.join(" · ");
+  if (short && s.level === "NATIONAL") return [AGE_LABEL[s.age], SEX_LABEL[s.sex]].filter(Boolean).join(", ");
+  return parts.join(", ");
 }

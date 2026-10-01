@@ -2,66 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Highland Watch (SPEC §16.1): volcanic slate, lake blue, tea green, sorghum gold, laterite red */
-:root, [data-theme="dark"] {
-  --basalt: 27 36 48;   /* #1B2430 app background */
-  --ridge: 39 51 63;    /* #27333F panels */
-  --ridge2: 48 62 76;
-  --line: 62 78 94;
-  --mist: 230 236 238;  /* #E6ECEE text */
-  --fog: 150 166 178;
-  --kivu: 62 124 168;   /* #3E7CA8 */
-  --tea: 110 159 120;   /* #6E9F78 */
-  --sorghum: 201 144 46;/* #C9902E */
-  --laterite: 176 74 54;/* #B04A36 */
-  color-scheme: dark;
-}
-[data-theme="light"] {
-  --basalt: 241 243 241; --ridge: 255 255 255; --ridge2: 236 240 240; --line: 210 218 222;
-  --mist: 27 36 48; --fog: 88 102 114; --kivu: 46 104 146; --tea: 77 128 90; --sorghum: 165 112 22; --laterite: 160 60 42;
+/* Early Signals design v3 ("Granger polish", scratchpad design-v3.md). Flat white cards on a cool grey page, one accent
+ * (signal orange) for attention only, sky blue for data, Urbanist for everything. Values are RGB triplets so Tailwind
+ * can apply alpha (`bg-signal/10`).
+ *
+ * Token            light      dark       role
+ * --page           #F1F2F6    #0E1014    app background (no glows)
+ * --surface        #FFFFFF    #16191F    cards (flat: no border, no shadow; 1px hairline edge in dark only)
+ * --tile           #F5F6F9    #1D2128    nested tiles, inputs, segmented-control tracks
+ * --hairline       #E8E9EF    #262A33    dividers inside cards, input edges
+ * --ink            #15171C    #F2F3F5    text, active nav pill, icons
+ * --muted          #6B7080    #8B909E    secondary text (plan #8B909E darkened in light for 4.5:1 on white and tile)
+ * --faint          #A3A8B5    #5A5F6B    non-text decoration (placeholder dots, empty tracks, chart grey)
+ * --signal         #F05A28    #FF6D3A    the one accent: marks, active dots, bars, focus ring, highlighted points
+ * --signal-strong  #D14516    #FF6D3A    solid fills that carry text (primary button, HIGH pill): 4.6:1 with --on-signal
+ * --on-signal      #FFFFFF    #15171C    text on --signal-strong
+ * --signal-text    #B83A12    #FF8A5C    signal-coloured text on white / signal-soft (AA)
+ * --signal-soft    #FDE9E1    #3A2219    MEDIUM pills, soft highlights
+ * --sky            #5AB4E5    #6CC0EC    data hue (charts, dot matrices, neutral progress)
+ * --sky-soft       #D9EEF9    #1C3240    CI bands, dot-matrix low level
+ * --success        #2E9E6A    #4CC28A    tone only (small dot / glyph), never a fill
+ * --warning        #D98A00    #F0A626    tone only
+ * --success-text   #1F7A52    #4CC28A    / --warning-text #9A6200 / #F0A626: legible status text
+ *
+ * Backward-compatible names (views written for v2 restyle immediately; prefer the new names in new code):
+ *   bg → page · surface-2 → tile · border → hairline · fg → ink · fg-muted → muted ·
+ *   accent → signal-strong (the signal step that passes AA as text on white and under white text) ·
+ *   accent-hover → signal-text · accent-soft → tile (v2 used it for icon tiles and selected rows; v3 = grey tile) ·
+ *   nav → ink · nav-fg → on-ink ·
+ *   danger / serious → signal · tone-danger / tone-serious → signal-text · tone-success → success-text ·
+ *   tone-warning → warning-text · glass → surface (the .glass class is now a flat overlay surface, no blur).
+ * Shadows: --shadow-card = none (cards are flat), --shadow-tile = none, --shadow-float = the one popover shadow. */
+:root, [data-theme="light"] {
+  --page: 241 242 246;          /* #F1F2F6 */
+  --surface: 255 255 255;       /* #FFFFFF */
+  --tile: 245 246 249;          /* #F5F6F9 */
+  --tile-hover: 236 237 242;    /* #ECEDF2 hover on tiles / clickable rows */
+  --hairline: 232 233 239;      /* #E8E9EF */
+  --ink: 21 23 28;              /* #15171C */
+  --on-ink: 255 255 255;
+  --muted: 107 112 128;         /* #6B7080 */
+  --faint: 163 168 181;         /* #A3A8B5 */
+  --signal: 240 90 40;          /* #F05A28 */
+  --signal-strong: 209 69 22;   /* #D14516 */
+  --on-signal: 255 255 255;
+  --signal-text: 184 58 18;     /* #B83A12 */
+  --signal-soft: 253 233 225;   /* #FDE9E1 */
+  --sky: 90 180 229;            /* #5AB4E5 */
+  --sky-soft: 217 238 249;      /* #D9EEF9 */
+  --success: 46 158 106;        /* #2E9E6A */
+  --warning: 217 138 0;         /* #D98A00 */
+  --success-text: 31 122 82;    /* #1F7A52 */
+  --warning-text: 154 98 0;     /* #9A6200 */
+
+  /* v2 names → v3 tokens */
+  --bg: var(--page);
+  --surface-2: var(--tile);
+  --border: var(--hairline);
+  --fg: var(--ink);
+  --fg-muted: var(--muted);
+  --accent: var(--signal-strong);
+  --accent-hover: var(--signal-text);
+  --accent-soft: var(--tile);
+  --nav: var(--ink);
+  --nav-fg: var(--on-ink);
+  --serious: var(--signal);
+  --danger: var(--signal);
+  --serious-text: var(--signal-text);
+  --danger-text: var(--signal-text);
+  --glass: var(--surface);
+
+  --shadow-card: none;
+  --shadow-tile: none;
+  --shadow-float: 0 16px 48px rgba(21, 23, 28, .12);
   color-scheme: light;
 }
+[data-theme="dark"], .dark {
+  --page: 14 16 20;             /* #0E1014 */
+  --surface: 22 25 31;          /* #16191F */
+  --tile: 29 33 40;             /* #1D2128 */
+  --tile-hover: 36 40 49;       /* #242831 */
+  --hairline: 38 42 51;         /* #262A33 */
+  --ink: 242 243 245;           /* #F2F3F5 */
+  --on-ink: 21 23 28;
+  --muted: 139 144 158;         /* #8B909E */
+  --faint: 90 95 107;           /* #5A5F6B */
+  --signal: 255 109 58;         /* #FF6D3A */
+  --signal-strong: 255 109 58;
+  --on-signal: 21 23 28;
+  --signal-text: 255 138 92;    /* #FF8A5C */
+  --signal-soft: 58 34 25;      /* #3A2219 */
+  --sky: 108 192 236;           /* #6CC0EC */
+  --sky-soft: 28 50 64;         /* #1C3240 */
+  --success: 76 194 138;        /* #4CC28A */
+  --warning: 240 166 38;        /* #F0A626 */
+  --success-text: 76 194 138;
+  --warning-text: 240 166 38;
+  --shadow-float: 0 16px 48px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
 html, body, #root { height: 100%; }
-body { @apply bg-basalt text-mist font-sans antialiased; font-feature-settings: "ss01"; }
+/* HeroUIProvider (react-aria OverlayProvider) adds a wrapper div: let it fill #root so the Shell can be full-height. */
+#root > div { height: 100%; }
+body { @apply bg-page text-ink font-sans antialiased; font-size: 14px; line-height: 20px; }
+/* Urbanist ships no tabular figures (only ccmp/frac): the class keeps the request for fonts that have them. */
 .tabular { font-variant-numeric: tabular-nums; }
-.panel { @apply bg-ridge/80 border border-line/60 rounded-xl shadow-panel; }
-.panel-title { @apply text-[11px] uppercase tracking-[0.14em] text-fog font-semibold; }
-.chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold; }
-.btn { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium border border-line/70 bg-ridge2/60 hover:bg-ridge2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-kivu; }
-.btn-primary { @apply bg-kivu/90 border-kivu text-white hover:bg-kivu; }
-.seg { @apply inline-flex rounded-lg border border-line/70 overflow-hidden; }
-.seg > button { @apply px-2.5 py-1 text-xs font-medium text-fog hover:text-mist; }
-.seg > button[aria-pressed="true"] { @apply bg-kivu/25 text-mist; }
-.terrain-bg {
-  background-image:
-    radial-gradient(1200px 500px at 85% -10%, rgb(var(--kivu) / 0.10), transparent 60%),
-    radial-gradient(900px 400px at -10% 110%, rgb(var(--laterite) / 0.07), transparent 60%),
-    repeating-linear-gradient(-14deg, rgb(var(--mist) / 0.018) 0 1px, transparent 1px 22px);
-}
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 8px; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+/* Horizontal scrollers on narrow screens (tab strips) without a visible bar. */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 
-/* Case Analysis 3D stage: always a dark "lightbox" (imaging viewers are dark in both themes) */
-.case-stage {
-  background:
-    radial-gradient(60% 55% at 50% 42%, #1d2b3a 0%, #121a24 55%, #0b1118 100%);
+/* Focus: one visible ring everywhere (2px signal, offset 2px). Components that draw their own ring keep it. */
+:focus-visible { outline: 2px solid rgb(var(--signal)); outline-offset: 2px; }
+
+/* App background: the plain page token (v2 glows removed). Kept as a class for older markup. */
+.page-bg { background-color: rgb(var(--page)); }
+/* Overlay surface for HUDs over 3D stages and maps: flat white with a hairline edge, no blur, no shadow.
+ * `.glass` is the v2 name and an alias (screen agents: prefer `overlay-surface`). */
+.overlay-surface, .glass {
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--hairline));
 }
-.case-stage::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 4px);
-}
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--muted) / 0.28); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+
+/* Case Analysis 3D stage: the dark "lightbox" variant (imaging viewers), plain, no scanlines. */
+.case-stage { background: #14171C; }
 .case-label {
   position: relative; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 6px;
-  background: rgb(11 17 24 / 0.82); border: 1px solid rgb(230 236 238 / 0.18); color: #e6ecee;
-  backdrop-filter: blur(4px); transition: border-color .2s, box-shadow .2s;
+  font-size: 12px; line-height: 1; padding: 6px 10px; border-radius: 999px;
+  background: rgb(20 23 28 / 0.9); border: 1px solid rgb(242 243 245 / 0.16); color: #F2F3F5;
+  transition: border-color .2s;
 }
-.case-label.is-strong { border-color: #f2a541; box-shadow: 0 0 0 1px rgb(242 165 65 / 0.35), 0 0 22px rgb(255 106 58 / 0.3); }
-.case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(230 236 238 / 0.45); }
-.hud { @apply rounded-lg border text-[11px]; background: rgb(11 17 24 / 0.72); border-color: rgb(230 236 238 / 0.14); color: #e6ecee; backdrop-filter: blur(6px); }
-.hud-btn { @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-kivu; color: #b4c0c8; }
-.hud-btn:hover { color: #e6ecee; background: rgb(230 236 238 / 0.08); }
-.hud-btn[aria-pressed="true"] { color: #e6ecee; background: rgb(62 124 168 / 0.38); }
+.case-label.is-strong { border-color: #FF6D3A; }
+.case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(242 243 245 / 0.45); }
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.28); } 22% { transform: scale(1.05); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } }
 .beat { animation: heartbeat var(--beat, 0.85s) ease-in-out infinite; transform-origin: center; }

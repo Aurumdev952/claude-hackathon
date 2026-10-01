@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { CornerDownRight } from "lucide-react";
-import { DataTable, ErrorNote, Loading, Panel, Seg } from "@/components/ui/Panel";
+import { Filter } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading, Seg } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
-import { alpha, usePalette } from "../trends/kit";
+import { Empty, usePalette } from "../trends/kit";
 import { FunnelRow, PROVINCES, useFunnel } from "./api";
 
 const STAGE_LABEL: Record<string, string> = {
@@ -25,22 +27,24 @@ export function CascadePanel() {
   const pal = usePalette();
   const rows = q.data?.data ?? [];
   const path = (p: "hp" | "endoscopy") => ORDER[p].map((s) => rows.find((r) => r.pathway === p && r.stage === s)).filter(Boolean) as FunnelRow[];
+  const method = "GI-flagged cohort (SPEC §8.7): adults with a qualifying dyspepsia/gastritis/PUD/anaemia encounter. Each step counts patients who ever reached it after cohort entry; % is relative to the previous step. A step can exceed 100% of the previous one when a later event is recorded without the earlier one (e.g. scoped without a recorded referral).";
   return (
-    <Panel
-      title="Care cascade · GI-flagged cohort"
-      subtitle="Everyone flagged with a GI complaint, followed down two pathways. Bar length is on one scale, so the drop-offs are literal."
-      method="GI-flagged cohort (SPEC §8.7): adults with a qualifying dyspepsia/gastritis/PUD/anaemia encounter. Each step counts patients who ever reached it after cohort entry; % is relative to the previous step. A step can exceed 100% of the previous one when a later event is recorded without the earlier one (e.g. scoped without a recorded referral)."
+    <Card
+      title="Care cascade" icon={<Filter size={16} />}
       actions={<Seg label="Province" value={prov} onChange={setProv} options={[{ value: "ALL", label: "Rwanda" }, ...Object.entries(PROVINCES).map(([k, v]) => ({ value: k, label: v }))]} />}
-      table={<DataTable columns={[{ key: "pathway", label: "Pathway", fmt: (v) => (v === "hp" ? "H. pylori" : "Endoscopy") }, { key: "stage", label: "Step", fmt: (v) => STAGE_LABEL[v] ?? v },
-        { key: "n", label: "Patients", num: true, fmt: int }, { key: "pct_of_prev", label: "% of previous", num: true, fmt: (v) => (v === null ? "—" : `${fmt(v, 1)}%`) }]} rows={rows} />}
+      detail={{ tabs: chartDetailTabs({ table: <DataTable columns={[{ key: "pathway", label: "Pathway", fmt: (v) => (v === "hp" ? "H. pylori" : "Endoscopy") }, { key: "stage", label: "Step", fmt: (v) => STAGE_LABEL[v] ?? v },
+        { key: "n", label: "Patients", num: true, fmt: int }, { key: "pct_of_prev", label: "% of previous", num: true, fmt: (v) => (v === null ? "—" : `${fmt(v, 1)}%`) }]} rows={rows} />,
+        method: <><p>Everyone flagged with a GI complaint, followed down two pathways. Bar length is on one scale, so the drop-offs are literal; the right-hand % is relative to the previous step.</p><p className="mt-2">{method}</p></> }), defaultTab: "table" }}
+      detailLabel="Care cascade: view as table"
     >
-      {q.error ? <ErrorNote error={q.error} /> : q.isLoading ? <Loading h={260} /> : !rows.length ? <div className="text-xs text-fog p-6">No cascade for this selection.</div> : (
-        <div className={`grid gap-6 grid-cols-1 lg:grid-cols-2 transition-opacity ${q.isFetching ? "opacity-60" : ""}`}>
+      <p className="text-label font-normal text-muted -mt-1 mb-5">Patients flagged with a GI complaint, followed down two pathways.</p>
+      {q.error ? <ErrorNote error={q.error} /> : q.isLoading ? <Loading h={260} /> : !rows.length ? <Empty h={200}>No cascade for this selection.</Empty> : (
+        <div className={`grid gap-8 grid-cols-1 lg:grid-cols-2 transition-opacity ${q.isFetching ? "opacity-60" : ""}`}>
           <Funnel title="Endoscopy pathway" steps={path("endoscopy")} color={pal.series[0]} />
-          <Funnel title="H. pylori pathway" steps={path("hp")} color={pal.series[1]} />
+          <Funnel title="H. pylori pathway" steps={path("hp")} color={pal.series[0]} />
         </div>
       )}
-    </Panel>
+    </Card>
   );
 }
 
@@ -49,10 +53,10 @@ function Funnel({ title, steps, color }: { title: string; steps: FunnelRow[]; co
   const last = steps[steps.length - 1];
   return (
     <div>
-      <div className="flex items-baseline gap-2 mb-2">
-        <span className="inline-block w-3 h-3 rounded-[3px]" style={{ background: color }} aria-hidden />
-        <h3 className="text-[13px] font-semibold">{title}</h3>
-        <span className="text-[11px] text-fog ml-auto tabular">{last ? `${fmt((100 * last.n) / n0, 1)}% of flagged reach "${STAGE_LABEL[last.stage].toLowerCase()}"` : ""}</span>
+      <div className="flex items-baseline gap-3 mb-3">
+        <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
+        {last && <span className="ml-auto text-label font-normal text-muted tabular" title={`${fmt((100 * last.n) / n0, 1)}% of flagged patients reach "${STAGE_LABEL[last.stage].toLowerCase()}"`}>
+          {fmt((100 * last.n) / n0, 1)}% reach {STAGE_LABEL[last.stage].toLowerCase()}</span>}
       </div>
       <ol className="flex flex-col">
         {steps.map((s, i) => {
@@ -62,29 +66,25 @@ function Funnel({ title, steps, color }: { title: string; steps: FunnelRow[]; co
           return (
             <li key={s.stage}>
               {prev && (
-                <div className="flex items-center gap-1.5 pl-[132px] h-[18px] text-[10.5px] text-fog tabular" aria-label={`${int(Math.max(0, lost))} ${DROP_LABEL[s.stage]}`}>
-                  <CornerDownRight size={11} className="shrink-0 opacity-70" aria-hidden />
+                <div className="flex items-center gap-1.5 pl-[136px] h-[20px] text-[12px] text-muted tabular" aria-label={`${int(Math.max(0, lost))} ${DROP_LABEL[s.stage]}`}>
+                  <CornerDownRight size={12} className="shrink-0 opacity-70" aria-hidden />
                   {lost >= 0
-                    ? <span><b className="text-mist font-semibold">{int(lost)}</b> {DROP_LABEL[s.stage]} <span className="opacity-80">({fmt((100 * lost) / prev.n, 0)}%)</span></span>
-                    : <span>+{int(-lost)} more than the previous step (recorded without it)</span>}
+                    ? <span><span className="text-ink">{int(lost)}</span> {DROP_LABEL[s.stage]} ({fmt((100 * lost) / prev.n, 0)}%)</span>
+                    : <span title="More than the previous step: recorded without it">+{int(-lost)} vs the previous step</span>}
                 </div>
               )}
-              <div className="group flex items-center gap-3 rounded-md hover:bg-ridge2/40 px-1 -mx-1" title={`${STAGE_LABEL[s.stage]}: ${int(s.n)} patients · ${fmt((100 * s.n) / n0, 1)}% of flagged${s.pct_of_prev !== null ? ` · ${fmt(s.pct_of_prev, 1)}% of previous step` : ""}`}>
-                <span className="w-[120px] shrink-0 text-[12px] text-fog group-hover:text-mist leading-tight">{STAGE_LABEL[s.stage]}</span>
-                <div className="flex-1 h-[22px] relative rounded-[4px] bg-ridge2/50">
-                  <div className="absolute left-0 top-0 bottom-0 rounded-r-[4px] transition-[width] duration-500" style={{ width: `${w}%`, background: i === 0 ? alpha(color, 0.55) : color }} />
-                  <span className="absolute top-1/2 -translate-y-1/2 text-[12px] font-semibold tabular whitespace-nowrap"
-                        style={w > 70 ? { right: `${100 - w}%`, marginRight: 8 } : { left: `${w}%`, marginLeft: 8 }}>
-                    {int(s.n)}
-                  </span>
+              <div className="group flex items-center gap-4 h-8 rounded-[10px] hover:bg-tile px-1 -mx-1" title={`${STAGE_LABEL[s.stage]}: ${int(s.n)} patients, ${fmt((100 * s.n) / n0, 1)}% of flagged${s.pct_of_prev !== null ? `, ${fmt(s.pct_of_prev, 1)}% of the previous step` : ""}`}>
+                <span className="w-[120px] shrink-0 text-[13px] text-muted group-hover:text-ink leading-tight">{STAGE_LABEL[s.stage]}</span>
+                <div className="flex-1 h-2 relative rounded-full bg-tile dark:bg-hairline">
+                  <div className="absolute left-0 top-0 bottom-0 rounded-full transition-[width] duration-700" style={{ width: `${w}%`, background: color, opacity: i === 0 ? 0.45 : 1 }} />
                 </div>
-                <span className="w-[54px] shrink-0 text-right text-[11.5px] tabular text-fog">{s.pct_of_prev === null ? "100%" : `${fmt(s.pct_of_prev, 0)}%`}</span>
+                <span className="w-[56px] shrink-0 text-right text-[14px] font-medium tabular text-ink">{int(s.n)}</span>
+                <span className="w-[44px] shrink-0 text-right text-[12px] tabular text-muted" title="% of the previous step">{s.pct_of_prev === null ? "100%" : `${fmt(s.pct_of_prev, 0)}%`}</span>
               </div>
             </li>
           );
         })}
       </ol>
-      <div className="flex justify-end text-[10px] text-fog mt-1 pr-0.5">% of previous step</div>
     </div>
   );
 }

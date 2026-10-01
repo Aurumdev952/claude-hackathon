@@ -26,6 +26,8 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
 
 ### Dashboard views
 
+The UI uses HeroUI + Framer Motion on a light, card-based design (dark mode toggle in the top bar). Explanations sit behind ⓘ icons and details open in modals, so the screens show charts, numbers and titles.
+
 1. **National Overview**: KPIs with deltas and sparklines, national trend with joinpoints, mini 3D map.
 2. **Geo Explorer**: extruded district map (ASR / crude / SIR / LISA / HP testing / stage IV), hexbins, facilities, referral arcs, time slider.
 3. **Trends Lab**: multi-series ASR with CIs, joinpoint table, 3D "rate landscape", crude vs ASR.
@@ -41,7 +43,7 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
      - X-ray mode, layer toggles, click-to-fly camera, two-way hover between the lists and the body;
      - a timeline **replay** that relights the body month by month;
      - a table fallback and reduced-motion support.
-8. **Ask the Data**: natural-language questions → validated read-only SQL → answer, chart, table, SQL.
+8. **Agent** (`/agent`): chat with the clinical assistant (doctor role) or the ministry analyst (ministry role). Answers stream with markdown, chart widgets, patient cards and sandbox plots; messages can be edited, rewound and regenerated. See [AI agent and MCP](#ai-agent-and-mcp).
 
 ## Quick start
 
@@ -125,6 +127,52 @@ What the build container measured on the final dataset:
 ### Offline demo (no backend)
 
 `VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
+
+## AI agent and MCP
+
+`agent/` is a Node service (Hono + Vercel AI SDK 7) with two agents: a **clinical assistant** for doctors (facility-scoped, patient widgets) and a **ministry analyst** for health officials (aggregates only, cells under 5 suppressed). Both read the published DuckDB marts read-only, answer with chart widgets by default, can run small Python plotting scripts in a sandbox, and keep chats in SQLite (edit, rewind, regenerate).
+
+```bash
+make agent-setup        # pnpm install + sandbox venv
+make agent-dev          # http://localhost:8787/agent/health ; the dashboard chat is at /agent
+make agent-test         # unit tests
+make eval-agent         # DeepEval readiness gate (needs OpenRouter credit)
+```
+
+Model: `AGENT_MODEL` (default `deepseek/deepseek-v4.1-flash` on OpenRouter, key in `OPENROUTER_API_KEY`). For a government-hosted model set `AGENT_PROVIDER=openai-compatible` and `AGENT_BASE_URL`.
+
+Connect your own agent through MCP (no auth in the demo):
+
+```bash
+claude mcp add --transport http early-signals http://localhost:8787/mcp -H "X-Role: ministry"
+claude mcp add --transport http early-signals-doctor http://localhost:8787/mcp -H "X-Role: doctor" -H "X-Facility-Id: 1215"
+```
+
+Details: [`agent/README.md`](agent/README.md), evals: [`evals/agent/README.md`](evals/agent/README.md).
+
+## Claude Code automations
+
+Project skills live in `.claude/skills/`. Repo notes for Claude are in [`CLAUDE.md`](CLAUDE.md). Both skills need published
+data (`make dev-data` builds a small MySQL-free dataset). They identify patients by display ID only.
+
+| Command (in Claude Code) | What it does |
+|---|---|
+| `/validate-risk 5` | Fetches the 5 newest HIGH-risk patients that have not been reviewed yet (`scripts/risk_validation.py cases`). Claude checks each flag against the record (alarm features, labs, H. pylori, endoscopy status, demographics) and appends a verdict (`agree / disagree / uncertain`, confidence, evidence, per-reason checks) to `reports/risk_validation.jsonl`. It then commits and pushes `reports/` |
+| `/loop 30m /validate-risk 5` | Repeats the review every 30 minutes for as long as the session is open. Once every HIGH case is reviewed, each run does nothing |
+| `/daily-report` | Builds `reports/daily/<today>.pdf`, a one-page A4 brief with KPIs, trend, alerts by trigger, the top 10 high-risk patients with Claude's verdicts, data quality and provenance. Adds 3-4 observations against the previous day, then commits and pushes |
+
+The **daily Routine** (07:00 Africa/Kigali) starts a fresh cloud session, runs `/daily-report` and pushes the PDF. A fresh
+session has no generated data, so the report renders from the committed `reports/snapshots/latest.json` and the
+validation log. The snapshot is refreshed whenever validations are appended or a report is built against live data.
+
+```bash
+make validate-cases N=5                                  # what /validate-risk sees, as JSON
+uv run python scripts/risk_validation.py summary         # agreement so far
+make report                                              # PDF for today (live data, or the snapshot)
+uv run python scripts/daily_report.py --from-snapshot --check
+```
+
+See [`reports/README.md`](reports/README.md) for the file formats.
 
 ## Data, privacy and licences
 

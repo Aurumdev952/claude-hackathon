@@ -1,0 +1,4 @@
+# latest.md is the human-readable summary of latest.json (both kept in git; timestamped runs are not)
+!latest.md
+!latest.json
+!.gitignore

@@ -29,8 +29,8 @@ export function Ranking({ rows, metric, spatial, national, selected, highlight, 
         const r = data[p.dataIndex ?? 0] ?? data.find((x) => x.name === p.name);
         if (!r) return "";
         const [lo, hi] = ci(r);
-        return `<b>${r.name}</b> · #${data.length - data.indexOf(r)} of ${data.length}<br/>${metric.short}: <b>${metric.format(numeric(r, key))}</b>${lo !== null ? ` <span style="color:${k.muted}">(${fmt(lo, metric.key === "sir" ? 2 : 1)}–${fmt(hi, metric.key === "sir" ? 2 : 1)})</span>` : ""}` +
-          `<br/>Cases: ${r.suppressed ? "<5" : int(r.cases)}${r.lisa_quadrant && r.lisa_quadrant !== "NS" ? `<br/>LISA: ${LISA_LABEL[r.lisa_quadrant]}` : ""}${r.coverage_flag ? "<br/>⚑ Low EMR coverage" : ""}`;
+        return `<b>${r.name}</b>, #${data.length - data.indexOf(r)} of ${data.length}<br/>${metric.short}: <b>${metric.format(numeric(r, key))}</b>${lo !== null ? ` <span style="color:${k.muted}">(${fmt(lo, metric.key === "sir" ? 2 : 1)}–${fmt(hi, metric.key === "sir" ? 2 : 1)})</span>` : ""}` +
+          `<br/>Cases: ${r.suppressed ? "<5" : int(r.cases)}${r.lisa_quadrant && r.lisa_quadrant !== "NS" ? `<br/>LISA: ${LISA_LABEL[r.lisa_quadrant]}` : ""}${r.coverage_flag ? "<br/>Low EMR coverage" : ""}`;
       },
     } as any,
     xAxis: { ...(b.xAxis as object), type: "value", min: 0, axisLabel: { color: k.muted }, splitLine: { show: true, lineStyle: { color: k.grid } },
