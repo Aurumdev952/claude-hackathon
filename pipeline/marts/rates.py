@@ -142,25 +142,29 @@ def build_spatial(con, sim_time, log=print):
     cases = np.array([by[c][2] for c in codes], float)
     popn = np.array([by[c][3] for c in codes], float)
     eb = eb_smooth(cases, popn) * 1e5
-    sp = analyse(codes, val)
     # SIR: expected from national age-sex-specific rates over the pooled period
     years = list(range(FIRST_YEAR, N.shape[3] + FIRST_YEAR))
     yi = [years.index(y) for y in range(2019, last_full + 1)]
     Cn = C["CONFIRMED_PROBABLE"][:, :, :, yi]
     Nn = N[:, :, :, yi]
     nat_rate = np.divide(Cn.sum(axis=(0, 3)), Nn.sum(axis=(0, 3)), out=np.zeros((2, 18)), where=Nn.sum(axis=(0, 3)) > 0)
+    expd = np.array([float((nat_rate * Nn[i].sum(axis=2)).sum()) for i in range(len(codes))])
+    obsd = np.array([float(Cn[i].sum()) for i in range(len(codes))])
+    # SPEC §12.5: clustering runs on age-adjusted, empirical-Bayes-smoothed rates (EB-smoothed SIR, exposure = expected),
+    # so small districts' Poisson noise does not mask or fake clusters
+    eb_sir = eb_smooth(obsd, np.maximum(expd, 1e-9))
+    sp = analyse(codes, eb_sir)
     rows = []
     for i, c in enumerate(codes):
-        exp = float((nat_rate * Nn[i].sum(axis=2)).sum())
-        obs = float(Cn[i].sum())
+        exp, obs = float(expd[i]), float(obsd[i])
         sir, lo, hi = sir_ci(obs, exp)
         rows.append({"district_code": c, "period": period, "asr": float(val[i]), "crude_rate": by[c][4], "cases": int(obs),
-                     "eb_smoothed_rate": float(eb[i]), "expected": exp, "sir": sir, "sir_lci": lo, "sir_uci": hi,
+                     "eb_smoothed_rate": float(eb[i]), "eb_sir": float(eb_sir[i]), "expected": exp, "sir": sir, "sir_lci": lo, "sir_uci": hi,
                      "lisa_quadrant": sp["lisa_quadrant"][i], "lisa_quadrant_fdr": sp["lisa_quadrant_fdr"][i],
                      "lisa_p": sp["lisa_p"][i], "lisa_q_fdr": sp["lisa_q_fdr"][i], "gi_star_z": sp["gi_star_z"][i],
                      "global_morans_i": sp["global_morans_i"], "global_p": sp["global_p"]})
     rows.append({"district_code": "RW", "period": period, "asr": None, "crude_rate": None, "cases": int(cases.sum()),
-                 "eb_smoothed_rate": None, "expected": None, "sir": 1.0, "sir_lci": None, "sir_uci": None, "lisa_quadrant": None,
+                 "eb_smoothed_rate": None, "eb_sir": 1.0, "expected": None, "sir": 1.0, "sir_lci": None, "sir_uci": None, "lisa_quadrant": None,
                  "lisa_quadrant_fdr": None, "lisa_p": None, "lisa_q_fdr": None, "gi_star_z": None,
                  "global_morans_i": sp["global_morans_i"], "global_p": sp["global_p"]})
     df = pl.DataFrame(rows, infer_schema_length=None)

@@ -79,18 +79,26 @@ def _district_name(code):
     return DISTRICTS[code][1]
 
 
+def _belt(hot):
+    from shared.config import REF_DIR
+    adj = json.load(open(REF_DIR / "district_adjacency.json"))["adjacency"]
+    return set(hot) | {n for k in hot for n in adj[k]}
+
+
 def test_ins1b_decoy(serve, ins):
-    """Old population, not high risk: highest crude rate outside the (by design 2.3-3x) hotspots, ASR ~ national (D-23)."""
+    """Old population, not high risk (D-23/D-24): among districts with no extra risk (outside the hotspot belt) the decoy
+    has a top-3 crude rate, its ASR is within the spec's +-15% of that group's typical ASR, and its crude rate
+    overstates its ASR far more than nationally."""
     gt = ins["INS-1b"]
     decoy = gt["decoy_district"]
     d = district_rates(serve)
-    nat = national_asr(serve)
-    hot = set(ins["INS-1"]["hotspot_districts"])
-    by_crude = [k for k in sorted(d, key=lambda k: -d[k]["crude"]) if k not in hot]
-    assert by_crude.index(decoy) < 3, by_crude[:5]
+    plain = [k for k in d if k not in _belt(ins["INS-1"]["hotspot_districts"])]
+    by_crude = sorted(plain, key=lambda k: -d[k]["crude"])
+    assert by_crude.index(decoy) < 3, [(k, round(d[k]["crude"], 1)) for k in by_crude[:5]]
+    ref = float(np.median([d[k]["asr"] for k in plain if k != decoy]))
     lo, hi = gt["asr_ratio_to_national"]
-    assert lo <= d[decoy]["asr"] / nat <= hi, d[decoy]["asr"] / nat
-    # and the crude rate overstates it relative to the national crude/ASR ratio (the point of the toggle)
+    assert lo <= d[decoy]["asr"] / ref <= hi, (d[decoy]["asr"], ref)
+    nat = national_asr(serve)
     nat_crude = q(serve, """SELECT crude_rate FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL' AND age_band = 'ALL'
                             AND case_def = ? AND period = '2019-2025'""", [HOT_DEF])[0][0]
     assert d[decoy]["crude"] / d[decoy]["asr"] > 1.3 * nat_crude / nat

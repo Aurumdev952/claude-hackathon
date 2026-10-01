@@ -11,7 +11,7 @@ from scipy.stats import mannwhitneyu
 
 from .common import to_table
 
-MONTHS = list(range(-24, 1))
+MONTHS = list(range(-24, 0))   # events are strictly before the index date
 
 
 def _matched_sets(con, n_controls: int, seed: int = 42) -> pd.DataFrame:
@@ -74,7 +74,7 @@ def _subject_months(con, sets: pd.DataFrame) -> pd.DataFrame:
     """
     ev = con.execute(q).df()
     con.unregister("_sets")
-    ev = ev[(ev["m"] >= -24) & (ev["m"] <= 0)]
+    ev = ev[(ev["m"] >= -24) & (ev["m"] <= -1)]
     return ev
 
 
@@ -227,11 +227,11 @@ def _warning_summary(con, sets, subj, gi, hbsum, hbn):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         hbv = np.where(hbn > 0, hbsum / np.maximum(hbn, 1), np.nan)
-        n_hb = (hbn[:, 12:25] > 0).sum(axis=1)
+        n_hb = (hbn[:, 12:24] > 0).sum(axis=1)
         # decline = largest fall from an earlier value to a later one in the last 12 months (a rise is not a decline)
-        win = np.where(np.isnan(hbv[:, 12:25]), -np.inf, hbv[:, 12:25])
+        win = np.where(np.isnan(hbv[:, 12:24]), -np.inf, hbv[:, 12:24])
         run_max = np.maximum.accumulate(win, axis=1)
-        later = np.where(np.isnan(hbv[:, 13:25]), np.inf, hbv[:, 13:25])
+        later = np.where(np.isnan(hbv[:, 13:24]), np.inf, hbv[:, 13:24])
         drop = np.max(run_max[:, :-1] - later, axis=1)
         drop = np.where(np.isfinite(drop), drop, np.nan)
     ge3 = gi.sum(axis=1) >= 3

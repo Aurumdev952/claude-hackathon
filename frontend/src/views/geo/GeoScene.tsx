@@ -46,7 +46,7 @@ function fitView(w: number, h: number, mini: boolean): MapViewState {
   const vp = new WebMercatorViewport({ width: Math.max(w, 200), height: Math.max(h, 200) });
   const pad = mini ? { top: 10, bottom: 10, left: 6, right: 6 } : { top: 90, bottom: 96, left: Math.min(250, w * 0.2), right: 24 };
   const { longitude, latitude, zoom } = vp.fitBounds(BOUNDS, { padding: pad });
-  return { longitude: longitude + 0.03, latitude: latitude - (mini ? 0.12 : 0.2), zoom: zoom + (mini ? 0.12 : 0.12), pitch: mini ? 46 : 48, bearing: mini ? -14 : -12 };
+  return { longitude: longitude + 0.03, latitude: latitude - (mini ? 0.12 : 0.2), zoom: zoom + (mini ? -0.02 : 0.12), pitch: mini ? 46 : 48, bearing: mini ? -14 : -12 };
 }
 
 function ringOf(geom: any): [number, number][] {
@@ -235,7 +235,9 @@ export function GeoScene(p: SceneProps) {
     }));
   }
 
+  const miniHover = useRef<string | null>(null);
   const onHover = (info: PickingInfo) => {
+    if (mini) { miniHover.current = (info.object as any)?.properties?.district_code ?? null; return; }
     if (!p.onHover) return;
     const o: any = info.object;
     if (!o) return p.onHover(null);
@@ -248,7 +250,7 @@ export function GeoScene(p: SceneProps) {
   };
 
   return (
-    <div ref={box} className="absolute inset-0">
+    <div ref={box} className="absolute inset-0" onClick={mini ? () => p.onSelect?.(miniHover.current) : undefined}>
       {size && vs && (
         <DeckGL
           views={new MapView({ repeat: false })}
@@ -258,10 +260,9 @@ export function GeoScene(p: SceneProps) {
           layers={layers}
           effects={[lighting]}
           onHover={onHover}
-          onClick={(info: PickingInfo) => {
+          onClick={mini ? undefined : (info: PickingInfo) => {
             const o: any = info.object;
             if (o && info.layer?.id === "districts") p.onSelect?.(o.properties.district_code);
-            else if (mini) p.onSelect?.(null);
           }}
           getCursor={({ isHovering, isDragging }) => (isDragging ? "grabbing" : isHovering || mini ? "pointer" : "grab")}
           useDevicePixels={mini ? 1 : true}

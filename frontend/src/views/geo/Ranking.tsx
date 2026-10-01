@@ -21,7 +21,8 @@ export function Ranking({ rows, metric, spatial, national, selected, highlight, 
   const b = base();
   const opt: EChartsOption = {
     ...b,
-    grid: { left: 92, right: 56, top: 22, bottom: 26 },
+    grid: { left: 92, right: 56, top: 22, bottom: 40 },
+    legend: { ...(b.legend as object), show: metric.key !== "lisa_quadrant", data: [{ name: "95% CI", icon: "path://M0,2h12v2h-12z" }, { name: metric.short, icon: "circle" }] } as any,
     tooltip: {
       ...(b.tooltip as object), trigger: "item",
       formatter: (p: any) => {
@@ -33,7 +34,7 @@ export function Ranking({ rows, metric, spatial, national, selected, highlight, 
       },
     } as any,
     xAxis: { ...(b.xAxis as object), type: "value", min: 0, axisLabel: { color: k.muted }, splitLine: { show: true, lineStyle: { color: k.grid } },
-      name: metric.unit, nameLocation: "middle", nameGap: 22, nameTextStyle: { color: k.muted, fontSize: 10 } } as any,
+      name: metric.unit, nameLocation: "middle", nameGap: 24, nameTextStyle: { color: k.muted, fontSize: 10 } } as any,
     yAxis: { ...(b.yAxis as object), type: "category", data: data.map((r) => r.name), axisLabel: {
       color: k.secondary, fontSize: 11,
       formatter: (v: string) => { const r = data.find((x) => x.name === v); return r?.geo_code === selected ? `{s|${v}}` : r?.geo_code === highlight ? `{h|${v}}` : v; },
@@ -49,16 +50,16 @@ export function Ranking({ rows, metric, spatial, national, selected, highlight, 
           return { type: "line", shape: { x1: a[0], y1: a[1], x2: c[0], y2: c[1] }, style: { stroke: k.axis, lineWidth: 1.5 } };
         },
         data: data.map((r, i) => { const [lo, hi] = ci(r); return [lo ?? NaN, hi ?? NaN, i]; }),
-        encode: { x: [0, 1], y: 2 }, z: 1,
+        encode: { x: [0, 1], y: 2 }, z: 1, itemStyle: { color: k.axis },
       } as any,
       {
-        type: "scatter", name: metric.short, data: data.map((r, i) => ({ value: [numeric(r, key), i], name: r.name, itemStyle: { color: dot(r), borderColor: k.surface, borderWidth: 1.5, opacity: r.coverage_flag ? 0.45 : 1 } })),
+        type: "scatter", name: metric.short, itemStyle: { color: S[0] }, data: data.map((r, i) => ({ value: [numeric(r, key), i], name: r.name, itemStyle: { color: dot(r), borderColor: k.surface, borderWidth: 1.5, opacity: r.coverage_flag ? 0.45 : 1 } })),
         symbolSize: (_: any, p: any) => (data[p.dataIndex]?.geo_code === selected ? 11 : 8), z: 3,
         markLine: ref !== null ? { silent: true, symbol: "none", lineStyle: { color: k.muted, type: "solid", width: 1 },
           label: { formatter: metric.key === "sir" ? "1.0 = national" : `national ${fmt(ref)}`, color: k.muted, fontSize: 10, position: "end" }, data: [{ xAxis: ref }] } : undefined,
       } as any,
     ],
   };
-  return <EChart option={opt} height={Math.max(260, data.length * 17 + 56)} ariaLabel={`District ranking by ${metric.label}`}
+  return <EChart option={opt} height={Math.max(270, data.length * 17 + 70)} ariaLabel={`District ranking by ${metric.label}`}
                  onEvents={{ click: (e: any) => { const r = data.find((x) => x.name === e.name) ?? data[e.dataIndex]; if (r) onSelect(r.geo_code); } }} />;
 }

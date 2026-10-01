@@ -61,9 +61,18 @@ def rates(level: str = "NATIONAL", geo_code: str | None = None, sex: str = "ALL"
 
 def _suppress(x: dict) -> dict:
     """Small cells (< 5 cases) are suppressed for the ministry role (SPEC §18)."""
-    if x.get("suppressed"):
-        return {**x, "cases": None, "cases_label": "<5"}
+    if x.get("suppressed"):  # rates/CIs of a < 5 cell would let the count be back-calculated
+        return {**x, "cases": None, "cases_label": "<5", "crude_rate": None, "asr": None, "asr_lci": None, "asr_uci": None}
     return x
+
+
+def _suppress_observed(points: list[dict]) -> list[dict]:
+    out = []
+    for o in points or []:
+        if o.get("cases") is not None and o["cases"] < 5:
+            o = {**o, "cases": None, "cases_label": "<5", "asr": None, "lci": None, "uci": None}
+        out.append(o)
+    return out
 
 
 @router.get("/rates/map")
@@ -116,7 +125,7 @@ def joinpoint(series_id: str = "NATIONAL|ALL|ALL|CONFIRMED_PROBABLE", r: Role = 
     f = rows[0]
     segs = [{k: x[k] for k in ("segment_no", "start_year", "end_year", "apc", "apc_lci", "apc_uci", "significant")} for x in rows
             if x["segment_no"]]
-    return envelope({"series_id": series_id, "observed": parse_json(f["observed_json"]), "fitted": parse_json(f["fitted_json"]),
+    return envelope({"series_id": series_id, "observed": _suppress_observed(parse_json(f["observed_json"])), "fitted": parse_json(f["fitted_json"]),
                      "segments": segs, "aapc_last10": {"value": f["aapc_last10"], "lci": f["aapc_lci"], "uci": f["aapc_uci"]},
                      "n_joinpoints": f["n_joinpoints"], "events": parse_json(f["events_json"])})
 
@@ -237,3 +246,16 @@ def journey(r: Role = Depends(m)):
     rows = SERVE.rows("SELECT case_index, month_before, kind, is_abnormal, stage_group FROM mart_journey_events") \
         if SERVE.has_table("mart_journey_events") else []
     return envelope(rows)
+
+
+@router.get("/referrals/flows")
+def referral_flows(year_from: int | None = None, year_to: int | None = None, r: Role = Depends(m)):
+    """First GI facility -> diagnosing facility flows (cells < 5 suppressed)."""
+    if not SERVE.has_table("mart_referral_flows"):
+        return envelope([])
+    q, p = "SELECT from_id, to_id, sum(n) AS n FROM mart_referral_flows WHERE 1 = 1", []
+    if year_from:
+        q += " AND year >= ?"; p.append(year_from)
+    if year_to:
+        q += " AND year <= ?"; p.append(year_to)
+    return envelope([x for x in SERVE.rows(q + " GROUP BY 1, 2 ORDER BY 3 DESC", p) if x["n"] >= 5])

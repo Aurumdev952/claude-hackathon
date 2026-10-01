@@ -50,3 +50,11 @@ def build_facility_quality(con, sim_time, log=print):
     by_tier = df.filter(pl.col("n_dyspepsia") >= 10).group_by("tier").agg(
         (pl.col("n_hp_tested").sum() / pl.col("n_dyspepsia").sum() * 100).round(1).alias("rate"))
     log(f"    HP testing rate by tier: {dict(by_tier.iter_rows())} (overall {100 * p0:.1f}%)")
+
+
+def build_referral_flows(con, sim_time, log=print):
+    """mart_referral_flows: where cancers first presented with GI complaints vs where they were diagnosed."""
+    con.execute("""CREATE OR REPLACE TABLE mart_referral_flows AS
+        SELECT first_gi_facility_id AS from_id, diag_facility_id AS to_id, year(dx_date) AS year, count(*) AS n
+        FROM core_gc_case WHERE first_gi_facility_id IS NOT NULL AND diag_facility_id IS NOT NULL
+          AND first_gi_facility_id <> diag_facility_id GROUP BY ALL""")

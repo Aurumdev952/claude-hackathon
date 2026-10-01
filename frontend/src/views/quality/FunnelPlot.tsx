@@ -79,6 +79,7 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
         };
       }),
       itemStyle: { color: S[i], borderColor: k.surface, borderWidth: 1 },
+      labelLayout: { hideOverlap: true, moveOverlap: "shiftY" },
       emphasis: { scale: 1.6, itemStyle: { opacity: 1 } },
     }));
     const sel = pts.find((p) => p.location_id === selected);
@@ -118,7 +119,6 @@ export function FunnelPlot({ rows, tierMode, selected, onSelect, height = 430 }:
                    backgroundColor: k.surface, padding: [2, 4], borderRadius: 3 },
           itemStyle: { color: "transparent", borderColor: k.primary, borderWidth: 2 } }] : []),
       ],
-      labelLayout: { hideOverlap: true },
     } as any;
   }, [rows, tierMode, selected, S, k, mode]);
   const onEvents = useMemo(() => ({ click: (e: any) => { if (e?.data?.id) onSelect(e.data.id); } }), [onSelect]);

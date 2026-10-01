@@ -103,6 +103,12 @@ def build_population(cfg: dict, facs: list[dict], seed: int) -> dict[str, np.nda
 
     # --- latent risk factors ---------------------------------------------------------------
     hot = np.isin(dist_idx, [DISTRICT_CODES.index(k) for k in ins["ins1"]["districts"]]) if ins["ins1"]["enabled"] else np.zeros(n, bool)
+    # D-24: exposure fades out across the highland belt - districts bordering a hotspot carry a smaller residual RR
+    near_codes = set()
+    if ins["ins1"]["enabled"] and ins["ins1"].get("spillover_rr"):
+        adj = json.load(open(REF_DIR / "district_adjacency.json"))["adjacency"]
+        near_codes = {n for k in ins["ins1"]["districts"] for n in adj[k]} - set(ins["ins1"]["districts"])
+    near_hot = np.isin(dist_idx, [DISTRICT_CODES.index(k) for k in near_codes])
     kgl = np.array([DISTRICTS[DISTRICT_CODES[i]][0] == "KGL" for i in range(len(DISTRICT_CODES))])[dist_idx]
     water = rng.choice([7060, 7061, 7062], size=n, p=[0.35, 0.45, 0.20])
     water[kgl] = rng.choice([7060, 7061, 7062], size=kgl.sum(), p=[0.75, 0.2, 0.05])
@@ -172,7 +178,7 @@ def build_population(cfg: dict, facs: list[dict], seed: int) -> dict[str, np.nda
         "alcohol_heavy": alcohol_heavy, "salt": salt, "smoked": smoked, "family_hx": fam, "nsaid": nsaid,
         "atrophy_day": atrophy_day, "hiv": hiv, "hiv_dx": hiv_dx, "htn": htn, "htn_dx": htn_dx, "dm": dm, "dm_dx": dm_dx,
         "water": water.astype(np.int16), "fuel": fuel.astype(np.int16), "occupation": occupation.astype(np.int16),
-        "fruit_veg": fruit_veg, "hb_base": hb_base, "height": height, "bmi": bmi, "hot": hot,
+        "fruit_veg": fruit_veg, "hb_base": hb_base, "height": height, "bmi": bmi, "hot": hot, "near_hot": near_hot,
         "micro": sector_idx == micro_sector, "move_day": move_day, "district2_idx": dist2.astype(np.int16),
         "sector2_idx": sector2, "home2": home2, "household": inv.astype(np.int64),
         "_micro_sector_name": np.array([sectors[micro_sector]["sector"]]),

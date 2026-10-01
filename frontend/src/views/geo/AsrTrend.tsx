@@ -35,8 +35,6 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
     return [o.year, near ? clip(o.asr) : null];
   });
   const offScale = rows.filter((o) => (o.asr ?? 0) > yMax);
-  const lo = rows.map((o) => [o.year, clip(o.lci) ?? clip(o.asr)]);
-  const band = rows.map((o) => [o.year, Math.max(0, (clip(o.uci) ?? 0) - (clip(o.lci) ?? 0))]);
   const fit = (fitted ?? []).filter((f) => f.year >= x0 && f.year <= x1);
   const jps = (segments ?? []).slice(1).map((s) => s.start_year);
   const ev = events.filter((e) => e.x >= x0 - 0.5 && e.x <= x1 + 0.5);
@@ -75,8 +73,23 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
       },
     } as any,
     series: ([
-      { name: "ci-base", type: "line", data: lo, stack: "ci", symbol: "none", lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
-      { name: L.ci, type: "line", data: band, stack: "ci", symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: S[0], opacity: m === "dark" ? 0.17 : 0.13 }, silent: true, itemStyle: { color: S[0] } },
+      {
+        // CI band as polygons (one per contiguous run of years with a CI), clipped at the axis top.
+        name: L.ci, type: "custom", silent: true, z: 1, itemStyle: { color: S[0] }, tooltip: { show: false },
+        data: rows.map((o) => [o.year, clip(o.lci) ?? NaN, clip(o.uci) ?? NaN]),
+        encode: { x: 0, y: [1, 2] },
+        renderItem: (params: any, api: any) => {
+          if (params.dataIndex !== 0) return null;
+          const runs: Obs[][] = [];
+          let cur: Obs[] = [];
+          rows.forEach((o) => { if (o.lci !== null && o.uci !== null) cur.push(o); else if (cur.length) { runs.push(cur); cur = []; } });
+          if (cur.length) runs.push(cur);
+          return { type: "group", children: runs.map((run) => ({
+            type: "polygon", shape: { points: [...run.map((o) => api.coord([o.year, clip(o.uci)])), ...run.slice().reverse().map((o) => api.coord([o.year, clip(o.lci)]))] },
+            style: { fill: S[0], opacity: m === "dark" ? 0.2 : 0.14 },
+          })) };
+        },
+      },
       { name: L.obs, type: "line", data: solid, connectNulls: false, symbol: "circle", symbolSize: compact ? 4 : 5, showSymbol: true, lineStyle: { width: 2, color: S[0] }, itemStyle: { color: S[0] }, z: 5 },
       { name: L.flag, type: "line", data: dashed, connectNulls: false, symbol: "emptyCircle", symbolSize: compact ? 5 : 6,
         lineStyle: { width: 1.6, type: [4, 4], color: S[0], opacity: 0.85 }, itemStyle: { color: S[0], borderColor: S[0] }, z: 4 },
@@ -96,7 +109,7 @@ export function AsrTrend({ obs, fitted, segments, events = [], emrSpan, emrLabel
       ...(emrSpan ? [{
         name: "emr", type: "line" as const, data: [], silent: true,
         markArea: { silent: true, itemStyle: { color: m === "dark" ? "rgba(230,236,238,0.045)" : "rgba(27,36,48,0.05)" },
-          label: { show: true, position: "insideTopLeft" as const, color: k.muted, fontSize: 10, formatter: emrLabel ?? (compact ? "EMR roll-out" : "EMR roll-out · crude counts inflated") },
+          label: { show: !compact || !offScale.length, position: "insideTopLeft" as const, color: k.muted, fontSize: 10, formatter: emrLabel ?? (compact ? "EMR roll-out" : "EMR roll-out · crude counts inflated") },
           data: [[{ xAxis: Math.max(emrSpan[0], x0 - 0.4) }, { xAxis: Math.min(emrSpan[1], x1 + 0.4) }]] as any },
       }] : []),
     ] as any),

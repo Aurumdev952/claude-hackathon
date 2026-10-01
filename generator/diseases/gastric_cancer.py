@@ -30,15 +30,15 @@ STAGE_CODE = {"I": 7190, "II": 7191, "III": 7192, "IV": 7193}
 LOC_CODE = {"cardia": 7120, "body": 7121, "antrum": 7122, "diffuse": 7123}
 LOC_DX = {"cardia": 2001, "body": 2002, "antrum": 2003, "diffuse": 2000}
 LAUREN_CODE = {"intestinal": 7140, "diffuse": 7141, "mixed": 7142}
-SURV_MEDIAN_M = {"I": 60, "II": 20, "III": 10, "IV": 4.5}   # D-06: tuned so 1-y survival hits §8.8/INS-4 targets
+SURV_MEDIAN_M = {"I": 60, "II": 16, "III": 8, "IV": 4.0}   # D-06: tuned so 1-y survival hits §8.8/INS-4 targets
 SURV_SHAPE = 1.5
 # INS-4 facility practice: patients who first present at low-testing-tier facilities reach curative care less often
-TIER_CURATIVE = {"low": 0.5, "medium": 0.85, "high": 1.0}
+TIER_CURATIVE = {"low": 0.4, "medium": 0.8, "high": 0.9}
 TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
-CANCER_REFER_MULT = {"low": 0.45, "medium": 0.75, "high": 0.85}
+CANCER_REFER_MULT = {"low": 0.55, "medium": 0.9, "high": 1.0}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -74,8 +74,10 @@ def hazard_matrix(P: dict, idx: np.ndarray, cfg: dict, h_mult: float) -> tuple[n
     base_rr *= np.where(P["family_hx"][idx], rr["family_hx"], 1.0)
     base_rr *= np.where(P["hiv"][idx], rr["hiv"], 1.0)
     if ins["ins1"]["enabled"]:
-        dist_rr = np.where(P["hot"][idx], ins["ins1"]["residual_rr"], 1.0)
-        dist_rr = np.where(P["micro"][idx], ins["ins1"]["micro_cluster"]["rr"], dist_rr)
+        dist_rr = np.where(P["hot"][idx], ins["ins1"]["residual_rr"],
+                           np.where(P["near_hot"][idx], ins["ins1"].get("spillover_rr", 1.0), 1.0))
+        # micro-cluster: SPEC RR 2.5 vs the district residual 1.4, i.e. x1.79 on top of the district (D-24)
+        dist_rr = np.where(P["micro"][idx], dist_rr * ins["ins1"]["micro_cluster"]["rr"] / 1.4, dist_rr)
         base_rr *= dist_rr
     H = np.zeros((len(idx), len(YEARS)))
     rrhp_young = gc.get("rr_hp_young", 1.85)
@@ -192,9 +194,9 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     cs.durs = [rnd.gammavariate(2.0, m / 2.0) * speed for m in sm]
     cs.clinical_only = rnd.random() < gc["pct_clinical_only"]
     cs.ramp = rnd.random() < 0.70
-    cs.ppi_repeat = rnd.random() < 0.47
+    cs.ppi_repeat = rnd.random() < 0.40
     cs.alarm_late = rnd.random() < 0.55
-    cs.hb_drop = rnd.random() < 0.60
+    cs.hb_drop = rnd.random() < 0.70
     cs.wt_loss = rnd.random() < 0.45
     cs.dx_day = None
     cs.status = "UNDIAGNOSED"
@@ -219,7 +221,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     untreated_death = iv_start + int(rnd.expovariate(1 / gc.get("untreated_iv_survival_months", 5.0)) * 30.44)
     horizon = min(p.death, untreated_death, SIM_END)
     if cs.hb_drop:  # occult blood loss starts before symptoms (D-06)
-        p.hb_decline = (cs.symptom_start - int(rnd.uniform(2, 8) * 30.44), rnd.uniform(0.12, 0.28))
+        p.hb_decline = (cs.symptom_start - int(rnd.uniform(3, 9) * 30.44), rnd.uniform(0.18, 0.38))
     if cs.wt_loss:
         p.wt_loss = (max(cs.symptom_start, cs.stage_start("III") - 60), rnd.uniform(0.5, 1.5))
 
@@ -309,7 +311,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
         if day < suppress_until or misattributed:
             p_ref = 0.0
         elif alarms and age >= 45:
-            p_ref = TIER_REFER[tier] * (0.3 + 0.7 * anchor)
+            p_ref = TIER_REFER[tier] * 0.7 * (0.3 + 0.7 * anchor)
         elif alarms:
             p_ref = TIER_REFER[tier] * 0.45 * (0.3 + 0.7 * anchor)
         elif anaemic_seen and age >= 40:
@@ -321,7 +323,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             if ctx.district_endoscopy(dcode, day):
                 p_ref = min(0.6, p_ref * 1.5)  # on-site endoscopy lowers the bar for referring dyspepsia early (INS-5)
         p_ref *= CANCER_REFER_MULT[tier]
-        if stage == "IV":
+        if stage == "IV" and day >= suppress_until:  # a malaria/worm label also masks late disease for a while (INS-6)
             p_ref = min(0.95, p_ref + 0.15)
         if ctx.district_endoscopy(dcode, day):
             p_ref = min(0.95, p_ref * 1.25)
@@ -358,7 +360,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
                 cs.refused += 1
         # ---- next visit
         tau = (day - cs.symptom_start) / 30.44
-        lam = (0.42 + 0.68 * min(1.0, tau / 9)) if cs.ramp else 0.42
+        lam = (0.36 + 0.6 * min(1.0, tau / 9)) if cs.ramp else 0.36
         if stage == "IV":
             lam *= 1.5
         day += max(7, int(rnd.expovariate(lam) * 30.44))
