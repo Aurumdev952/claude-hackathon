@@ -1,0 +1,45 @@
+# Semantic layer for NL->SQL (SPEC §15.2). Ministry: mart_* and ml_* tables. Doctor: + pt_* filtered to own facility.
+tables:
+  mart_rates:
+    description: "Gastric cancer incidence per 100,000 person-years by geography, period, sex and age band."
+    grain: "one row per (level, geo_code, period, period_type, sex, age_band, case_def)"
+    columns:
+      level: "NATIONAL | PROVINCE | DISTRICT"
+      geo_code: "RW for national; province codes KGL NOR SOU EAS WES; district codes like NOR-MUS"
+      period: "'2024' for single years (period_type YEAR) or '2023-2025' for 3-year pooled (POOLED3) / all-period (POOLED_ALL)"
+      asr: "Age-standardised rate (WHO world standard). Use this when the user says 'rate' unless they say 'crude'."
+      crude_rate: "Unadjusted rate per 100,000."
+      cases: "Number of cases."
+      asr_lci: "Lower 95% CI of asr"
+      asr_uci: "Upper 95% CI of asr"
+    default_filters: "sex='ALL' AND age_band='ALL' AND case_def='CONFIRMED_PROBABLE' AND period_type='YEAR'"
+  mart_joinpoint: {description: "Joinpoint trend segments: series_id 'NATIONAL|ALL|<50|CONFIRMED_PROBABLE' = geo|sex|age_band|case_def; apc = annual percent change"}
+  mart_spatial: {description: "District hotspot statistics: lisa_quadrant (HH = hotspot), sir, gi_star_z, eb_smoothed_rate"}
+  mart_stage_mix: {description: "Stage at diagnosis: level, geo_code, year ('ALL' for all years), facility_tier ('ALL'), stage_group I-IV/Unknown, n, pct, pct_known"}
+  mart_facility_quality: {description: "Per facility H. pylori testing among dyspepsia patients: name, district_code, tier, n_dyspepsia, n_hp_tested, hp_test_rate (0-1), outlier_flag, pct_stage4"}
+  mart_survival_summary: {description: "Kaplan-Meier summaries: group_var (stage, age_band, sex, province, facility_tier, hp_status, period), group_value, surv_1y, surv_2y (0-1), median_surv_days"}
+  mart_diag_interval: {description: "Diagnostic interval in days by group_var (province, tier, age_band, malaria_region): median_days, q1, q3, n"}
+  mart_warning_summary: {description: "Pre-diagnostic signal headline numbers: metric, case, control"}
+  mart_characteristics: {description: "Table 1 of cases: variable, level, group (all, <50, >=50), n, pct, median"}
+  mart_kpis: {description: "Headline KPIs by year: cases, national_asr, pct_stage_iv, median_diag_interval_days, hp_testing_rate_dyspepsia, high_risk_awaiting_endoscopy, young_onset_share"}
+  ml_eval_metrics: {description: "Model evaluation: model_id, tier (1 points, 2 xgboost, 3 sequence, 0 ensemble), split (val/test), auroc, auprc, brier, median_lead_time_days"}
+  pt_risk: {description: "(doctor only) risk per patient: patient_id, risk_band, ensemble_prob, t1_score, top_reasons, scoped_since_flag"}
+  pt_patient: {description: "(doctor only) GI-cohort patients: patient_id, display_id, given_name, family_name, sex, age"}
+  pt_alerts: {description: "(doctor only) alerts: patient_id, trigger (RISK_BAND_HIGH, ALARM_NO_SCOPE_90D, HB_DROP, HP_POS_UNTREATED), severity, status"}
+glossary:
+  "young-onset": "age_band = '<50'"
+  "under-50": "age_band = '<50'"
+  "hotspot": "mart_spatial.lisa_quadrant = 'HH'"
+  "late stage": "stage_group IN ('III','IV')"
+  "rate": "asr"
+suggested_questions:
+  ministry:
+    - "Which districts have the highest rates in the last 3 years?"
+    - "How has the under-50 rate changed since 2015?"
+    - "Which facilities test the fewest dyspepsia patients for H. pylori?"
+    - "What is 1-year survival by stage?"
+    - "Which districts are High-High hotspots?"
+  doctor:
+    - "How many high-risk patients at my facility have not been scoped?"
+    - "My 10 highest-risk patients"
+    - "Patients with H. pylori positive and no treatment"

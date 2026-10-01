@@ -32,17 +32,11 @@ def bootstrap_from_parquet(con, log=print):
         con.execute(f"CREATE OR REPLACE TABLE raw_{t} AS SELECT * FROM read_parquet('{src}/*.parquet')")
     con.execute("CREATE OR REPLACE TABLE raw_sim_tick_log (tick_id INTEGER, sim_time TIMESTAMP, wall_time TIMESTAMP, "
                 "encounters_added INTEGER, obs_added INTEGER)")
-    try:
-        attach_mysql(con)
-        for t, key in WATERMARKED.items():
-            mx = con.execute(f"SELECT coalesce(max({key}), 0) FROM src.{t}").fetchone()[0]
-            con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [t, int(mx)])
-        con.execute("DETACH src")
-    except Exception as e:  # MySQL not running: watermarks from Parquet (offline mode)
-        log(f"  bootstrap: MySQL unavailable ({e.__class__.__name__}); watermarks from Parquet")
-        for t, key in WATERMARKED.items():
-            mx = con.execute(f"SELECT coalesce(max({key}), 0) FROM raw_{t}").fetchone()[0]
-            con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [t, int(mx)])
+    # watermarks = max ids of the bulk Parquet copy; identical to MySQL's bulk maxima by construction (the loader
+    # reads the same files), so bootstrap does not need MySQL to be up or fully loaded
+    for t, key in WATERMARKED.items():
+        mx = con.execute(f"SELECT coalesce(max({key}), 0) FROM raw_{t}").fetchone()[0]
+        con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [t, int(mx)])
     log(f"  bootstrap from parquet done in {time.time() - t0:.1f}s")
 
 

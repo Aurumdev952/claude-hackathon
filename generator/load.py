@@ -11,4 +11,4 @@ if __name__ == "__main__":
     from shared.config import DATA_DIR
     gt = json.load(open(DATA_DIR / "ground_truth.json"))
     facs = build_facilities(cfg, int(gt["seed"]))
-    load_all(BULK_DIR, build_reference(facs))
+    load_all(BULK_DIR, build_reference(facs), log=lambda s: print(s, flush=True))
