@@ -35,3 +35,10 @@ reports/snapshots/*.json
 
 # libsql test artefacts (":memory:" opened as a file path)
 :memory:*
+
+# v3 loop outputs
+data/next/
+data/external/
+data/videos/
+video/node_modules/
+video/out/
