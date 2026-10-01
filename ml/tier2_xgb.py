@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 
 import joblib
@@ -23,7 +24,7 @@ def train(Xtr: pd.DataFrame, ytr, Xva: pd.DataFrame, yva, seed: int = 42):
     clf = xgb.XGBClassifier(objective="binary:logistic", n_estimators=p["n_estimators"], max_depth=p["max_depth"],
                             learning_rate=p["learning_rate"], subsample=p["subsample"], colsample_bytree=p["colsample_bytree"],
                             min_child_weight=p["min_child_weight"], scale_pos_weight=spw, eval_metric="aucpr",
-                            early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed, n_jobs=4)
+                            early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed, n_jobs=os.cpu_count())
     clf.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
     raw_va = clf.predict_proba(Xva)[:, 1]
     iso = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0).fit(raw_va, yva)
