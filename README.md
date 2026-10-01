@@ -18,7 +18,7 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
 | Synthetic EMR generator | `generator/` | 1.5M-person Rwanda population, OpenMRS EAV schema, life-course simulation. Gastric cancer natural history and **8 planted insights** (INS-1…8), realistic data-quality noise, `data/ground_truth.json` |
 | Live simulator | `simulator/` | Replays the pre-simulated future into MySQL tick by tick (insert-only, one transaction per tick) |
 | Pipeline | `pipeline/` | MySQL → DuckDB incremental ETL (id watermarks), staging, dedup, core facts, marts, scoring. Blue/green publish via `current.json` |
-| Epi methods | `pipeline/metrics/` | ASR with Fay–Feuer CIs, WLS joinpoint (BIC), Local Moran's I / Gi* / SIR / EB smoothing, KM + log-rank, Cox, nested case-control, funnel limits |
+| Epi methods | `pipeline/metrics/` | ASR with Fay–Feuer CIs, WLS joinpoint (permutation-test selection, BIC optional), Local Moran's I / Gi* / SIR / EB smoothing, KM + log-rank, Cox, nested case-control, funnel limits |
 | Risk models | `ml/` | Tier 1 points score, Tier 2 XGBoost + isotonic calibration + SHAP reasons, Tier 3 JAX GRU/Transformer + Integrated Gradients, ensemble bands, alerts |
 | API | `api/` | FastAPI, role-scoped (ministry = aggregates only; doctor = own facility), WebSocket refresh, NL→SQL with sqlglot guard rails, insight cards, case payload |
 | Dashboard | `frontend/` | React + TypeScript + Tailwind ("Highland Watch" design), ECharts, deck.gl 3D map, react-three-fiber 3D views |
