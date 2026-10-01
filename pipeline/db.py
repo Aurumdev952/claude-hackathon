@@ -30,6 +30,11 @@ def work_connection() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(str(WORK_DB))
     con.execute(f"SET threads={max(1, (os.cpu_count() or 2))}")
     con.execute("SET preserve_insertion_order=false")
+    # shares the machine with MySQL (and the API): cap memory and spill to disk instead of being OOM-killed
+    con.execute(f"SET memory_limit='{os.environ.get('PIPELINE_MEMORY_LIMIT', '6GB')}'")
+    tmp = ANALYTICS_DIR / "tmp"
+    tmp.mkdir(exist_ok=True)
+    con.execute(f"SET temp_directory='{tmp.as_posix()}'")
     return con
 
 

@@ -5,7 +5,7 @@ import time
 
 
 def build_all(con, sim_time, log=print):
-    from . import clinical, cohort, facility, patient, points, rates, warning
+    from . import clinical, cohort, facility, patient, points, rates, surfaces, warning
     steps = [
         ("rates", rates.build_rates), ("joinpoint", rates.build_joinpoint), ("spatial", rates.build_spatial),
         ("stage_mix", clinical.build_stage_mix), ("characteristics", clinical.build_characteristics),
@@ -13,6 +13,7 @@ def build_all(con, sim_time, log=print):
         ("warning", warning.build_warning), ("facility", facility.build_facility_quality),
         ("cohort_funnel", cohort.build_cohort_funnel), ("data_quality", cohort.build_data_quality),
         ("events", cohort.build_events), ("patients", patient.build_patient_tables), ("points", points.build_points),
+        ("rate_surface", surfaces.build_rate_surface), ("journey", surfaces.build_journey),
         ("kpis", cohort.build_kpis),
     ]
     for name, fn in steps:

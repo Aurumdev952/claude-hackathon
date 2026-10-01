@@ -20,3 +20,5 @@ frontend/playwright-report/
 .env
 *.log
 frontend/public/models/body.glb
+data/analytics/tmp/
+*.tsbuildinfo

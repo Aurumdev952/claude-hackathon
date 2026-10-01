@@ -24,7 +24,7 @@ CREATE TABLE person_name (
   given_name      VARCHAR(50),
   family_name     VARCHAR(50),
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   FOREIGN KEY (person_id) REFERENCES person(person_id)
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE person_address (
   start_date        DATETIME NULL,
   end_date          DATETIME NULL,    -- supports migration between districts
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   INDEX idx_addr_district (county_district),
   FOREIGN KEY (person_id) REFERENCES person(person_id)
 );
@@ -59,7 +59,7 @@ CREATE TABLE person_attribute (
   person_id INT NOT NULL, value VARCHAR(50) NOT NULL,
   person_attribute_type_id INT NOT NULL,
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   FOREIGN KEY (person_id) REFERENCES person(person_id)
 );
 
@@ -82,8 +82,7 @@ CREATE TABLE patient_identifier (
   identifier_type INT NOT NULL, preferred TINYINT(1) NOT NULL DEFAULT 1,
   location_id INT NULL,
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
-  UNIQUE KEY uq_ident (identifier, identifier_type),
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   FOREIGN KEY (patient_id) REFERENCES patient(patient_id)
 );
 
@@ -122,7 +121,7 @@ CREATE TABLE visit (
   date_stopped   DATETIME NULL,
   location_id    INT NOT NULL,
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   INDEX idx_visit_patient (patient_id, date_started),
   FOREIGN KEY (patient_id) REFERENCES patient(patient_id)
 );
@@ -137,7 +136,7 @@ CREATE TABLE encounter (
   visit_id            INT NULL,
   encounter_datetime  DATETIME NOT NULL,
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   INDEX idx_enc_patient_dt (patient_id, encounter_datetime),
   INDEX idx_enc_created (date_created),
   FOREIGN KEY (patient_id) REFERENCES patient(patient_id),
@@ -228,7 +227,7 @@ CREATE TABLE orders (
   date_stopped   DATETIME NULL,
   urgency        VARCHAR(20) DEFAULT 'ROUTINE',
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE,
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL,
   INDEX idx_orders_patient (patient_id, date_activated)
 );
 
@@ -250,7 +249,7 @@ CREATE TABLE patient_program (
   date_enrolled DATETIME, date_completed DATETIME NULL, location_id INT,
   outcome_concept_id INT NULL,
   creator INT NOT NULL DEFAULT 1, date_created DATETIME NOT NULL,
-  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL UNIQUE
+  voided TINYINT(1) NOT NULL DEFAULT 0, uuid CHAR(38) NOT NULL
 );
 
 -- Pipeline bookkeeping (not OpenMRS): simulator heartbeat

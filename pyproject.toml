@@ -32,6 +32,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+llm = ["anthropic>=0.70"]   # only needed when LLM_PROVIDER=anthropic
 dl = ["jax==0.10.2", "jaxlib==0.10.2", "optax>=0.2.4"]   # D-18: JAX instead of PyTorch (CUDA wheels too large for this disk)
 dev = ["pytest>=8", "pytest-timeout>=2.3"]
 

@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Highland Watch (SPEC §16.1): volcanic slate, lake blue, tea green, sorghum gold, laterite red */
+:root, [data-theme="dark"] {
+  --basalt: 27 36 48;   /* #1B2430 app background */
+  --ridge: 39 51 63;    /* #27333F panels */
+  --ridge2: 48 62 76;
+  --line: 62 78 94;
+  --mist: 230 236 238;  /* #E6ECEE text */
+  --fog: 150 166 178;
+  --kivu: 62 124 168;   /* #3E7CA8 */
+  --tea: 110 159 120;   /* #6E9F78 */
+  --sorghum: 201 144 46;/* #C9902E */
+  --laterite: 176 74 54;/* #B04A36 */
+  color-scheme: dark;
+}
+[data-theme="light"] {
+  --basalt: 241 243 241; --ridge: 255 255 255; --ridge2: 236 240 240; --line: 210 218 222;
+  --mist: 27 36 48; --fog: 88 102 114; --kivu: 46 104 146; --tea: 77 128 90; --sorghum: 165 112 22; --laterite: 160 60 42;
+  color-scheme: light;
+}
+html, body, #root { height: 100%; }
+body { @apply bg-basalt text-mist font-sans antialiased; font-feature-settings: "ss01"; }
+.tabular { font-variant-numeric: tabular-nums; }
+.panel { @apply bg-ridge/80 border border-line/60 rounded-xl shadow-panel; }
+.panel-title { @apply text-[11px] uppercase tracking-[0.14em] text-fog font-semibold; }
+.chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold; }
+.btn { @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium border border-line/70 bg-ridge2/60 hover:bg-ridge2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-kivu; }
+.btn-primary { @apply bg-kivu/90 border-kivu text-white hover:bg-kivu; }
+.seg { @apply inline-flex rounded-lg border border-line/70 overflow-hidden; }
+.seg > button { @apply px-2.5 py-1 text-xs font-medium text-fog hover:text-mist; }
+.seg > button[aria-pressed="true"] { @apply bg-kivu/25 text-mist; }
+.terrain-bg {
+  background-image:
+    radial-gradient(1200px 500px at 85% -10%, rgb(var(--kivu) / 0.10), transparent 60%),
+    radial-gradient(900px 400px at -10% 110%, rgb(var(--laterite) / 0.07), transparent 60%),
+    repeating-linear-gradient(-14deg, rgb(var(--mist) / 0.018) 0 1px, transparent 1px 22px);
+}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

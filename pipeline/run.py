@@ -9,7 +9,7 @@ import traceback
 
 from shared.config import ANALYTICS_DIR
 
-from . import extract, refs
+from . import extract, refs  # noqa: F401
 from .db import run_sql_dir, work_connection
 
 LOG_DDL = """CREATE TABLE IF NOT EXISTS pipeline_run_log (run_id INTEGER, started_at TIMESTAMP, finished_at TIMESTAMP,
@@ -24,7 +24,7 @@ def sim_time_of(con) -> dt.datetime:
     return r or dt.datetime(2026, 6, 30, 23, 59, 59)
 
 
-def run(bootstrap: bool = False, log=print, stop_after: str | None = None) -> dict:
+def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_extract: bool = True) -> dict:
     con = work_connection()
     con.execute(LOG_DDL)
     run_id = (con.execute("SELECT coalesce(max(run_id), 0) + 1 FROM pipeline_run_log").fetchone()[0])
@@ -40,11 +40,12 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None) -> di
         return out
 
     status, err = "OK", None
+    extract_enabled = do_extract
     try:
         step("refs", lambda: refs.load_refs(con))
         if bootstrap or not _has(con, "raw_obs"):
             step("bootstrap", lambda: extract.bootstrap_from_parquet(con, log))
-        else:
+        elif extract_enabled:
             deltas = step("extract", lambda: extract.incremental_extract(con, log))
         sim_time = sim_time_of(con)
         params = {"sim_time": sim_time.strftime("%Y-%m-%d %H:%M:%S"), "sim_date": sim_time.strftime("%Y-%m-%d")}
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--bootstrap", action="store_true")
     ap.add_argument("--stop-after")
+    ap.add_argument("--no-extract", action="store_true", help="dev: rebuild from raw_* without contacting MySQL")
     a = ap.parse_args()
     ANALYTICS_DIR.mkdir(parents=True, exist_ok=True)
-    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after))
+    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after, do_extract=not a.no_extract))
