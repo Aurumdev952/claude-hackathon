@@ -4,7 +4,7 @@ RUN pip install --no-cache-dir uv && apt-get update && apt-get install -y --no-i
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --extra dl --extra llm
 COPY shared shared
 COPY generator generator
 COPY simulator simulator
