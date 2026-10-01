@@ -30,7 +30,8 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     elig = con.execute(f"""
         SELECT g.patient_id FROM core_gi_cohort g JOIN core_dim_patient p USING (patient_id) LEFT JOIN core_gc_case c USING (patient_id)
         WHERE g.entry_date <= DATE '{L}' AND date_diff('year', p.birthdate, DATE '{L}') >= 18
-          AND (p.death_date IS NULL OR p.death_date > DATE '{L}') AND (c.dx_date IS NULL OR c.dx_date > DATE '{L}')""").df()
+          AND (p.death_date IS NULL OR p.death_date > DATE '{L}') AND (c.dx_date IS NULL OR c.dx_date > DATE '{L}')
+          AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)""").df()
     if elig.empty:
         return
     elig["L"] = L

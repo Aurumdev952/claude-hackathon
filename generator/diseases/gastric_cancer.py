@@ -38,7 +38,7 @@ TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
-CANCER_REFER_MULT = {"low": 0.55, "medium": 0.9, "high": 1.0}
+CANCER_REFER_MULT = {"low": 0.65, "medium": 0.9, "high": 1.0}
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -360,7 +360,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
                 cs.refused += 1
         # ---- next visit
         tau = (day - cs.symptom_start) / 30.44
-        lam = (0.36 + 0.6 * min(1.0, tau / 9)) if cs.ramp else 0.36
+        lam = (0.30 + 0.52 * min(1.0, tau / 9)) if cs.ramp else 0.30
         if stage == "IV":
             lam *= 1.5
         day += max(7, int(rnd.expovariate(lam) * 30.44))
