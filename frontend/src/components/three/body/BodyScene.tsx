@@ -75,6 +75,16 @@ function OrganLabels({ organs, state }: { organs: Record<string, OrganInfo>; sta
     .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id]) => id);
   const ids = Array.from(new Set([...top, ...(focus ?? []), ...(hovered ? [hovered] : []), ...(selected ? [selected] : [])]))
     .filter((id) => organs[id] && id !== "skin" && id !== "muscles");
+  // stack labels on the same side whose anchors are close in height, so leader-lined labels never overlap
+  const placed: Record<string, number> = {};
+  const sides: Record<number, number[]> = { 1: [], [-1]: [] };
+  for (const id of [...ids].sort((a, b) => organs[b].center.y - organs[a].center.y)) {
+    const side = organs[id].center.x >= 0 ? 1 : -1;
+    let y = organs[id].center.y;
+    for (const other of sides[side]) if (Math.abs(other - y) < 0.028) y = other - 0.028;
+    sides[side].push(y);
+    placed[id] = y - organs[id].center.y;
+  }
   return (
     <>
       {ids.map((id) => {
@@ -83,7 +93,7 @@ function OrganLabels({ organs, state }: { organs: Record<string, OrganInfo>; sta
         const strong = hovered === id || selected === id || (focus ?? []).includes(id);
         const side = o.center.x >= 0 ? 1 : -1;
         return (
-          <Html key={id} position={o.center} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+          <Html key={id} position={[o.center.x, o.center.y + (placed[id] ?? 0), o.center.z]} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
             <div className={`case-label ${strong ? "is-strong" : ""}`} style={{ transform: `translate(${side > 0 ? "18px" : "calc(-100% - 18px)"}, -50%)` }}>
               <span className="case-label-line" style={{ [side > 0 ? "left" : "right"]: -18 } as React.CSSProperties} />
               <span className="font-semibold">{labelOf(id)}</span>

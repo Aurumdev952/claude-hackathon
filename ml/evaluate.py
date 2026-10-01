@@ -79,7 +79,10 @@ def subgroups(model_id: str, df: pd.DataFrame, score_col: str, threshold: float)
     rows = []
     sg = {"sex": df["sex_male"].map({1: "M", 0: "F"}),
           "age_band": pd.cut(df["age"], [0, 50, 65, 200], right=False, labels=["<50", "50-64", "65+"]).astype(str),
-          "province": df["province_code"].fillna("unknown"), "facility_tier": df["home_facility_tier"].fillna("unknown")}
+          "province": df["province_code"].fillna("unknown"), "facility_tier": df["home_facility_tier"].fillna("unknown"),
+          # the clinically relevant triage population: patients seen with GI complaints in the last 90 days (D-32)
+          "recent_gi_visit": pd.Series(np.where(df["days_since_last_gi_visit"].fillna(1e9) <= 90, "seen <=90 d", "not seen <=90 d"),
+                                       index=df.index)}
     for var, vals in sg.items():
         for v in sorted(vals.unique()):
             m = (vals == v).values

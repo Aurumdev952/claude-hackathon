@@ -174,7 +174,7 @@ export function AlertActions({ alerts }: { alerts: Alert[] }) {
           <p className="text-xs leading-relaxed">{a.summary}</p>
           <p className="text-xs text-sorghum mt-1">{a.suggested_action}</p>
           {a.status !== "DISMISSED" && a.status !== "REFERRED" && (
-            <div className="flex gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {a.status === "NEW" && <button className="btn text-xs py-1" onClick={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}><Check size={13} /> Acknowledge</button>}
               <button className="btn text-xs py-1" onClick={() => m.mutate({ id: a.alert_id, status: "REFERRED" })}><Send size={13} /> Mark referred</button>
               <button className="btn text-xs py-1" onClick={() => setDismissing(a.alert_id)}><X size={13} /> Dismiss</button>
