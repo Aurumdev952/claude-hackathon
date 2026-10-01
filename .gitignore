@@ -4,7 +4,6 @@ data/analytics/
 data/models/
 data/ground_truth.json
 data/reference/district_population.csv
-data/reference/district_adjacency.json
 data/sim_state/
 # python
 .venv/
