@@ -134,7 +134,7 @@ function MeasureCard({ data }: { data: CaseData }) {
         </div>
         <div className="flex items-center gap-1.5 text-label font-normal text-muted mt-1">
           {low && <span className="w-1.5 h-1.5 rounded-full bg-signal shrink-0" aria-hidden />}
-          <span>{low ? `${fmt(thr - hbM.latest, 1)} g/dL below` : `${fmt(hbM.latest - thr, 1)} g/dL above`} the {thr} g/dL anaemia threshold</span>
+          <span>{low ? `${fmt(thr - hbM.latest, 1)} g/dL below` : `${fmt(hbM.latest - thr, 1)} g/dL above`} the {thr} g/dL threshold</span>
         </div>
         <GradientRangeBar className="mt-4" value={hbM.latest} min={6} max={18} reverse tone={low ? "signal" : "sky"} showMinMax={false}
                           markers={[{ value: thr, label: `Anaemia threshold ${thr} g/dL` }]} label="Haemoglobin against the anaemia threshold" format={(n) => `${fmt(n, 1)} g/dL`} />
