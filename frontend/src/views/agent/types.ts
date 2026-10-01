@@ -30,7 +30,9 @@ export const toolLabel = (name: string) => (TOOL_LABELS as Record<string, string
 export const WIDGET_TOOLS = new Set<ToolName | string>(["make_chart", "make_patient_widget", "run_python"]);
 
 /** Who answers: one agent per target user (the role switch in the top nav decides). */
-export const PERSONA: Record<AgentRole, { name: string; blurb: string }> = {
-  ministry: { name: "Ministry analyst", blurb: "Rates, trends, hotspots and care quality across Rwanda" },
-  doctor: { name: "Clinical assistant", blurb: "Your facility's patients, risk and alerts" },
+export const PERSONA: Record<AgentRole, { name: string; blurb: string; ask: string }> = {
+  ministry: { name: "Ministry analyst", blurb: "Answers come from the published marts, with charts and maps you can open.",
+              ask: "Ask about gastric cancer rates, trends, hotspots and care quality across Rwanda" },
+  doctor: { name: "Clinical assistant", blurb: "Answers cover only the patients linked to your facility.",
+            ask: "Ask about your patients, their risk and open alerts" },
 };

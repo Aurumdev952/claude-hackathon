@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
-import { MessageSquare, MoreHorizontal, PenLine, Search, SquarePen, Trash2 } from "lucide-react";
+import { MoreHorizontal, PenLine, Search, SquarePen, Trash2 } from "lucide-react";
 import { EASE, modalMotion } from "@/lib/motion";
 import { useConversations, useDeleteConversation, useRenameConversation } from "./api";
 import type { Conversation } from "./types";
@@ -41,34 +41,34 @@ export function ConversationSidebar({ activeId, onSelect, onNew, onDeleted, clas
   }, [list.data, query]);
 
   return (
-    <aside aria-label="Conversations" className={`flex flex-col min-h-0 rounded-card bg-surface border border-border shadow-card overflow-hidden ${className}`}>
-      <div className="p-3 pb-2 flex items-center gap-2">
-        <h2 className="text-title text-fg pl-1.5 flex-1">Chats</h2>
-        <Button size="sm" radius="full" onPress={onNew} aria-label="New chat" startContent={<SquarePen size={14} aria-hidden />}
-                className="bg-accent text-white font-medium h-8 shadow-tile">New</Button>
+    <aside aria-label="Conversations" className={`flex flex-col w-full min-h-0 ${className}`}>
+      <div className="h-12 pl-3 pr-0 flex items-center gap-2 shrink-0">
+        <h2 className="text-title text-ink flex-1">Chats</h2>
+        <Button isIconOnly radius="full" variant="flat" onPress={onNew} aria-label="New chat"
+                className="w-10 h-10 min-w-10 bg-surface text-ink data-[hover=true]:bg-tile dark:border dark:border-hairline">
+          <SquarePen size={16} aria-hidden />
+        </Button>
       </div>
-      <div className="px-3 pb-2">
-        <label className="flex items-center gap-2 rounded-full bg-surface-2 border border-border px-3 h-8 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/15 transition">
-          <Search size={13} className="text-fg-muted shrink-0" aria-hidden />
+      <div className="pt-3 pb-2 shrink-0">
+        <label className="flex items-center gap-2.5 rounded-full bg-surface dark:border dark:border-hairline px-4 h-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-signal">
+          <Search size={16} className="text-ink shrink-0" aria-hidden />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats" aria-label="Search chats"
-                 className="flex-1 min-w-0 bg-transparent outline-none text-[12.5px] text-fg placeholder:text-fg-muted" />
+                 className="flex-1 min-w-0 bg-transparent outline-none focus-visible:outline-none text-[14px] text-ink placeholder:text-muted" />
         </label>
       </div>
-      <nav className="flex-1 min-h-0 overflow-y-auto px-2 pb-3" aria-label="Conversation history">
-        {list.isLoading && <div className="flex flex-col gap-1.5 px-1 pt-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-8 rounded-[10px] bg-surface-2 animate-pulse" />)}</div>}
-        {list.isError && <p className="px-3 py-4 text-label text-fg-muted">Chats unavailable. Is the agent running?</p>}
+      <nav className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 pb-3 scrollbar-none" aria-label="Conversation history">
+        {list.isLoading && <div className="flex flex-col gap-1.5 pt-4">{[0, 1, 2, 3].map((i) => <div key={i} className="h-10 rounded-full bg-ink/[0.04] dark:bg-tile animate-pulse" />)}</div>}
+        {list.isError && <p className="px-3 py-4 text-[14px] text-muted">Chats are unavailable. Start the agent server, then reload.</p>}
         {list.isSuccess && !groups.length && (
-          <div className="px-3 py-8 text-center text-label text-fg-muted flex flex-col items-center gap-2">
-            <MessageSquare size={18} aria-hidden />{query ? "No matches" : "No chats yet"}
-          </div>
+          <p className="px-3 py-6 text-[14px] text-muted">{query ? "No chats match this search." : "No chats yet. Ask a question to start one."}</p>
         )}
         {groups.map((g) => (
-          <section key={g.label} className="mt-2" aria-label={g.label}>
-            <h3 className="px-2.5 pb-1 text-micro font-medium text-fg-muted">{g.label}</h3>
-            <ul className="flex flex-col gap-px">
+          <section key={g.label} className="mt-4" aria-label={g.label}>
+            <h3 className="px-3 pb-1.5 text-micro text-muted">{g.label}</h3>
+            <ul className="flex flex-col gap-0.5">
               <AnimatePresence initial={false}>
                 {g.items.map((c) => (
-                  <motion.li key={c.id} layout={!reduce} initial={reduce ? false : { opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, height: 0 }}
+                  <motion.li key={c.id} layout={!reduce} initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }}
                              transition={{ duration: 0.25, ease: EASE }}>
                     {renaming === c.id ? (
                       <RenameInput initial={c.title} onDone={(t) => { setRenaming(null); if (t && t !== c.title) rename.mutate({ id: c.id, title: t }); }} />
@@ -83,16 +83,17 @@ export function ConversationSidebar({ activeId, onSelect, onNew, onDeleted, clas
         ))}
       </nav>
 
-      <Modal isOpen={!!confirm} onOpenChange={(o) => { if (!o) setConfirm(null); }} size="sm" backdrop="blur" motionProps={modalMotion as any}
-             classNames={{ base: "rounded-modal bg-surface border border-border shadow-float", backdrop: "bg-[rgb(11_18_32/0.28)] backdrop-blur-[6px]" }}>
+      <Modal isOpen={!!confirm} onOpenChange={(o) => { if (!o) setConfirm(null); }} size="sm" backdrop="opaque" motionProps={modalMotion as any}
+             classNames={{ base: "rounded-modal bg-surface shadow-float dark:border dark:border-hairline", backdrop: "bg-[rgb(21_23_28/0.32)]",
+                           header: "px-7 pt-6 pb-1", body: "px-7", footer: "px-7 pb-6 pt-4", closeButton: "top-5 right-5 w-9 h-9 rounded-full border border-hairline text-ink hover:bg-tile" }}>
         <ModalContent>
           {() => (
             <>
-              <ModalHeader className="text-title text-fg">Delete chat?</ModalHeader>
-              <ModalBody><p className="text-[13px] text-fg-muted">“{confirm?.title}” and its answers will be removed. This cannot be undone.</p></ModalBody>
+              <ModalHeader className="text-[20px] leading-7 font-semibold text-ink">Delete this chat?</ModalHeader>
+              <ModalBody><p className="text-[14px] leading-[21px] text-muted">“{confirm?.title}” and its answers will be removed. This cannot be undone.</p></ModalBody>
               <ModalFooter>
-                <Button radius="full" variant="light" onPress={() => setConfirm(null)}>Cancel</Button>
-                <Button radius="full" color="danger" onPress={() => { const c = confirm!; setConfirm(null); del.mutate(c.id, { onSuccess: () => onDeleted(c.id) }); }}>Delete</Button>
+                <Button radius="full" variant="flat" className="bg-tile text-ink font-medium" onPress={() => setConfirm(null)}>Cancel</Button>
+                <Button radius="full" color="danger" className="font-semibold" onPress={() => { const c = confirm!; setConfirm(null); del.mutate(c.id, { onSuccess: () => onDeleted(c.id) }); }}>Delete chat</Button>
               </ModalFooter>
             </>
           )}
@@ -104,17 +105,16 @@ export function ConversationSidebar({ activeId, onSelect, onNew, onDeleted, clas
 
 function Item({ c, active, onSelect, onRename, onDelete }: { c: Conversation; active: boolean; onSelect: () => void; onRename: () => void; onDelete: () => void }) {
   return (
-    <div className={`group relative flex items-center rounded-[10px] transition-colors ${active ? "bg-accent-soft" : "hover:bg-surface-2"}`}>
-      {active && <motion.span layoutId="conv-active" className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-accent" transition={{ type: "spring", stiffness: 500, damping: 40 }} aria-hidden />}
+    <div className={`group relative flex items-center rounded-full transition-colors ${active ? "bg-surface dark:bg-tile" : "hover:bg-ink/[0.04] dark:hover:bg-surface"}`}>
       <button type="button" onClick={onSelect} aria-current={active ? "page" : undefined} title={c.title}
-              className={`flex-1 min-w-0 text-left pl-3 pr-8 py-2 text-[13px] truncate rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${active ? "text-accent font-medium" : "text-fg"}`}>
+              className={`flex-1 min-w-0 h-10 text-left pl-3 pr-9 text-[14px] truncate rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal ${active ? "text-ink font-semibold" : "text-ink/80"}`}>
         {c.title}
       </button>
-      <Dropdown placement="bottom-end" classNames={{ content: "min-w-[150px] bg-surface border border-border shadow-float rounded-tile" }}>
+      <Dropdown placement="bottom-end" classNames={{ content: "min-w-[160px] p-1.5 bg-surface shadow-float rounded-tile dark:border dark:border-hairline" }}>
         <DropdownTrigger>
           <Button isIconOnly size="sm" radius="full" variant="light" aria-label={`Actions for ${c.title}`}
-                  className={`absolute right-1 min-w-6 w-6 h-6 text-fg-muted data-[hover=true]:bg-fg/[0.06] ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100 data-[focus-visible=true]:opacity-100"}`}>
-            <MoreHorizontal size={14} aria-hidden />
+                  className={`absolute right-1.5 min-w-7 w-7 h-7 text-muted data-[hover=true]:bg-tile data-[hover=true]:text-ink ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100 data-[focus-visible=true]:opacity-100"}`}>
+            <MoreHorizontal size={15} aria-hidden />
           </Button>
         </DropdownTrigger>
         <DropdownMenu aria-label="Chat actions" onAction={(k) => (k === "rename" ? onRename() : onDelete())}>
@@ -134,6 +134,6 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (t: string 
     <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} aria-label="Chat title" maxLength={200}
            onKeyDown={(e) => { if (e.key === "Enter") onDone(v.trim() || null); if (e.key === "Escape") onDone(null); }}
            onBlur={() => onDone(v.trim() || null)}
-           className="w-full rounded-[10px] bg-surface border border-accent/50 ring-2 ring-accent/15 px-3 py-[7px] text-[13px] text-fg outline-none" />
+           className="w-full h-10 rounded-full bg-surface border border-hairline px-3 text-[14px] text-ink outline outline-2 outline-offset-0 outline-signal/40" />
   );
 }

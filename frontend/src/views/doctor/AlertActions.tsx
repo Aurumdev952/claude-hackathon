@@ -5,26 +5,32 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { BellOff, Check, Send, X } from "lucide-react";
 import { patch } from "@/api/client";
 import type { Alert } from "@/api/types";
-import { InfoHint, StatusChip } from "@/components/ui";
-import { SeverityChip } from "@/components/ui/Status";
+import { InfoHint } from "@/components/ui";
 import { date } from "@/lib/format";
 import { itemEnter, stagger } from "@/lib/motion";
+import { BandMark } from "./BandMark";
 
 const TRIGGER: Record<string, string> = {
   RISK_BAND_HIGH: "High risk band", ALARM_NO_SCOPE_90D: "Alarm sign, no scope in 90 days", HB_DROP: "Haemoglobin drop", HP_POS_UNTREATED: "H. pylori untreated",
 };
 export const triggerLabel = (t: string) => TRIGGER[t] ?? t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, " ");
 
-const STATUS_KIND = { NEW: "info", ACKNOWLEDGED: "neutral", REFERRED: "good", DISMISSED: "neutral" } as const;
 const statusLabel = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-const btn = "h-7 min-w-0 px-2.5 gap-1 text-[11.5px] font-medium bg-surface border border-border text-fg data-[hover=true]:bg-surface-2";
+/** Severity as a dot + text (HIGH solid dot, MEDIUM ring). */
+export function SeverityMark({ severity }: { severity: string }) {
+  return <BandMark level={severity === "HIGH" ? "high" : "medium"} />;
+}
 
-/** Alert cards with the doctor's actions (Acknowledge / Mark referred / Dismiss with a reason). Summary + action text live
- * behind ⓘ; the suggested action stays as one line. `columns` = 2 lays the cards out in two columns. */
-export function AlertActions({ alerts, columns = 1 }: { alerts: Alert[]; columns?: 1 | 2 }) {
+const btn = "h-8 min-w-0 px-3 gap-1.5 text-[13px] font-medium text-ink bg-transparent data-[hover=true]:bg-tile-hover";
+
+/** Alerts with the doctor's actions (Acknowledge / Mark referred / Dismiss with a reason). `variant` rows = plain rows
+ * split by hairlines (a card body); tiles = grey nested tiles (a two-column grid, `columns` = 2). Summary and notes live
+ * behind ⓘ; the suggested action stays as one muted line. */
+export function AlertActions({ alerts, columns = 1, variant }: { alerts: Alert[]; columns?: 1 | 2; variant?: "rows" | "tiles" }) {
   const qc = useQueryClient();
   const reduce = useReducedMotion();
+  const look = variant ?? (columns === 2 ? "tiles" : "rows");
   const [dismissing, setDismissing] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const m = useMutation({
@@ -32,44 +38,51 @@ export function AlertActions({ alerts, columns = 1 }: { alerts: Alert[]; columns
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["alerts"] }); qc.invalidateQueries({ queryKey: ["patients"] }); setDismissing(null); setReason(""); },
   });
   if (!alerts.length) return (
-    <div className="flex flex-col items-center justify-center gap-2 py-6 text-label text-fg-muted">
-      <span className="w-10 h-10 rounded-full bg-success/10 text-tone-success grid place-items-center" aria-hidden><BellOff size={17} /></span>
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-label text-muted">
+      <span className="w-10 h-10 rounded-full border border-hairline text-muted grid place-items-center" aria-hidden><BellOff size={17} /></span>
       No alerts for this patient
     </div>
   );
+  const listCls = look === "tiles" ? `grid gap-2.5 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}` : "flex flex-col divide-y divide-hairline -my-1";
+  const itemCls = look === "tiles" ? "rounded-tile bg-tile p-4 min-w-0" : "py-4 first:pt-1 last:pb-1 min-w-0";
   return (
-    <motion.ul className={`grid gap-2.5 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}`} variants={stagger(0.05)} initial={reduce ? false : "hidden"} animate="show">
+    <motion.ul className={listCls} variants={stagger(0.05)} initial={reduce ? false : "hidden"} animate="show">
       {alerts.map((a) => {
         const open = a.status !== "DISMISSED" && a.status !== "REFERRED";
+        const label = triggerLabel(a.trigger);
         return (
-          <motion.li key={a.alert_id} variants={itemEnter} layout className="rounded-tile border border-border bg-surface-2/70 p-3 min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <SeverityChip severity={a.severity} />
-              <span className="text-[13px] font-semibold text-fg truncate">{triggerLabel(a.trigger)}</span>
-              <InfoHint mode="popover" size={13} title={triggerLabel(a.trigger)} label={`About ${triggerLabel(a.trigger)}`}
-                        about={<>{a.summary}<span className="block mt-1.5 font-medium text-tone-warning">{a.suggested_action}</span></>}
-                        notes={`Raised ${date(a.created_at)}${a.note ? ` · note: ${a.note}` : ""}`} />
-              <span className="flex-1" />
-              <StatusChip status={STATUS_KIND[a.status as keyof typeof STATUS_KIND] ?? "neutral"} label={statusLabel(a.status)} icon={false} />
-            </div>
-            <p className="text-micro text-tone-warning mt-1 line-clamp-1" title={a.suggested_action}>{a.suggested_action}</p>
-            {open && (
-              <div className="flex flex-wrap gap-1 mt-2.5">
-                {a.status === "NEW" && <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Check size={12} aria-hidden />}
-                                               isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}>Acknowledge</Button>}
-                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<Send size={12} aria-hidden />}
-                        isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "REFERRED" })}>Mark referred</Button>
-                <Button size="sm" radius="full" variant="flat" className={btn} startContent={<X size={12} aria-hidden />}
-                        onPress={() => setDismissing(dismissing === a.alert_id ? null : a.alert_id)}>Dismiss</Button>
+          <motion.li key={a.alert_id} variants={itemEnter} layout="position" className={itemCls}>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-0.5 min-w-0 flex-1">
+                <h3 className="text-[15px] leading-5 font-semibold text-ink truncate">{label}</h3>
+                <InfoHint mode="popover" size={13} title={label} label={`About ${label}`} className="!w-6 !h-6 !min-w-6"
+                          about={<>{a.summary}<span className="block mt-1.5 font-medium">{a.suggested_action}</span></>}
+                          notes={<>Raised {date(a.created_at)}{a.note ? <span className="block">Note: {a.note}</span> : null}</>} />
               </div>
-            )}
+              <SeverityMark severity={a.severity} />
+            </div>
+            <p className="text-label font-normal text-muted mt-0.5 line-clamp-1" title={a.suggested_action}>{a.suggested_action}</p>
+            <div className="flex items-center gap-1 mt-2.5 min-h-8">
+              {open && (
+                <div className="flex flex-wrap gap-1 -ml-3">
+                  {a.status === "NEW" && <Button size="sm" radius="full" variant="light" className={btn} startContent={<Check size={14} aria-hidden />}
+                                                 isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}>Acknowledge</Button>}
+                  <Button size="sm" radius="full" variant="light" className={btn} startContent={<Send size={13} aria-hidden />}
+                          isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "REFERRED" })}>Mark referred</Button>
+                  <Button size="sm" radius="full" variant="light" className={`${btn} !text-muted`} startContent={<X size={14} aria-hidden />}
+                          onPress={() => setDismissing(dismissing === a.alert_id ? null : a.alert_id)}>Dismiss</Button>
+                </div>
+              )}
+              <span className="flex-1" />
+              <span className="text-micro text-muted">{statusLabel(a.status)}</span>
+            </div>
             <AnimatePresence initial={false}>
               {dismissing === a.alert_id && (
                 <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                             className="flex gap-1.5 mt-2 overflow-hidden" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) m.mutate({ id: a.alert_id, status: "DISMISSED", reason }); }}>
+                             className="flex gap-2 mt-2 overflow-hidden p-0.5" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) m.mutate({ id: a.alert_id, status: "DISMISSED", reason }); }}>
                   <Input size="sm" radius="full" aria-label="Dismiss reason" placeholder="Reason (required)" value={reason} onValueChange={setReason} autoFocus
-                         classNames={{ inputWrapper: "bg-surface border border-border h-8 min-h-8" }} />
-                  <Button size="sm" radius="full" color="primary" type="submit" className="h-8 px-3 text-xs" isDisabled={!reason.trim()}>Confirm</Button>
+                         classNames={{ inputWrapper: `${look === "tiles" ? "bg-surface data-[hover=true]:bg-surface group-data-[focus=true]:bg-surface" : "bg-tile data-[hover=true]:bg-tile-hover group-data-[focus=true]:bg-tile"} shadow-none h-9 min-h-9` }} />
+                  <Button size="sm" radius="full" type="submit" className="h-9 px-4 text-[13px] font-semibold bg-ink text-ink-on" isDisabled={!reason.trim()}>Confirm</Button>
                 </motion.form>
               )}
             </AnimatePresence>

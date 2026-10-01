@@ -14,7 +14,7 @@ type Props = {
   placeholder?: string;
 };
 
-/** Message composer (plan §B7): autosizing HeroUI Textarea, Enter sends, Shift+Enter breaks the line, Stop while streaming. */
+/** Message composer (plan §B7, design v3: a white rounded field with a round solid signal send button): autosizing HeroUI Textarea, Enter sends, Shift+Enter breaks the line, Stop while streaming. */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ onSend, onStop, busy, disabled, placeholder = "Ask anything…" }, ref) {
   const [text, setText] = useState("");
   const input = useRef<HTMLTextAreaElement>(null);
@@ -26,33 +26,34 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ on
   };
   return (
     <form className="relative" onSubmit={(e) => { e.preventDefault(); send(); }} aria-label="Message composer">
-      <div className="flex items-end gap-2 rounded-[24px] bg-surface border border-border shadow-card pl-2 pr-2 py-2 transition-shadow focus-within:shadow-float focus-within:border-accent/40">
+      <div className="flex items-end gap-2 rounded-[28px] bg-surface border border-transparent dark:border-hairline pl-3 pr-2 py-2 transition-colors focus-within:border-hairline dark:focus-within:border-faint/60">
         <Textarea ref={input} value={text} onValueChange={setText} onKeyDown={onKeyDown} minRows={1} maxRows={8} isDisabled={disabled}
                   aria-label="Message the agent" placeholder={placeholder} variant="flat" disableAutosize={false}
                   classNames={{
                     base: "flex-1 min-w-0",
-                    inputWrapper: "!bg-transparent shadow-none px-2 py-1.5 min-h-0 !ring-0 !ring-offset-0 data-[hover=true]:!bg-transparent group-data-[focus=true]:!bg-transparent",
-                    input: "text-[14.5px] leading-6 text-fg placeholder:text-fg-muted/80 !py-0 outline-none focus:outline-none focus-visible:outline-none",
+                    inputWrapper: "!bg-transparent shadow-none px-1.5 py-2 min-h-0 !ring-0 !ring-offset-0 data-[hover=true]:!bg-transparent group-data-[focus=true]:!bg-transparent group-data-[focus-visible=true]:!ring-0",
+                    input: "text-[15px] leading-6 text-ink placeholder:text-muted !py-0 outline-none focus:outline-none focus-visible:outline-none",
                   }} />
         <AnimatePresence mode="popLayout" initial={false}>
           {busy ? (
-            <motion.div key="stop" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} transition={SPRING}>
-              <Button isIconOnly radius="full" aria-label="Stop generating" onPress={onStop} className="w-9 h-9 min-w-9 bg-fg text-surface">
+            <motion.div key="stop" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={SPRING}>
+              <Button isIconOnly radius="full" aria-label="Stop generating" onPress={onStop} className="w-10 h-10 min-w-10 bg-ink text-ink-on">
                 <Square size={13} fill="currentColor" aria-hidden />
               </Button>
             </motion.div>
           ) : (
-            <motion.div key="send" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} transition={SPRING}>
+            <motion.div key="send" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={SPRING}>
               <Button isIconOnly radius="full" type="submit" aria-label="Send message" isDisabled={!canSend}
-                      className={`w-9 h-9 min-w-9 transition-colors ${canSend ? "bg-accent text-white shadow-tile" : "bg-fg/[0.07] text-fg-muted"}`}>
-                <ArrowUp size={17} strokeWidth={2.4} aria-hidden />
+                      className="w-10 h-10 min-w-10 bg-signal-strong text-signal-on data-[hover=true]:bg-signal-text data-[disabled=true]:opacity-35">
+                <ArrowUp size={18} strokeWidth={2.25} aria-hidden />
               </Button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      <p className="mt-1.5 text-center text-micro text-fg-muted/90">
-        Synthetic data · numbers verified · <kbd className="font-sans">Shift</kbd>+<kbd className="font-sans">Enter</kbd> new line
+      <p className="mt-2 flex justify-center gap-4 text-micro font-normal text-muted">
+        <span>Synthetic data. Numbers are checked against the tool outputs.</span>
+        <span className="hidden sm:inline"><kbd className="font-sans">Shift</kbd> + <kbd className="font-sans">Enter</kbd> for a new line</span>
       </p>
     </form>
   );

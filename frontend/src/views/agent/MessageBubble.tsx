@@ -2,11 +2,10 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { motion, useReducedMotion } from "framer-motion";
 import { Button, Popover, PopoverContent, PopoverTrigger, Tooltip } from "@heroui/react";
 import { ArtifactSpec, ChartWidget as ChartWidgetSchema, PatientWidget as PatientWidgetSchema } from "@agent/widgets";
-import { Check, Copy, Cpu, History, Pencil, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Check, Copy, History, Pencil, RefreshCw } from "lucide-react";
 import { EASE } from "@/lib/motion";
-import { AgentAvatar } from "./AgentAvatar";
 import { Markdown } from "./parts/Markdown";
-import { Steps, type StepItem } from "./parts/ToolPart";
+import { StateDot, Steps, type StepItem } from "./parts/ToolPart";
 import { ArtifactWidget } from "./widgets/ArtifactWidget";
 import { ChartWidget } from "./widgets/ChartWidget";
 import { PatientWidget } from "./widgets/PatientWidget";
@@ -86,7 +85,7 @@ export const MessageBubble = memo(function MessageBubble(props: Props) {
   const { message, animateIn } = props;
   return (
     <motion.div data-role={message.role} data-message-id={message.id}
-                initial={animateIn && !reduce ? { opacity: 0, y: 10 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38, ease: EASE }}
+                initial={animateIn && !reduce ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: 0.3, ease: EASE }}
                 className="group/msg">
       {message.role === "user" ? <UserMessage {...props} /> : <AssistantMessage {...props} />}
     </motion.div>
@@ -103,18 +102,18 @@ function UserMessage({ message, busy, isLast, onEdit, onRewind }: Props) {
   if (editing) {
     return (
       <div className="flex justify-end">
-        <div className="w-full max-w-[640px] rounded-[20px] bg-surface border border-accent/40 shadow-card p-2 ring-4 ring-accent/10">
+        <div className="w-full max-w-[640px] rounded-[24px] bg-surface border border-hairline p-2 outline outline-2 outline-offset-2 outline-signal/40">
           <label htmlFor={`edit-${message.id}`} className="sr-only">Edit message</label>
           <textarea id={`edit-${message.id}`} ref={ref} value={draft} onChange={(e) => setDraft(e.target.value)} rows={Math.min(8, Math.max(2, draft.split("\n").length))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); save(); }
                       if (e.key === "Escape") { setEditing(false); setDraft(text); }
                     }}
-                    className="w-full resize-none bg-transparent px-2.5 py-1.5 text-[14.5px] leading-relaxed text-fg outline-none" />
+                    className="w-full resize-none bg-transparent px-3 py-2 text-[15px] leading-6 text-ink outline-none focus-visible:outline-none" />
           <div className="flex items-center justify-end gap-2 px-1 pb-0.5">
-            <span className="text-micro text-fg-muted mr-auto pl-2">Later messages will be replaced</span>
-            <Button size="sm" radius="full" variant="light" onPress={() => { setEditing(false); setDraft(text); }}>Cancel</Button>
-            <Button size="sm" radius="full" color="primary" onPress={save} isDisabled={!draft.trim()} className="bg-accent">Save & send</Button>
+            <span className="text-micro font-normal text-muted mr-auto pl-2">Later messages will be replaced</span>
+            <Button size="sm" radius="full" variant="flat" className="h-9 px-4 bg-tile text-ink font-medium" onPress={() => { setEditing(false); setDraft(text); }}>Cancel</Button>
+            <Button size="sm" radius="full" color="primary" onPress={save} isDisabled={!draft.trim()} className="h-9 px-4 font-semibold">Save & send</Button>
           </div>
         </div>
       </div>
@@ -122,59 +121,56 @@ function UserMessage({ message, busy, isLast, onEdit, onRewind }: Props) {
   }
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="max-w-[min(640px,85%)] rounded-[20px] rounded-br-[6px] bg-accent text-white px-4 py-2.5 text-[14.5px] leading-relaxed whitespace-pre-wrap shadow-tile break-words">
+      <div className="max-w-[min(600px,85%)] rounded-[22px] bg-ink/[0.055] dark:bg-tile text-ink px-5 py-3 text-[15px] leading-6 whitespace-pre-wrap break-words">
         {text}
       </div>
       <div className={`flex items-center gap-0.5 transition-opacity ${busy ? "opacity-0 pointer-events-none" : "opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100"}`}>
         <CopyButton text={text} />
-        <IconAction label="Edit message" onPress={() => { setDraft(text); setEditing(true); }} disabled={busy}><Pencil size={14} /></IconAction>
+        <IconAction label="Edit message" onPress={() => { setDraft(text); setEditing(true); }} disabled={busy}><Pencil size={15} /></IconAction>
         {!isLast && <RewindButton onConfirm={() => onRewind(message.id)} disabled={busy} />}
       </div>
     </div>
   );
 }
 
-function AssistantMessage({ message, role, streaming, busy, isLast, errored, onRegenerate, onRewind }: Props) {
+function AssistantMessage({ message, streaming, busy, isLast, errored, onRegenerate, onRewind }: Props) {
   const blocks = useMemo(() => toBlocks(message, streaming), [message, streaming]);
   const text = messageText(message);
   const lastTextIdx = blocks.reduce((acc, b, i) => (b.kind === "text" ? i : acc), -1);
   const empty = blocks.length === 0;
   return (
-    <div className="flex gap-3 items-start">
-      <div className="pt-0.5"><AgentAvatar role={role} size={28} busy={streaming} /></div>
-      <div className="flex-1 min-w-0 flex flex-col gap-3">
-        {empty && streaming && <div className="h-7 flex items-center text-[13.5px] agent-shimmer font-medium">Thinking</div>}
+    <div className="min-w-0 flex flex-col gap-4">
+        {empty && streaming && <div className="h-6 flex items-center gap-2.5 text-[14px] text-muted"><StateDot state="run" />Thinking</div>}
         {blocks.map((b, i) => {
           if (b.kind === "steps") return <Steps key={b.key} items={b.items} live={streaming && i === blocks.length - 1} />;
           if (b.kind === "text") return <Markdown key={b.key} streaming={streaming && i === lastTextIdx && i === blocks.length - 1}>{b.text}</Markdown>;
           return <div key={b.key} className="min-w-0">{b.node}</div>;
         })}
-        {streaming && !empty && blocks[blocks.length - 1]?.kind === "widget" && <div className="h-5 flex items-center text-[13px] agent-shimmer font-medium">Writing</div>}
+        {streaming && !empty && blocks[blocks.length - 1]?.kind === "widget" && <div className="h-6 flex items-center gap-2.5 text-[14px] text-muted"><StateDot state="run" />Writing</div>}
         {!streaming && isLast && !errored && !blocks.some((b) => b.kind !== "steps") && (
-          <div className="flex items-center gap-2 text-label text-fg-muted">
+          <div className="flex items-center gap-2 text-[14px] text-muted">
             <span>The answer was interrupted.</span>
             <button type="button" onClick={() => onRegenerate(message.id)} disabled={busy}
-                    className="text-accent font-medium rounded-full px-2 py-0.5 hover:bg-accent-soft transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">Try again</button>
+                    className="text-ink font-medium rounded-full h-8 px-3 bg-surface hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">Try again</button>
           </div>
         )}
         {!streaming && !empty && (
-          <div className={`flex flex-wrap items-center gap-1 -ml-1.5 transition-opacity ${isLast ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100"}`}>
+          <div className={`flex flex-wrap items-center gap-x-1 gap-y-1 -ml-2 -mt-1 transition-opacity ${isLast ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100"}`}>
             {text && <CopyButton text={text} />}
-            <IconAction label="Regenerate response" onPress={() => onRegenerate(message.id)} disabled={busy}><RefreshCw size={14} /></IconAction>
+            <IconAction label="Regenerate response" onPress={() => onRegenerate(message.id)} disabled={busy}><RefreshCw size={15} /></IconAction>
             {!isLast && <RewindButton onConfirm={() => onRewind(message.id)} disabled={busy} />}
             <MetaChips message={message} />
           </div>
         )}
-      </div>
     </div>
   );
 }
 
 export function IconAction({ label, onPress, disabled, children }: { label: string; onPress: () => void; disabled?: boolean; children: ReactNode }) {
   return (
-    <Tooltip content={label} delay={350} closeDelay={0} classNames={{ content: "text-micro px-2 py-1" }}>
+    <Tooltip content={label} delay={350} closeDelay={0} classNames={{ content: "text-[12px] px-2.5 py-1 bg-ink text-ink-on rounded-full shadow-none" }}>
       <Button isIconOnly size="sm" radius="full" variant="light" aria-label={label} onPress={onPress} isDisabled={disabled}
-              className="min-w-7 w-7 h-7 text-fg-muted data-[hover=true]:text-fg data-[hover=true]:bg-fg/[0.06]">
+              className="min-w-8 w-8 h-8 text-muted data-[hover=true]:text-ink data-[hover=true]:bg-ink/[0.05] dark:data-[hover=true]:bg-surface">
         {children}
       </Button>
     </Tooltip>
@@ -187,7 +183,7 @@ function CopyButton({ text }: { text: string }) {
     <IconAction label={done ? "Copied" : "Copy"} onPress={async () => {
       try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1400); } catch { /* blocked */ }
     }}>
-      {done ? <Check size={14} className="text-tone-success" /> : <Copy size={14} />}
+      {done ? <Check size={15} className="text-tone-success" /> : <Copy size={15} />}
     </IconAction>
   );
 }
@@ -195,20 +191,20 @@ function CopyButton({ text }: { text: string }) {
 function RewindButton({ onConfirm, disabled }: { onConfirm: () => void; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
-    <Popover isOpen={open} onOpenChange={setOpen} placement="bottom" showArrow classNames={{ content: "rounded-tile p-3 bg-surface border border-border shadow-float" }}>
+    <Popover isOpen={open} onOpenChange={setOpen} placement="bottom" classNames={{ content: "rounded-tile p-4 bg-surface shadow-float dark:border dark:border-hairline" }}>
       <PopoverTrigger>
         <Button isIconOnly size="sm" radius="full" variant="light" aria-label="Rewind to here" isDisabled={disabled}
-                className="min-w-7 w-7 h-7 text-fg-muted data-[hover=true]:text-fg data-[hover=true]:bg-fg/[0.06]">
-          <History size={14} />
+                className="min-w-8 w-8 h-8 text-muted data-[hover=true]:text-ink data-[hover=true]:bg-ink/[0.05] dark:data-[hover=true]:bg-surface">
+          <History size={15} />
         </Button>
       </PopoverTrigger>
       <PopoverContent>
-        <div className="flex flex-col gap-2 max-w-[220px]">
-          <div className="text-[13px] font-semibold text-fg">Rewind to here?</div>
-          <p className="text-micro text-fg-muted">Everything after this message is removed.</p>
-          <div className="flex justify-end gap-1.5 mt-1">
-            <Button size="sm" radius="full" variant="light" onPress={() => setOpen(false)}>Cancel</Button>
-            <Button size="sm" radius="full" color="danger" onPress={() => { setOpen(false); onConfirm(); }}>Rewind</Button>
+        <div className="flex flex-col gap-1.5 max-w-[240px]">
+          <div className="text-[15px] font-semibold text-ink">Rewind to here?</div>
+          <p className="text-label font-normal text-muted">Everything after this message is removed.</p>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button size="sm" radius="full" variant="flat" className="h-9 px-4 bg-tile text-ink font-medium" onPress={() => setOpen(false)}>Cancel</Button>
+            <Button size="sm" radius="full" color="danger" className="h-9 px-4 font-semibold" onPress={() => { setOpen(false); onConfirm(); }}>Rewind</Button>
           </div>
         </div>
       </PopoverContent>
@@ -216,39 +212,41 @@ function RewindButton({ onConfirm, disabled }: { onConfirm: () => void; disabled
   );
 }
 
-const chip = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-medium";
-
+/** Answer metadata (design v3): muted text, no chips. The model name opens the run details on hover / focus; the
+ * number check is a tiny glyph + text. */
 function MetaChips({ message }: { message: AgentMessage }) {
   const m = message.metadata;
   if (!m) return null;
   const model = m.model?.split("/").pop();
   const secs = m.created_at && m.finished_at ? (new Date(m.finished_at).getTime() - new Date(m.created_at).getTime()) / 1000 : null;
   const details = (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-micro py-1">
-      {m.model && <><dt className="text-fg-muted">Model</dt><dd className="text-fg">{m.model}</dd></>}
-      {m.sim_time && <><dt className="text-fg-muted">Data as of</dt><dd className="text-fg">{shortDate(m.sim_time)}</dd></>}
-      {m.run_id !== null && m.run_id !== undefined && <><dt className="text-fg-muted">Pipeline run</dt><dd className="text-fg tabular">#{m.run_id}</dd></>}
-      {secs !== null && <><dt className="text-fg-muted">Time</dt><dd className="text-fg tabular">{secs.toFixed(1)} s</dd></>}
-      {m.usage?.totalTokens && <><dt className="text-fg-muted">Tokens</dt><dd className="text-fg tabular">{m.usage.totalTokens.toLocaleString("en-US")}</dd></>}
-      {!!m.tools_called?.length && <><dt className="text-fg-muted">Tools</dt><dd className="text-fg">{m.tools_called.join(", ")}</dd></>}
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px] py-1">
+      {m.model && <><dt className="text-muted">Model</dt><dd className="text-ink">{m.model}</dd></>}
+      {m.sim_time && <><dt className="text-muted">Data as of</dt><dd className="text-ink">{shortDate(m.sim_time)}</dd></>}
+      {m.run_id !== null && m.run_id !== undefined && <><dt className="text-muted">Pipeline run</dt><dd className="text-ink tabular">{m.run_id}</dd></>}
+      {secs !== null && <><dt className="text-muted">Time</dt><dd className="text-ink tabular">{secs.toFixed(1)} s</dd></>}
+      {m.usage?.totalTokens && <><dt className="text-muted">Tokens</dt><dd className="text-ink tabular">{m.usage.totalTokens.toLocaleString("en-US")}</dd></>}
+      {!!m.tools_called?.length && <><dt className="text-muted">Tools</dt><dd className="text-ink">{m.tools_called.join(", ")}</dd></>}
     </dl>
   );
+  const meta = "inline-flex items-center gap-1.5 h-8 px-2 rounded-full text-[13px] text-muted cursor-default focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal";
+  const tip = "bg-surface shadow-float rounded-tile px-4 py-3 dark:border dark:border-hairline";
   return (
     <>
       {model && (
-        <Tooltip content={details} delay={250} classNames={{ content: "bg-surface border border-border shadow-float rounded-tile px-3 py-2" }}>
-          <span className={`${chip} text-fg-muted bg-fg/[0.04] cursor-default`} tabIndex={0} data-testid="meta-model"><Cpu size={11} aria-hidden />{model}</span>
+        <Tooltip content={details} delay={250} classNames={{ content: tip }}>
+          <span className={meta} tabIndex={0} data-testid="meta-model">{model}</span>
         </Tooltip>
       )}
       {m.validated_numbers === true && (
-        <Tooltip content="Every number in this answer was found in the tool outputs" delay={250} classNames={{ content: "text-micro px-2 py-1 max-w-[220px]" }}>
-          <span className={`${chip} bg-success/10 text-tone-success cursor-default`} tabIndex={0} data-testid="numbers-verified"><ShieldCheck size={11} aria-hidden />Numbers verified</span>
+        <Tooltip content="Every number in this answer was found in the tool outputs" delay={250} classNames={{ content: `${tip} text-[13px] max-w-[240px]` }}>
+          <span className={meta} tabIndex={0} data-testid="numbers-verified"><Check size={14} strokeWidth={2.25} className="text-success" aria-hidden />Numbers verified</span>
         </Tooltip>
       )}
       {m.validated_numbers === false && (
         <Tooltip content={`Not found in the tool outputs: ${(m.unsupported_numbers ?? []).join(", ") || "some numbers"}. Check before quoting.`} delay={250}
-                 classNames={{ content: "text-micro px-2 py-1 max-w-[240px]" }}>
-          <span className={`${chip} bg-warning/15 text-tone-warning cursor-default`} tabIndex={0}><ShieldAlert size={11} aria-hidden />{m.unsupported_numbers?.length ?? ""} unverified</span>
+                 classNames={{ content: `${tip} text-[13px] max-w-[260px]` }}>
+          <span className={meta} tabIndex={0}><AlertTriangle size={14} className="text-warning" aria-hidden />{m.unsupported_numbers?.length ? `${m.unsupported_numbers.length} unverified` : "Unverified numbers"}</span>
         </Tooltip>
       )}
     </>

@@ -5,12 +5,12 @@ import { ink, SERIES } from "@/lib/viz";
 import { fmt, int } from "@/lib/format";
 
 /** INS-7: raw counts vs person-time ASR on ONE axis, both indexed to the first full-coverage year (never a dual axis). */
-export function CountsVsAsr({ rows, height = 230 }: { rows: RateRow[]; height?: number }) {
+export function CountsVsAsr({ rows, height = 230, legend = true }: { rows: RateRow[]; height?: number; legend?: boolean }) {
   const m = useThemeMode();
   const k = ink(), S = SERIES[m];
   const ys = rows.filter((r) => r.asr !== null).map((r) => ({ ...r, year: Number(r.period) })).sort((a, b) => a.year - b.year);
   const baseRow = ys.find((r) => !r.coverage_flag && !r.partial_year && (r.cases ?? 0) > 0);
-  if (!baseRow) return <div className="text-xs text-fg-muted p-4">Not enough years to index.</div>;
+  if (!baseRow) return <div className="text-label text-muted p-4">Not enough years to index.</div>;
   // Partial year: annualise the count by the share of person-time elapsed (YTD person-years ÷ previous full year).
   const ann = (r: (typeof ys)[number]) => {
     const prev = ys.find((x) => x.year === r.year - 1);
@@ -28,15 +28,15 @@ export function CountsVsAsr({ rows, height = 230 }: { rows: RateRow[]; height?: 
   const b = base();
   const opt: EChartsOption = {
     ...b,
-    grid: { left: 40, right: 74, top: 30, bottom: 26 },
-    legend: { ...(b.legend as object), left: 0, right: "auto", data: [
+    grid: { left: 40, right: 74, top: legend ? 30 : 12, bottom: 26 },
+    legend: { ...(b.legend as object), show: legend, left: 0, right: "auto", data: [
       { name: "Crude case count", icon: "path://M0,2h12v2h-12z" }, { name: "Age-standardised rate", icon: "path://M0,2h12v2h-12z" },
       { name: "Low coverage / YTD", icon: "path://M0,2h4v2h-4zM7,2h4v2h-4z", itemStyle: { color: k.muted } } as any] },
     xAxis: { ...(b.xAxis as object), type: "value", min: first.year - 0.3, max: last.year + 0.3, interval: 1, axisLabel: { color: k.muted, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } } as any,
     yAxis: { ...(b.yAxis as object), type: "value", min: 0 } as any,
     tooltip: { ...(b.tooltip as object), formatter: (ps: any) => {
       const y = Math.round(ps[0]?.value?.[0]); const r = ys.find((x) => x.year === y); if (!r) return "";
-      return `<b>${y}</b>${flag(r) ? ` <span style="color:${k.muted}">${r.partial_year ? "· year to date" : "· low EMR coverage"}</span>` : ""}<br/>Cases: <b>${int(r.cases)}</b> (index ${fmt(idxC(r), 0)})<br/>ASR: <b>${fmt(r.asr)}</b> per 100k (index ${fmt(idxA(r), 0)})`;
+      return `<b>${y}</b>${flag(r) ? ` <span style="color:${k.muted}">${r.partial_year ? "year to date" : "low EMR coverage"}</span>` : ""}<br/>Cases: <b>${int(r.cases)}</b> (index ${fmt(idxC(r), 0)})<br/>ASR: <b>${fmt(r.asr)}</b> per 100k (index ${fmt(idxA(r), 0)})`;
     } } as any,
     series: [
       { name: "Crude case count", type: "line", data: c.solid, symbol: "circle", symbolSize: 5, lineStyle: { width: 2, color: S[2] }, itemStyle: { color: S[2] },

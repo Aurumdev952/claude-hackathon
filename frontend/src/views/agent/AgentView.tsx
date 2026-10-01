@@ -65,30 +65,33 @@ export default function AgentView() {
   );
 
   return (
-    <div className="h-full min-h-[520px] grid gap-4 lg:grid-cols-[272px_minmax(0,1fr)]" data-testid="agent-view">
+    <div className="h-full min-h-[520px] grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]" data-testid="agent-view">
       <div className="hidden lg:flex min-h-0">{sidebar}</div>
 
       <AnimatePresence>
         {drawer && (
-          <motion.div className="lg:hidden fixed inset-0 z-50 flex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button type="button" aria-label="Close chats" className="absolute inset-0 bg-[rgb(11_18_32/0.3)] backdrop-blur-[4px]" onClick={() => setDrawer(false)} />
-            <motion.div className="relative w-[300px] max-w-[85vw] p-3" initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }} transition={{ duration: 0.3, ease: EASE }}>
+          <motion.div className="lg:hidden fixed inset-0 z-50 flex" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+            <button type="button" aria-label="Close chats" className="absolute inset-0 bg-[rgb(21_23_28/0.32)]" onClick={() => setDrawer(false)} />
+            <motion.div className="relative w-[300px] max-w-[85vw] h-full bg-page shadow-float px-3 pt-4 pb-3 flex" initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }} transition={{ duration: 0.28, ease: EASE }}>
               {sidebar}
-              <Button isIconOnly size="sm" radius="full" variant="flat" aria-label="Close chats" onPress={() => setDrawer(false)} className="absolute top-5 -right-10 bg-surface"><X size={14} /></Button>
+              <Button isIconOnly size="sm" radius="full" variant="flat" aria-label="Close chats" onPress={() => setDrawer(false)}
+                      className="absolute top-4 -right-12 w-10 h-10 min-w-10 bg-surface text-ink"><X size={16} /></Button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <section className="min-h-0 flex flex-col rounded-card bg-surface/70 border border-border shadow-card overflow-hidden backdrop-blur-sm" aria-label="Agent chat">
-        <header className="flex items-center gap-2 px-3 sm:px-4 h-14 border-b border-border/80 bg-surface/80 shrink-0">
-          <Button isIconOnly size="sm" radius="full" variant="light" aria-label="Show chats" onPress={() => setDrawer(true)} className="lg:hidden text-fg-muted"><PanelLeft size={16} /></Button>
-          <AgentChip role={role} facilityName={facilityName} />
+      <section className="min-h-0 min-w-0 flex flex-col" aria-label="Agent chat">
+        <header className="flex items-center gap-3 h-12 shrink-0">
+          <Button isIconOnly radius="full" variant="flat" aria-label="Show chats" onPress={() => setDrawer(true)} className="lg:hidden w-10 h-10 min-w-10 bg-surface text-ink"><PanelLeft size={17} /></Button>
+          <AgentChip role={role} facilityName={facilityName} className="flex-1 sm:flex-none" />
           <AnimatePresence mode="wait" initial={false}>
-            <motion.h1 key={title} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2, ease: EASE }}
-                       className="flex-1 min-w-0 truncate text-center text-[13.5px] font-medium text-fg-muted px-2">{title}</motion.h1>
+            <motion.h1 key={title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: EASE }}
+                       className="hidden sm:block flex-1 min-w-0 truncate text-center text-[14px] font-medium text-muted px-2">{title}</motion.h1>
           </AnimatePresence>
-          <Button size="sm" radius="full" variant="light" onPress={newChat} startContent={<SquarePen size={14} aria-hidden />} className="text-fg-muted data-[hover=true]:text-fg" aria-label="New chat">
+          <Button radius="full" variant="flat" onPress={newChat} aria-label="New chat"
+                  startContent={<SquarePen size={16} aria-hidden />}
+                  className="h-10 min-w-10 px-0 sm:px-4 bg-surface text-ink text-[14px] font-medium data-[hover=true]:bg-tile dark:border dark:border-hairline">
             <span className="hidden sm:inline">New chat</span>
           </Button>
         </header>
@@ -109,15 +112,15 @@ function ThreadSkeleton({ error, onRetry }: { error: boolean; onRetry: () => voi
   if (error) return (
     <div className="flex-1 grid place-items-center text-center p-6">
       <div className="flex flex-col items-center gap-3">
-        <p className="text-[13px] text-fg-muted">This chat could not be loaded.</p>
-        <Button size="sm" radius="full" variant="flat" onPress={onRetry}>Retry</Button>
+        <p className="text-[14px] text-muted">This chat could not be loaded. Check that the agent is running, then retry.</p>
+        <Button radius="full" variant="flat" onPress={onRetry} className="bg-surface text-ink font-medium">Retry</Button>
       </div>
     </div>
   );
   return (
-    <div className="flex-1 mx-auto w-full max-w-[860px] px-6 pt-8 flex flex-col gap-6" aria-busy="true" aria-label="Loading chat">
-      <div className="self-end h-10 w-64 rounded-[20px] bg-surface-2 animate-pulse" />
-      <div className="flex gap-3"><div className="w-7 h-7 rounded-full bg-surface-2 animate-pulse" /><div className="flex-1 flex flex-col gap-2"><div className="h-4 w-3/4 rounded bg-surface-2 animate-pulse" /><div className="h-48 rounded-card bg-surface-2 animate-pulse" /></div></div>
+    <div className="flex-1 mx-auto w-full max-w-[760px] px-1 pt-8 flex flex-col gap-7" aria-busy="true" aria-label="Loading chat">
+      <div className="self-end h-11 w-64 rounded-[20px] bg-ink/[0.05] dark:bg-tile animate-pulse" />
+      <div className="flex flex-col gap-3"><div className="h-4 w-3/4 rounded-full bg-ink/[0.05] dark:bg-tile animate-pulse" /><div className="h-4 w-1/2 rounded-full bg-ink/[0.05] dark:bg-tile animate-pulse" /><div className="h-56 rounded-card bg-surface animate-pulse" /></div>
     </div>
   );
 }
@@ -126,10 +129,10 @@ function PickFacility() {
   return (
     <div className="h-full min-h-[420px] grid place-items-center">
       <div className="text-center max-w-sm flex flex-col items-center gap-3">
-        <span className="w-12 h-12 rounded-full bg-accent-soft text-accent grid place-items-center" aria-hidden><Stethoscope size={20} /></span>
-        <h1 className="text-h1 text-fg">Choose your facility</h1>
-        <p className="text-[13.5px] text-fg-muted">The clinical assistant only sees patients of one facility. Pick it in the Patients view first.</p>
-        <Button as={Link} to="/doctor" color="primary" radius="full" size="sm" className="mt-1 font-medium">Open Patients</Button>
+        <span className="w-12 h-12 rounded-full border border-hairline text-ink grid place-items-center" aria-hidden><Stethoscope size={20} strokeWidth={1.75} /></span>
+        <h1 className="text-h1 text-ink">Choose your facility</h1>
+        <p className="text-[15px] leading-6 text-muted">The clinical assistant only sees the patients of one facility. Pick it in the Patients view first.</p>
+        <Button as={Link} to="/doctor" color="primary" radius="full" className="mt-1 h-11 px-6 font-semibold">Open patients</Button>
       </div>
     </div>
   );

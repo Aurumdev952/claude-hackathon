@@ -1,25 +1,28 @@
 import { Landmark, Stethoscope } from "lucide-react";
 import { PERSONA, type AgentRole } from "./types";
 
-/** Round agent mark: the persona icon on the accent gradient; breathes while the agent works. */
-export function AgentAvatar({ role, size = 28, busy = false }: { role: AgentRole; size?: number; busy?: boolean }) {
+/** Agent mark (design v3): the persona icon in ink inside an outlined circle, like every card icon. No fill, no glow. */
+export function AgentAvatar({ role, size = 28, className = "" }: { role: AgentRole; size?: number; className?: string }) {
   const Icon = role === "doctor" ? Stethoscope : Landmark;
   return (
-    <span className={`relative shrink-0 rounded-full grid place-items-center text-white shadow-tile ${busy ? "agent-pulse" : ""}`}
-          style={{ width: size, height: size, background: "linear-gradient(135deg, rgb(var(--accent)) 0%, #6E5BD6 100%)" }} aria-hidden>
-      <Icon size={Math.round(size * 0.5)} strokeWidth={2} />
+    <span className={`relative shrink-0 rounded-full border border-hairline bg-surface text-ink grid place-items-center ${className}`}
+          style={{ width: size, height: size }} aria-hidden>
+      <Icon size={Math.round(size * 0.5)} strokeWidth={1.75} />
     </span>
   );
 }
 
-/** "Ministry analyst" / "Clinical assistant · facility" chip: which agent answers (decided by the top-nav role switch). */
+/** "Ministry analyst" / "Clinical assistant" pill: which agent answers (decided by the top-nav role switch). The facility
+ * is a separate muted label, not a middle-dot suffix. */
 export function AgentChip({ role, facilityName, className = "" }: { role: AgentRole; facilityName?: string | null; className?: string }) {
   const fac = facilityName?.replace(" (Synthetic)", "");
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full bg-surface border border-border shadow-tile pl-1 pr-3 py-1 min-w-0 ${className}`} data-testid="agent-chip">
-      <AgentAvatar role={role} size={22} />
-      <span className="text-[12.5px] font-semibold text-fg whitespace-nowrap">{PERSONA[role].name}</span>
-      {role === "doctor" && fac && <span className="text-[12px] text-fg-muted truncate">· {fac}</span>}
+    <span className={`inline-flex items-center gap-2.5 min-w-0 ${className}`} data-testid="agent-chip">
+      <span className="inline-flex items-center gap-2 h-9 rounded-full bg-surface dark:border dark:border-hairline pl-1 pr-3.5 shrink-0">
+        <AgentAvatar role={role} size={28} />
+        <span className="text-[14px] font-semibold text-ink whitespace-nowrap">{PERSONA[role].name}</span>
+      </span>
+      {role === "doctor" && fac && <span className="text-label text-muted truncate hidden sm:inline">{fac}</span>}
     </span>
   );
 }
