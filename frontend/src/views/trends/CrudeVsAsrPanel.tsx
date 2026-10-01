@@ -74,19 +74,24 @@ export function CrudeVsAsrPanel() {
     }
     const grids = [0, 1, 2].map((i) => ({ left: `${5 + i * 33.4}%`, width: "25.5%", top: 34, bottom: 26, containLabel: false }));
     const titles = ["Recorded cases", "Person-years on EMR", "ASR per 100,000"];
+    const cats = years.map(String);
+    const lowCats = rows.filter((r) => r.low).map((r) => String(r.year));
+    const shadeC = lowCats.length ? { silent: true, itemStyle: { color: pal.mode === "dark" ? "rgba(230,236,238,0.035)" : "rgba(27,36,48,0.04)" },
+      label: { show: false }, data: [[{ xAxis: cats[0] }, { xAxis: lowCats[lowCats.length - 1] }]] } : undefined;
     return {
       ...b,
       title: titles.map((t, i) => ({ text: t, left: `${1 + i * 33.4}%`, top: 2, textStyle: { color: k.secondary, fontSize: 11, fontWeight: 600 } })),
       grid: grids,
       axisPointer: { link: [{ xAxisIndex: "all" }] },
-      xAxis: [0, 1, 2].map((i) => ({ ...x, gridIndex: i, min: years[0] - 0.6, max: years[years.length - 1] + 0.6, axisLabel: { ...x.axisLabel, formatter: (v: number) => (Number.isInteger(v) && v % 2 === 1 ? String(v) : "") } })),
+      xAxis: [0, 1, 2].map((i) => ({ ...b.xAxis, type: "category", gridIndex: i, data: cats, boundaryGap: true,
+        axisLabel: { ...b.xAxis.axisLabel, interval: 1, hideOverlap: true } })),
       yAxis: [0, 1, 2].map((i) => ({ ...b.yAxis, gridIndex: i, type: "value", min: 0, axisLabel: { ...b.yAxis.axisLabel, formatter: (v: number) => (i === 1 ? (v >= 1e6 ? `${fmt(v / 1e6, 1)}M` : `${int(v / 1e3)}k`) : int(v)) } })),
-      tooltip: { ...b.tooltip, trigger: "axis", formatter: (ps: any) => tip(Math.round(ps[0]?.axisValue)) },
+      tooltip: { ...b.tooltip, trigger: "axis", formatter: (ps: any) => tip(Number(ps[0]?.name ?? ps[0]?.axisValue)) },
       series: [
-        { type: "bar", xAxisIndex: 0, yAxisIndex: 0, data: rows.map((r) => ({ value: [r.year, r.cases], itemStyle: { opacity: r.low ? 0.5 : 1 } })), barMaxWidth: 14, itemStyle: { color: C.cases, borderRadius: [3, 3, 0, 0] }, markArea: shade },
-        { type: "bar", xAxisIndex: 1, yAxisIndex: 1, data: rows.map((r) => ({ value: [r.year, r.py], itemStyle: { opacity: r.low ? 0.5 : 1 } })), barMaxWidth: 14, itemStyle: { color: C.py, borderRadius: [3, 3, 0, 0] } },
-        bandSeries("asr-band", rows.map((r) => ({ x: r.year, lo: r.lci, hi: r.uci })), C.asr, { xAxisIndex: 2, yAxisIndex: 2 }),
-        { type: "line", xAxisIndex: 2, yAxisIndex: 2, data: rows.map((r) => [r.year, r.asr]), showSymbol: true, symbolSize: 4, lineStyle: { width: 2, color: C.asr }, itemStyle: { color: C.asr } },
+        { type: "bar", xAxisIndex: 0, yAxisIndex: 0, data: rows.map((r) => ({ value: r.cases, itemStyle: { opacity: r.low ? 0.5 : 1 } })), barMaxWidth: 14, itemStyle: { color: C.cases, borderRadius: [3, 3, 0, 0] }, markArea: shadeC },
+        { type: "bar", xAxisIndex: 1, yAxisIndex: 1, data: rows.map((r) => ({ value: r.py, itemStyle: { opacity: r.low ? 0.5 : 1 } })), barMaxWidth: 14, itemStyle: { color: C.py, borderRadius: [3, 3, 0, 0] }, markArea: shadeC },
+        bandSeries("asr-band", rows.map((r, i) => ({ x: i, lo: r.lci, hi: r.uci })), C.asr, { xAxisIndex: 2, yAxisIndex: 2 }),
+        { type: "line", xAxisIndex: 2, yAxisIndex: 2, data: rows.map((r) => r.asr), showSymbol: true, symbolSize: 4, lineStyle: { width: 2, color: C.asr }, itemStyle: { color: C.asr }, markArea: shadeC },
       ] as any,
     } as EChartsOption;
   // eslint-disable-next-line react-hooks/exhaustive-deps
