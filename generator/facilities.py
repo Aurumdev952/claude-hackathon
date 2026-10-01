@@ -47,6 +47,12 @@ def build_facilities(cfg: dict, seed: int) -> list[dict]:
     # ~20% of the population is covered through 2015 (Kigali + 3 pilot districts), the rest roll out to mid-2019,
     # so crude counts rise ~4-6x by 2019 from coverage alone (INS-7)
     order = sorted(DISTRICTS, key=lambda k: (0 if k.startswith("KGL") else 1, rnd.random()))
+    # D-27: keep the covered population representative of risk while it grows - the planted hotspots are spread over the
+    # rollout (one among the pilots) so national ASR does not drift upward just because high-risk districts join late
+    hot = [k for k in cfg["insights"]["ins1"].get("districts", []) if k in order] if cfg["insights"]["ins1"]["enabled"] else []
+    for k, pos in zip(hot, (4, 14, 24)):
+        order.remove(k)
+        order.insert(min(pos, len(order)), k)
     lo, hi = d("2015-01-01"), d("2019-06-30")
     n_pilot = 10   # D-25: 6 pilots made 2015 coverage so thin that 2019/2015 counts rose 7.6x (INS-7: 4-6x)
     rollout = {}
