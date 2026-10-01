@@ -60,7 +60,7 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
       stack: stacked ? "total" : undefined,
       lineStyle: { width: 2.25, color: c, type: s.dashed ? "dashed" : "solid" },
       itemStyle: { color: c, borderColor: k.surface, borderWidth: 2 },
-      areaStyle: area ? { color: alphaHex(c, stacked ? 0.45 : 0.14) } : undefined,
+      areaStyle: area ? { color: alphaHex(c, stacked ? 0.2 : 0.12) } : undefined,
       emphasis: { focus: spec.series.length > 1 ? "series" : "none", scale: 1.4 },
       endLabel: spec.series.length <= 3 && lastIdx >= 0 && !compact
         ? { show: true, color: k.primary, fontSize: 11, fontWeight: 600, distance: 6, formatter: () => cellText(spec.data[lastIdx], s.key, undefined, spec.unit) } : undefined,

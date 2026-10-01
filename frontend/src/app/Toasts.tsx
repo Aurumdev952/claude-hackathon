@@ -13,12 +13,12 @@ export function Toasts() {
       <AnimatePresence initial={false}>
         {toasts.map((t) => (
           <motion.div key={t.id} layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={SPRING}
-                      className="bg-surface shadow-float rounded-card dark:border dark:border-hairline pl-3 pr-2 py-3 text-[14px] text-ink flex items-center gap-3 max-w-[400px]">
+                      className="bg-surface shadow-float rounded-card dark:border dark:border-hairline pl-3 pr-2.5 py-3 text-[14px] leading-5 text-ink flex items-center gap-3 w-[360px] max-w-[calc(100vw-2.5rem)]">
             <span className={`w-9 h-9 rounded-full border grid place-items-center shrink-0 ${t.tone === "alert" ? "border-signal/40 text-signal" : "border-hairline text-ink"}`} aria-hidden>
               {t.tone === "alert" ? <BellRing size={16} /> : <Info size={16} />}
             </span>
-            <span className="flex-1">{t.text}</span>
-            <button onClick={() => dismiss(t.id)} aria-label="Dismiss" className="w-8 h-8 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile"><X size={15} /></button>
+            <span className="flex-1 min-w-0">{t.text}</span>
+            <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss" className="w-8 h-8 shrink-0 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"><X size={15} /></button>
           </motion.div>
         ))}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ArtifactFile, ArtifactSpec } from "@agent/widgets";
-import { AlertTriangle, Download, FileCode2, FileText, ImageIcon, Maximize2, ShieldCheck, Terminal, Timer } from "lucide-react";
+import { AlertTriangle, Download, FileCode2, FileText, ImageIcon, Maximize2, Terminal } from "lucide-react";
 import { Card, DetailModal, useDetailModal } from "@/components/ui";
 
 /** The artifact server's CSP for HTML, re-applied inside the srcdoc iframe (agent/src/routes/artifacts.ts). */
@@ -16,16 +16,12 @@ export function ArtifactWidget({ widget: a }: { widget: ArtifactSpec }) {
   return (
     <Card as="article" aria-label={`Sandbox output: ${a.title ?? a.run}`} className="agent-widget"
           title={a.title ?? (a.ok ? "Python analysis" : "Python run failed")} icon={a.ok ? <FileCode2 size={16} /> : <AlertTriangle size={16} />} iconTone={a.ok ? "accent" : "danger"}
-          actions={
-            <div className="hidden sm:flex items-center gap-1.5 text-micro text-fg-muted">
-              <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 border border-border px-2 py-0.5 tabular"><Timer size={11} aria-hidden />{(a.duration_ms / 1000).toFixed(1)} s</span>
-              {a.network_isolated && <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 border border-border px-2 py-0.5"><ShieldCheck size={11} aria-hidden />Offline sandbox</span>}
-            </div>
-          }>
-      <div className="flex flex-col gap-3">
+          actions={<span className="hidden sm:inline text-[13px] text-muted tabular">{(a.duration_ms / 1000).toFixed(1)} s</span>}>
+      <div className="flex flex-col gap-4">
         {!a.ok && (
-          <div className="rounded-tile bg-danger/10 border border-danger/20 text-tone-danger text-[13px] px-3.5 py-2.5">
-            {a.timed_out ? "The script ran out of time." : a.error ?? "The script failed."}
+          <div className="flex items-start gap-2.5 rounded-tile bg-tile text-[14px] leading-5 text-ink px-4 py-3">
+            <span className="mt-1.5 w-2 h-2 rounded-full bg-signal shrink-0" aria-hidden />
+            {a.timed_out ? "The script ran out of time. Ask for a smaller analysis or fewer rows." : a.error ?? "The script failed. Open the console for details."}
           </div>
         )}
         {images.map((f) => <ImageFile key={f.url} file={f} title={a.title} />)}
@@ -34,8 +30,8 @@ export function ArtifactWidget({ widget: a }: { widget: ArtifactSpec }) {
           <ul className="flex flex-wrap gap-2" aria-label="Files">
             {other.map((f) => (
               <li key={f.url}>
-                <a href={f.url} download={f.name} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 border border-border px-3 py-1.5 text-[12.5px] text-fg hover:bg-surface transition">
-                  <FileText size={13} aria-hidden />{f.name}<span className="text-fg-muted tabular">{kb(f.bytes)}</span><Download size={13} className="text-fg-muted" aria-hidden />
+                <a href={f.url} download={f.name} className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-3 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                  <FileText size={14} className="text-muted" aria-hidden />{f.name}<span className="text-muted font-normal tabular">{kb(f.bytes)}</span><Download size={14} className="text-muted" aria-hidden />
                 </a>
               </li>
             ))}
@@ -44,13 +40,17 @@ export function ArtifactWidget({ widget: a }: { widget: ArtifactSpec }) {
         {log && (
           <div>
             <button type="button" onClick={() => setShowLog((v) => !v)} aria-expanded={showLog}
-                    className="inline-flex items-center gap-1.5 text-micro text-fg-muted hover:text-fg rounded-full px-2 py-1 -ml-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
-              <Terminal size={12} aria-hidden />{showLog ? "Hide console" : "Show console"}
+                    className="inline-flex items-center gap-2 h-8 text-[13px] font-medium text-muted hover:text-ink hover:bg-tile rounded-full px-3 -ml-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+              <Terminal size={14} aria-hidden />{showLog ? "Hide console" : "Show console"}
             </button>
-            {showLog && <pre className="mt-1.5 max-h-56 overflow-auto rounded-tile bg-surface-2 border border-border p-3 text-[11.5px] leading-relaxed font-mono whitespace-pre-wrap text-fg/85">{log}</pre>}
+            {showLog && <pre className="mt-2 max-h-56 overflow-auto rounded-tile bg-tile p-4 text-[12px] leading-relaxed font-mono whitespace-pre-wrap text-ink/85">{log}</pre>}
           </div>
         )}
-        <p className="text-micro text-fg-muted">{a.rows_in} rows in · {a.files.length} file{a.files.length === 1 ? "" : "s"} out</p>
+        <p className="flex flex-wrap gap-x-4 text-[13px] text-muted">
+          <span>{a.rows_in.toLocaleString("en-US")} rows in</span>
+          <span>{a.files.length} file{a.files.length === 1 ? "" : "s"} out</span>
+          {a.network_isolated && <span>Ran offline in the sandbox</span>}
+        </p>
       </div>
     </Card>
   );
@@ -64,23 +64,23 @@ function ImageFile({ file, title }: { file: ArtifactFile; title?: string }) {
   const [failed, setFailed] = useState(false);
   return (
     <figure className="m-0">
-      <div className="relative rounded-tile overflow-hidden border border-border bg-white group">
-        {!loaded && !failed && <div className="aspect-[16/9] animate-pulse bg-surface-2" aria-hidden />}
-        {failed ? <div className="aspect-[16/9] grid place-items-center text-label text-fg-muted"><span className="inline-flex items-center gap-1.5"><ImageIcon size={14} aria-hidden />Image expired or unavailable</span></div> : (
+      <div className={`relative rounded-tile overflow-hidden group ${failed ? "bg-tile" : "bg-white"}`}>
+        {!loaded && !failed && <div className="aspect-[16/9] animate-pulse bg-tile" aria-hidden />}
+        {failed ? <div className="aspect-[16/9] grid place-items-center text-[14px] text-muted"><span className="inline-flex items-center gap-2"><ImageIcon size={15} aria-hidden />This image has expired. Run the analysis again to redraw it.</span></div> : (
           <img src={file.url} alt={title ?? file.name} loading="lazy" onLoad={() => setLoaded(true)} onError={() => setFailed(true)}
                className={`w-full h-auto block transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0 absolute inset-0"}`} />
         )}
         {loaded && (
           <button type="button" onClick={d.open} aria-label="Enlarge image"
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/90 border border-border shadow-tile grid place-items-center text-fg-muted hover:text-fg opacity-0 group-hover:opacity-100 focus:opacity-100 transition">
-            <Maximize2 size={14} aria-hidden />
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-surface border border-hairline grid place-items-center text-ink hover:bg-tile opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
+            <Maximize2 size={15} aria-hidden />
           </button>
         )}
       </div>
       <figcaption className="sr-only">{file.name}</figcaption>
       <DetailModal {...d.modalProps} title={title ?? file.name} size="5xl" icon={<ImageIcon size={16} />}
-                   footer={<a href={file.url} download={file.name} className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium text-fg border border-border bg-surface shadow-tile hover:bg-surface-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"><Download size={14} aria-hidden />Download PNG</a>}>
-        <img src={file.url} alt={title ?? file.name} className="w-full h-auto rounded-tile border border-border bg-white" />
+                   footer={<a href={file.url} download={file.name} className="inline-flex items-center gap-2 h-10 rounded-full px-4 text-[14px] font-medium text-ink bg-tile hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"><Download size={15} aria-hidden />Download PNG</a>}>
+        <img src={file.url} alt={title ?? file.name} className="w-full h-auto rounded-tile bg-white" />
       </DetailModal>
     </figure>
   );
@@ -99,9 +99,9 @@ function HtmlFile({ file }: { file: ArtifactFile }) {
       .catch(() => { if (live) setErr(true); });
     return () => { live = false; };
   }, [file.url]);
-  if (err) return <div className="rounded-tile border border-border bg-surface-2 p-6 text-center text-label text-fg-muted">Interactive output expired or unavailable</div>;
-  if (!doc) return <div className="h-[380px] rounded-tile bg-surface-2 animate-pulse" aria-label="Loading interactive output" />;
-  return <iframe title={file.name} srcDoc={doc} sandbox="allow-scripts" className="w-full h-[420px] rounded-tile border border-border bg-white" loading="lazy" />;
+  if (err) return <div className="rounded-tile bg-tile p-6 text-center text-[14px] text-muted">This interactive chart has expired. Run the analysis again to redraw it.</div>;
+  if (!doc) return <div className="h-[380px] rounded-tile bg-tile animate-pulse" aria-label="Loading interactive output" />;
+  return <iframe title={file.name} srcDoc={doc} sandbox="allow-scripts" className="w-full h-[420px] rounded-tile border border-hairline bg-white" loading="lazy" />;
 }
 
 function withCsp(html: string) {

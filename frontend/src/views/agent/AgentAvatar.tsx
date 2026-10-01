@@ -18,9 +18,9 @@ export function AgentChip({ role, facilityName, className = "" }: { role: AgentR
   const fac = facilityName?.replace(" (Synthetic)", "");
   return (
     <span className={`inline-flex items-center gap-2.5 min-w-0 ${className}`} data-testid="agent-chip">
-      <span className="inline-flex items-center gap-2 h-9 rounded-full bg-surface dark:border dark:border-hairline pl-1 pr-3.5 shrink-0">
+      <span className="inline-flex items-center gap-2 h-9 rounded-full bg-surface dark:border dark:border-hairline pl-1 pr-3.5 min-w-0 max-w-full">
         <AgentAvatar role={role} size={28} />
-        <span className="text-[14px] font-semibold text-ink whitespace-nowrap">{PERSONA[role].name}</span>
+        <span className="text-[14px] font-semibold text-ink whitespace-nowrap truncate">{PERSONA[role].name}</span>
       </span>
       {role === "doctor" && fac && <span className="text-label text-muted truncate hidden sm:inline">{fac}</span>}
     </span>

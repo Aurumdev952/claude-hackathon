@@ -102,7 +102,7 @@ function UserMessage({ message, busy, isLast, onEdit, onRewind }: Props) {
   if (editing) {
     return (
       <div className="flex justify-end">
-        <div className="w-full max-w-[640px] rounded-[24px] bg-surface border border-hairline p-2 outline outline-2 outline-offset-2 outline-signal/40">
+        <div className="w-full max-w-[640px] rounded-[24px] bg-surface border border-hairline dark:border-faint/60 p-2">
           <label htmlFor={`edit-${message.id}`} className="sr-only">Edit message</label>
           <textarea id={`edit-${message.id}`} ref={ref} value={draft} onChange={(e) => setDraft(e.target.value)} rows={Math.min(8, Math.max(2, draft.split("\n").length))}
                     onKeyDown={(e) => {
@@ -120,7 +120,7 @@ function UserMessage({ message, busy, isLast, onEdit, onRewind }: Props) {
     );
   }
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-row-reverse items-center gap-2">
       <div className="max-w-[min(600px,85%)] rounded-[22px] bg-ink/[0.055] dark:bg-tile text-ink px-5 py-3 text-[15px] leading-6 whitespace-pre-wrap break-words">
         {text}
       </div>
