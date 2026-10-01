@@ -24,7 +24,9 @@ def tensors(ev: pd.DataFrame, n_rows: int, tok: Tokenizer, max_len: int):
     age = np.zeros((n_rows, max_len), dtype=np.float32)
     ids[:, -1] = CLS  # [CLS] sits at the last position (right-aligned sequences, causal order old -> new -> CLS)
     if len(ev):
-        ev = ev.sort_values(["row_id", "days_before"], ascending=[True, False])
+        # chronological, with a full tie-break: same-day events otherwise come back in query order, which varies
+        keys = ["row_id", "ts", "et", "c", "v", "a"] if "ts" in ev.columns else ["row_id", "days_before"]
+        ev = ev.sort_values(keys, ascending=[True] + [k != "days_before" for k in keys[1:]], kind="mergesort")
         codes = tok.encode(ev)
         rid = ev["row_id"].values
         # position from the right: newest event at max_len-2
