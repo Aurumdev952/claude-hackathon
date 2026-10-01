@@ -35,6 +35,8 @@ SURV_SHAPE = 1.5
 # INS-4 facility practice: patients who first present at low-testing-tier facilities reach curative care less often
 TIER_CURATIVE = {"low": 0.3, "medium": 0.8, "high": 0.9}
 TIER_BSC_IV = {"low": 0.75, "medium": 0.4, "high": 0.25}
+# D-31: facility practice also shows in follow-up care (symptom control, nutrition, timely re-admission)
+TIER_HR = {"low": 1.45, "medium": 1.0, "high": 0.9}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
@@ -296,6 +298,8 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
             cs.misattrib += 1
             if cs.first_mis_day is None:
                 cs.first_mis_day = day
+            if not anaemic_seen:  # pallor seen clinically: the anaemia is recorded, then blamed on malaria/worms
+                rec.dx(enc, t + 75, loc, 2023, confirmed=False, primary=False)
             sd = ins6.get("suppress_days", [210, 330])
             suppress_until = day + rnd.randint(int(sd[0]), int(sd[1]))
             anchor = float(ins6.get("anchor_after", 0.25))  # clinician now attributes symptoms to malaria/worms: refers later
@@ -507,6 +511,7 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
             rec.drug(enc, t + 9, C.MORPHINE, 30, freq="QID")
         else:
             rec.drug(enc, t + 9, C.MORPHINE, 30, freq="QID")
+    hr *= TIER_HR[tier]
     k = SURV_SHAPE
     lam = SURV_MEDIAN_M[stage] / (math.log(2) ** (1 / k))
     months = lam * ((-math.log(max(rnd.random(), 1e-12)) / hr) ** (1 / k))
