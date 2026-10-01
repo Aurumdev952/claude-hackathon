@@ -22,8 +22,8 @@ export const NAV: readonly NavItem[] = [
   { to: "/trends", label: "Trends", title: "Trends lab", icon: TrendingUp, view: "trends", role: "ministry" },
   { to: "/warning", label: "Early warning", title: "Early warning", icon: ShieldAlert, view: "warning", role: "ministry" },
   { to: "/quality", label: "Care", title: "H. pylori & care quality", icon: FlaskConical, view: "quality", role: "ministry" },
-  { to: "/models", label: "Models", title: "Model arena", icon: Brain, view: "models", role: "any" },
   { to: "/doctor", label: "Patients", title: "Doctor workspace", icon: Stethoscope, view: "overview", role: "doctor" },
+  { to: "/models", label: "Models", title: "Model arena", icon: Brain, view: "models", role: "any" },
   { to: "/agent", label: "Agent", title: "AI agent", icon: Sparkles, view: "overview", role: "any", match: ["/ask"] },
 ];
 

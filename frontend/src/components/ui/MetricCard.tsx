@@ -177,7 +177,8 @@ export function PairCard({ left, right, visual, visualCaption, info, detail, tit
   );
   return (
     <Card padding="sm" className={`!p-4 ${className}`} title={title} info={title ? info : undefined} detail={detail} headerClassName={title || detail ? "" : "!hidden"}>
-      <div className="flex items-center gap-4">
+      {!title && info && <div className="absolute top-2 right-2"><InfoHint {...(typeof info === "object" && info !== null && !("$$typeof" in (info as object)) ? (info as object) : { content: info as ReactNode })} label="About this comparison" /></div>}
+      <div className={`flex items-center gap-4 ${!title && info ? "pr-5" : ""}`}>
         {visual && (
           <div className="shrink-0 rounded-tile bg-surface-2 border border-border/70 p-2 flex flex-col items-center gap-1">
             {visual}
@@ -187,7 +188,6 @@ export function PairCard({ left, right, visual, visualCaption, info, detail, tit
         <div className="flex-1 min-w-0">{side(left)}</div>
         <ChevronRight size={18} className="text-fg-muted/60 shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">{side(right)}</div>
-        {!title && info && <div className="self-start -mt-1 -mr-1"><InfoHint {...(typeof info === "object" && info !== null && !("$$typeof" in (info as object)) ? (info as object) : { content: info as ReactNode })} /></div>}
       </div>
     </Card>
   );

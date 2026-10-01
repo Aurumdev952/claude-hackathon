@@ -1,10 +1,11 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Tooltip } from "@heroui/react";
 import { motion } from "framer-motion";
 import { SPRING } from "@/lib/motion";
 
-type IconType = ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
+type IconType = LucideIcon;
 
 export type RailItem = {
   key: string;

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Shell } from "./Shell";
-import { Loading } from "@/components/ui/Panel";
+import { Loading } from "@/components/ui/Skeleton";
 import { useRole } from "@/state/role";
 
 const Overview = lazy(() => import("@/views/Overview"));
@@ -14,11 +14,17 @@ const DoctorWorkspace = lazy(() => import("@/views/DoctorWorkspace"));
 const CaseAnalysis = lazy(() => import("@/views/CaseAnalysis"));
 const AskData = lazy(() => import("@/views/AskData"));
 
+/** Temporary: the AI agent (Track B) replaces this route; until then /agent keeps the query (?q=) and opens Ask the Data. */
+function AgentRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: "/ask", search }} replace />;
+}
+
 export function App() {
   const role = useRole((s) => s.role);
   return (
     <Shell>
-      <Suspense fallback={<Loading h={400} />}>
+      <Suspense fallback={<div className="pt-2"><Loading h={400} /></div>}>
         <Routes>
           <Route path="/" element={role === "doctor" ? <Navigate to="/doctor" replace /> : <Overview />} />
           <Route path="/geo" element={<GeoExplorer />} />
@@ -28,6 +34,7 @@ export function App() {
           <Route path="/models" element={<ModelArena />} />
           <Route path="/doctor" element={<DoctorWorkspace />} />
           <Route path="/doctor/case/:patientId" element={<CaseAnalysis />} />
+          <Route path="/agent" element={<AgentRedirect />} />
           <Route path="/ask" element={<AskData />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

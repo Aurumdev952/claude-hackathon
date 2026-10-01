@@ -10,7 +10,7 @@ const TONE: Record<StatusKind, Tone> = {
   optimal: "success", good: "success", suboptimal: "warning", warning: "warning", serious: "serious", critical: "danger", info: "info", neutral: "neutral",
 };
 const LABEL: Record<StatusKind, string> = {
-  optimal: "Optimal", good: "Good", suboptimal: "Suboptimal", warning: "Warning", serious: "Elevated", critical: "Critical", info: "Info", neutral: "—",
+  optimal: "Optimal", good: "Good", suboptimal: "Suboptimal", warning: "Warning", serious: "Elevated", critical: "Critical", info: "Info", neutral: "Unknown",
 };
 /** Glyph colour + soft background + legible text per tone (text uses the darker "tone" steps on white). */
 const SOFT: Record<Tone, string> = {

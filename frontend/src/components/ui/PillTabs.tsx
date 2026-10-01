@@ -1,4 +1,5 @@
-import { type Key, type ReactNode, useId } from "react";
+import { type Key, type MouseEvent, type ReactNode, useId } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Tab, Tabs } from "@heroui/react";
 import { motion } from "framer-motion";
 import { SPRING } from "@/lib/motion";
@@ -33,19 +34,19 @@ export type PillTabsProps<K extends string = string> = {
 const LOOK = {
   light: {
     tabList: "bg-surface-2 border border-border",
-    cursor: "bg-surface shadow-tile dark:bg-surface-2 dark:border dark:border-border",
+    cursor: "bg-surface dark:bg-content3 shadow-tile",
     text: "text-fg-muted group-data-[selected=true]:text-fg group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-accent-soft group-data-[selected=true]:text-accent",
   },
   navy: {
     tabList: "bg-surface border border-border shadow-tile",
-    cursor: "bg-nav shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
+    cursor: "bg-nav dark:bg-nav shadow-[0_6px_16px_-6px_rgb(var(--nav)/0.55)]",
     text: "text-fg-muted group-data-[selected=true]:text-nav-fg group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-nav-fg/20 group-data-[selected=true]:text-nav-fg",
   },
   glass: {
     tabList: "glass shadow-tile",
-    cursor: "bg-accent shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.6)]",
+    cursor: "bg-accent dark:bg-accent shadow-[0_6px_16px_-6px_rgb(var(--accent)/0.6)]",
     text: "text-fg-muted group-data-[selected=true]:text-white group-data-[hover-unselected=true]:text-fg",
     count: "bg-fg/5 text-fg-muted group-data-[selected=true]:bg-white/25 group-data-[selected=true]:text-white",
   },
@@ -54,6 +55,8 @@ const LOOK = {
 /** Pill tabs (plan §A2) on HeroUI Tabs: rounded-full track, sliding cursor, optional count chips. role="tablist". */
 export function PillTabs<K extends string = string>({ items, selectedKey, onSelectionChange, variant = "light", size = "md", ariaLabel, fullWidth, className = "", panelClassName = "" }: PillTabsProps<K>) {
   const look = LOOK[variant];
+  const navigate = useNavigate();
+  const location = useLocation();
   return (
     <Tabs
       aria-label={ariaLabel}
@@ -74,7 +77,12 @@ export function PillTabs<K extends string = string>({ items, selectedKey, onSele
       }}
     >
       {items.map((i) => (
-        <Tab key={i.key} href={i.href} title={
+        <Tab key={i.key} href={i.href} onClick={i.href ? (e: MouseEvent<HTMLElement>) => {
+          // client-side routing (modifier clicks keep the browser's open-in-new-tab behaviour)
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          if (`${location.pathname}${location.search}` !== i.href) navigate(i.href!);
+        } : undefined} title={
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title={i.title}>
             {i.icon}
             <span>{i.label}</span>
