@@ -74,8 +74,9 @@ def data_quality(r: Role = Depends(role)):
 
 
 @router.get("/facilities/alert-summary")
-def facility_alert_summary(r: Role = Depends(role)):
-    """Aggregate open-alert counts per facility (no patient data) - helps a doctor pick their facility in the demo."""
+def facility_alert_summary():
+    """Aggregate open-alert counts per facility (no patient data) - helps a doctor pick their facility in the demo.
+    No role dependency: the doctor calls it before choosing a facility, so it has no X-Facility-Id yet."""
     if not SERVE.has_table("pt_alerts"):
         return envelope([])
     return envelope(SERVE.rows("""

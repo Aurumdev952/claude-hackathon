@@ -84,6 +84,12 @@ def test_invalid_role_and_missing_facility(client):
     assert r.status_code == 400 and r.json()["error"]["code"] == "FACILITY_REQUIRED"
 
 
+def test_facility_picker_works_before_a_facility_is_chosen(client):
+    rows = ok(client.get("/api/v1/facilities/alert-summary", headers={"X-Role": "doctor"}))["data"]
+    assert rows and {"location_id", "name", "high_alerts", "cohort_patients"} <= set(rows[0])
+    assert not {"patient_id", "name_given", "name_family", "identifier"} & set(rows[0])
+
+
 @pytest.mark.parametrize("path", ["/patients", "/alerts", "/patients/1/case", "/patients/1/timeline"])
 def test_ministry_never_gets_patient_level_data(client, path):
     r = client.get("/api/v1" + path, headers=MIN)
