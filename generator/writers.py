@@ -185,10 +185,6 @@ def write_chunk(F: dict[str, pl.DataFrame], bulk_dir: Path, chunk: int):
             p = bulk_dir / sub / name
             p.mkdir(parents=True, exist_ok=True)
             part.write_parquet(p / f"part-{chunk:04d}.parquet", compression="zstd")
-        t = bulk_dir / "tsv" / name
-        t.mkdir(parents=True, exist_ok=True)
-        b.write_csv(t / f"part-{chunk:04d}.tsv", separator="\t", include_header=False, null_value="\\N",
-                    datetime_format="%Y-%m-%d %H:%M:%S", date_format="%Y-%m-%d", quote_style="never")
 
 
 def finalize_future(bulk_dir: Path) -> dict:
@@ -206,8 +202,9 @@ def finalize_future(bulk_dir: Path) -> dict:
                       ("orders", "order_id"), ("person_name", "person_name_id"), ("person_address", "person_address_id"),
                       ("person_attribute", "person_attribute_id"), ("patient_identifier", "patient_identifier_id"),
                       ("patient_program", "patient_program_id")):
-        b = load(name, "parquet")
-        maxes[name] = int(b[key].max()) if b is not None and b.height else 0
+        g = list((bulk_dir / "parquet" / name).glob("*.parquet"))
+        mx = pl.scan_parquet(g).select(pl.col(key).max()).collect().item() if g else None  # lazy: never load bulk obs
+        maxes[name] = int(mx) if mx is not None else 0
 
     fut = {n: load(n, "future_parts") for n in ALL_TABLES}
 
@@ -254,3 +251,9 @@ def finalize_future(bulk_dir: Path) -> dict:
         counts[n] = df.height
     pmap.write_parquet(out / "_person_id_map.parquet")
     return {"future_rows": counts, "bulk_max_ids": maxes}
+
+
+def write_tsv(df: pl.DataFrame, path: Path):
+    """MySQL LOAD DATA format: tab separated, \\N for NULL, no header."""
+    df.write_csv(path, separator="\t", include_header=False, null_value="\\N",
+                 datetime_format="%Y-%m-%d %H:%M:%S", date_format="%Y-%m-%d", quote_style="never")

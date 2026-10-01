@@ -17,7 +17,7 @@ from shared.config import BULK_DIR, DATA_DIR, LATENT_DIR, REF_DIR, generator_cfg
 from shared.geo import DISTRICT_CODES
 
 from . import life
-from .context import HIST_END
+from .context import HIST_END, SIM_END
 from .dates import to_date
 from .diseases.gastric_cancer import calibrate_h_mult
 from .facilities import build_facilities, facility_events
@@ -125,7 +125,7 @@ def main():
                 noise[k] += v
     json.dump({"counts": dict(noise), "duplicates": dups}, open(LATENT_DIR / "noise_log.json", "w"))
 
-    denom = denominators(P, death, HIST_END)
+    denom = denominators(P, death, SIM_END)  # full-year person-time; the pipeline pro-rates the current sim year
     denom.write_csv(REF_DIR / "district_population.csv")
 
     tot = collections.Counter()

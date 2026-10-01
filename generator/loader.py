@@ -9,15 +9,16 @@ import pymysql
 
 from shared.config import mysql_params
 
-from .writers import ALL_TABLES, COLUMNS
+from .writers import ALL_TABLES, COLUMNS, write_tsv
 
 SQL_DIR = Path(__file__).parent / "sql"
 
 
 def _exec_script(cur, text: str):
-    for stmt in [s.strip() for s in text.split(";")]:
-        lines = [ln for ln in stmt.splitlines() if not ln.strip().startswith("--")]
-        stmt = "\n".join(lines).strip()
+    """Run a ;-separated SQL script. `--` comments are stripped first (they may contain semicolons)."""
+    import re
+    clean = "\n".join(re.sub(r"--.*$", "", ln) for ln in text.splitlines())
+    for stmt in (s.strip() for s in clean.split(";")):
         if stmt:
             cur.execute(stmt)
 
@@ -43,13 +44,19 @@ def load_all(bulk_dir: Path, ref: dict[str, pl.DataFrame], log=print):
         if rows:
             cur.executemany(f"INSERT INTO {name} ({','.join(cols)}) VALUES ({','.join(['%s'] * len(cols))})", rows)
     log(f"reference tables loaded ({time.time() - t0:.1f}s)")
+    for big in ("obs", "encounter", "visit", "orders", "drug_order", "person_attribute", "patient_identifier"):
+        cur.execute(f"ALTER TABLE {big} ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8")
+    tmp = bulk_dir / "_tsv_tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
     for name in ALL_TABLES:
-        files = sorted((bulk_dir / "tsv" / name).glob("*.tsv"))
         n = 0
-        for f in files:
+        for part in sorted((bulk_dir / "parquet" / name).glob("*.parquet")):
+            f = tmp / f"{name}-{part.stem}.tsv"
+            write_tsv(pl.read_parquet(part).select(COLUMNS[name]), f)
             cur.execute(f"LOAD DATA LOCAL INFILE '{f.as_posix()}' INTO TABLE {name} CHARACTER SET utf8mb4 "
                         f"FIELDS TERMINATED BY '\\t' LINES TERMINATED BY '\\n' ({','.join(COLUMNS[name])})")
             n += cur.rowcount
+            f.unlink()
         log(f"  {name}: {n:,} rows ({time.time() - t0:.1f}s)")
     _exec_script(cur, (SQL_DIR / "indexes.sql").read_text())
     cur.execute("SET foreign_key_checks=1")

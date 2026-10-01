@@ -8,7 +8,10 @@ dependencies = [
   "polars>=1.0",
   "pyarrow>=15",
   "pyyaml>=6",
-  "duckdb>=1.1",
+  "duckdb==1.5.5",
+  "duckdb-extensions==1.5.5",
+  "duckdb-extension-mysql-scanner==1.5.5",
+  "duckdb-extension-json==1.5.5",
   "pymysql>=1.1",
   "apscheduler>=3.10,<4",
   "scipy>=1.11",
@@ -29,7 +32,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dl = ["torch>=2.2"]
+dl = ["jax==0.10.2", "jaxlib==0.10.2", "optax>=0.2.4"]   # D-18: JAX instead of PyTorch (CUDA wheels too large for this disk)
 dev = ["pytest>=8", "pytest-timeout>=2.3"]
 
 [tool.uv]
