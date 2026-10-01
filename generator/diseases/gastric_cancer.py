@@ -148,7 +148,7 @@ class CaseState:
     __slots__ = ("onset", "symptom_start", "young", "lauren", "location", "durs", "clinical_only", "ramp", "ppi_repeat",
                  "alarm_late", "dx_day", "status", "stage", "t", "n", "m", "first_gi_loc", "first_gi_day", "n_visits",
                  "misattrib", "death_ca", "treatment", "undiagnosed", "dx_loc", "dx_code", "hb_drop", "wt_loss",
-                 "referrals", "refused", "district_dx", "first_rec_gi_day", "route", "first_mis_day")
+                 "referrals", "refused", "district_dx", "first_rec_gi_day", "route", "first_mis_day", "mis_prone")
 
     def stage_at(self, day: int) -> str:
         m = (day - self.symptom_start) / 30.44
@@ -198,6 +198,7 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     cs.alarm_late = rnd.random() < 0.55
     cs.hb_drop = rnd.random() < 0.75
     cs.wt_loss = rnd.random() < 0.45
+    cs.mis_prone = rnd.random() < ins["ins6"]["misattribution_prob"]
     cs.dx_day = None
     cs.status = "UNDIAGNOSED"
     cs.stage = None
@@ -287,8 +288,10 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
         # INS-6: anaemia (measured, or visible pallor treated presumptively) attributed to malaria / worms
         pallor = p.anaemic(hb_now) and rnd.random() < 0.8
         hb_drop_seen = hb_meas is not None and (anaemic_seen or hb_meas < p.hb_base - 1.0)
+        # decided once per case (D-28): re-rolling at every visit let the anaemic patients who escaped it be exactly the
+        # fast-referred ones (survivor selection), which hid the delay at the median
         if (ins6["enabled"] and (hb_drop_seen or pallor) and p.province_at(day) in ins6["provinces"]
-                and rnd.random() < ins6["misattribution_prob"]):
+                and cs.mis_prone and cs.misattrib == 0):
             misattributed = True
             cs.misattrib += 1
             if cs.first_mis_day is None:
