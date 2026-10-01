@@ -126,6 +126,28 @@ What the build container measured on the final dataset:
 
 `VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
 
+## AI agent and MCP
+
+`agent/` is a Node service (Hono + Vercel AI SDK 7) with two agents: a **clinical assistant** for doctors (facility-scoped, patient widgets) and a **ministry analyst** for health officials (aggregates only, cells under 5 suppressed). Both read the published DuckDB marts read-only, answer with chart widgets by default, can run small Python plotting scripts in a sandbox, and keep chats in SQLite (edit, rewind, regenerate).
+
+```bash
+make agent-setup        # pnpm install + sandbox venv
+make agent-dev          # http://localhost:8787/agent/health ; the dashboard chat is at /agent
+make agent-test         # unit tests
+make eval-agent         # DeepEval readiness gate (needs OpenRouter credit)
+```
+
+Model: `AGENT_MODEL` (default `deepseek/deepseek-v4.1-flash` on OpenRouter, key in `OPENROUTER_API_KEY`). For a government-hosted model set `AGENT_PROVIDER=openai-compatible` and `AGENT_BASE_URL`.
+
+Connect your own agent through MCP (no auth in the demo):
+
+```bash
+claude mcp add --transport http early-signals http://localhost:8787/mcp -H "X-Role: ministry"
+claude mcp add --transport http early-signals-doctor http://localhost:8787/mcp -H "X-Role: doctor" -H "X-Facility-Id: 1215"
+```
+
+Details: [`agent/README.md`](agent/README.md), evals: [`evals/agent/README.md`](evals/agent/README.md).
+
 ## Claude Code automations
 
 Project skills live in `.claude/skills/`. Repo notes for Claude are in [`CLAUDE.md`](CLAUDE.md). Both skills need published
