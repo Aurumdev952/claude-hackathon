@@ -23,3 +23,12 @@ data/analytics/tmp/
 *.tsbuildinfo
 *.tmp.mjs
 logs/
+# agent backend
+agent/data/
+agent/sandbox/.venv/
+agent/dist/
+agent/node_modules/
+evals/agent/results/*
+!evals/agent/results/latest.json
+reports/snapshots/*.json
+!reports/snapshots/latest.json
