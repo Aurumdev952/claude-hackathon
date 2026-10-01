@@ -137,7 +137,7 @@ make e2e       # 7 Playwright journeys, including the 3D Case Analysis and alert
 
 | Setting (`.env`) | Default | Notes |
 |---|---|---|
-| `SCALE` | `1.0` | `make reproduce SCALE=0.2` is about 5× smaller and faster. The reference numbers and the insight tests are calibrated for 1.0 |
+| `SCALE` | `1.0` | Keep 1.0: the reference numbers and insight tests are calibrated for it. The generator **refuses** a smaller scale unless you ask for it explicitly, e.g. `ALLOW_SMALL_SCALE=1 make generate SCALE=0.05` for a quick dev dataset |
 | `LLM_PROVIDER` | `template` | Deterministic, with no model needed (this is what the tests use). `ollama`: install Ollama, `ollama pull qwen2.5-coder:7b`, and set `OLLAMA_BASE_URL`. `anthropic`: set `ANTHROPIC_API_KEY` |
 | `TICK_SECONDS` / `SIM_DAYS_PER_TICK` | `300` / `1` | live-loop speed |
 | `PIPELINE_MEMORY_LIMIT` | `6GB` | DuckDB memory cap. Lower it on 8 GB machines; it will use more disk spill |

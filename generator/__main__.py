@@ -1,4 +1,4 @@
-"""python -m generator --scale 0.05 --seed 42 [--load-mysql]   (SPEC §8.11)"""
+"""python -m generator [--scale 1.0] [--seed 42] [--load-mysql]   (SPEC §8.11; scale < 1.0 needs ALLOW_SMALL_SCALE=1)"""
 from __future__ import annotations
 
 import argparse
@@ -8,6 +8,7 @@ import json
 import multiprocessing as mp
 import os
 import shutil
+import sys
 import time
 
 import numpy as np
@@ -53,6 +54,12 @@ def main():
         cfg["scale"] = a.scale
     if a.seed is not None:
         cfg["seed"] = a.seed
+    # scale 1.0 is the verified dataset (reference results, insight tests); a smaller one must be asked for explicitly,
+    # and the check runs before the existing data/bulk is deleted
+    if float(cfg["scale"]) < 1.0 and os.environ.get("ALLOW_SMALL_SCALE") != "1":
+        sys.exit(f"Refusing scale {cfg['scale']}: results, reference values and insight tests are for scale 1.0. "
+                 "For a deliberate small dev dataset run again with ALLOW_SMALL_SCALE=1 "
+                 "(e.g. ALLOW_SMALL_SCALE=1 make generate SCALE=0.05). Existing data was not touched.")
     seed = int(cfg["seed"])
     t0 = time.time()
     if BULK_DIR.exists():

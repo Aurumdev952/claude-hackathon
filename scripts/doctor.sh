@@ -22,7 +22,7 @@ cpus=$(nproc 2>/dev/null || echo 1)
 mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
 if   (( mem_kb >= 15 * 1048576 )); then pass "RAM: $(gb "$mem_kb") GB"
 elif (( mem_kb >= 8 * 1048576 ));  then warn "RAM: $(gb "$mem_kb") GB" "16 GB recommended; set PIPELINE_MEMORY_LIMIT=3GB and innodb_buffer_pool_size=1G (config/mysql/early-signals.cnf)"
-else fail "RAM: $(gb "$mem_kb") GB" "at least 8 GB is needed at scale 1.0 (or use: make reproduce SCALE=0.2)"; fi
+else fail "RAM: $(gb "$mem_kb") GB" "at least 8 GB is needed at scale 1.0"; fi
 
 # --- disk: free space plus the project data a rebuild replaces anyway
 free_kb=$(df -Pk . | awk 'NR==2 {print $4}')
