@@ -51,7 +51,7 @@ verify:                     ## published results vs the reference run (docs/refe
 generate:                   ## synthetic EMR at SCALE -> data/bulk (Parquet) + data/ground_truth.json, no MySQL
 	$(PY) -m generator --scale $(SCALE)
 
-seed:                       ## generate + load a dataset at SCALE (default 1.0; e.g. make seed SCALE=0.05 for quick dev)
+seed:                       ## generate + load a dataset at SCALE (default 1.0; smaller only with ALLOW_SMALL_SCALE=1)
 	$(PY) -m generator --scale $(SCALE)
 	$(MAKE) load
 
