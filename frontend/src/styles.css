@@ -2,107 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Early Signals v2 design tokens (plan §A1): light "ClyHealth / MedEx" bento system is the default; dark reuses the
- * same semantic names. Values are RGB triplets so Tailwind can apply alpha (`bg-accent/10`). */
+/* Early Signals design v3 ("Granger polish", scratchpad design-v3.md). Flat white cards on a cool grey page, one accent
+ * (signal orange) for attention only, sky blue for data, Urbanist for everything. Values are RGB triplets so Tailwind
+ * can apply alpha (`bg-signal/10`).
+ *
+ * Token            light      dark       role
+ * --page           #F1F2F6    #0E1014    app background (no glows)
+ * --surface        #FFFFFF    #16191F    cards (flat: no border, no shadow; 1px hairline edge in dark only)
+ * --tile           #F5F6F9    #1D2128    nested tiles, inputs, segmented-control tracks
+ * --hairline       #E8E9EF    #262A33    dividers inside cards, input edges
+ * --ink            #15171C    #F2F3F5    text, active nav pill, icons
+ * --muted          #6B7080    #8B909E    secondary text (plan #8B909E darkened in light for 4.5:1 on white and tile)
+ * --faint          #A3A8B5    #5A5F6B    non-text decoration (placeholder dots, empty tracks, chart grey)
+ * --signal         #F05A28    #FF6D3A    the one accent: marks, active dots, bars, focus ring, highlighted points
+ * --signal-strong  #D14516    #FF6D3A    solid fills that carry text (primary button, HIGH pill): 4.6:1 with --on-signal
+ * --on-signal      #FFFFFF    #15171C    text on --signal-strong
+ * --signal-text    #B83A12    #FF8A5C    signal-coloured text on white / signal-soft (AA)
+ * --signal-soft    #FDE9E1    #3A2219    MEDIUM pills, soft highlights
+ * --sky            #5AB4E5    #6CC0EC    data hue (charts, dot matrices, neutral progress)
+ * --sky-soft       #D9EEF9    #1C3240    CI bands, dot-matrix low level
+ * --success        #2E9E6A    #4CC28A    tone only (small dot / glyph), never a fill
+ * --warning        #D98A00    #F0A626    tone only
+ * --success-text   #1F7A52    #4CC28A    / --warning-text #9A6200 / #F0A626: legible status text
+ *
+ * Backward-compatible names (views written for v2 restyle immediately; prefer the new names in new code):
+ *   bg → page · surface-2 → tile · border → hairline · fg → ink · fg-muted → muted ·
+ *   accent → signal-strong (the signal step that passes AA as text on white and under white text) ·
+ *   accent-hover → signal-text · accent-soft → tile (v2 used it for icon tiles and selected rows; v3 = grey tile) ·
+ *   nav → ink · nav-fg → on-ink ·
+ *   danger / serious → signal · tone-danger / tone-serious → signal-text · tone-success → success-text ·
+ *   tone-warning → warning-text · glass → surface (the .glass class is now a flat overlay surface, no blur).
+ * Shadows: --shadow-card = none (cards are flat), --shadow-tile = none, --shadow-float = the one popover shadow. */
 :root, [data-theme="light"] {
-  --bg: 243 245 249;          /* #F3F5F9 */
-  --surface: 255 255 255;     /* #FFFFFF cards */
-  --surface-2: 247 248 251;   /* #F7F8FB tiles, inputs */
-  --border: 230 234 242;      /* #E6EAF2 hairlines */
-  --fg: 15 23 42;             /* #0F172A */
-  --fg-muted: 100 116 139;    /* #64748B */
-  --accent: 63 111 232;       /* #3F6FE8 royal blue */
-  --accent-hover: 47 91 214;  /* #2F5BD6 */
-  --accent-soft: 232 239 255; /* #E8EFFF */
-  --nav: 30 58 138;           /* #1E3A8A active top pill */
-  --nav-fg: 255 255 255;
-  --success: 34 197 94;       /* #22C55E */
-  --warning: 245 158 11;      /* #F59E0B */
-  --serious: 249 115 22;      /* #F97316 */
-  --danger: 239 68 68;        /* #EF4444 */
-  --success-text: 21 128 61;  /* #15803D status text on white */
-  --warning-text: 180 83 9;   /* #B45309 */
-  --serious-text: 194 65 12;  /* #C2410C */
-  --danger-text: 185 28 28;   /* #B91C1C */
-  --glass: 255 255 255;
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06);
-  --shadow-float: 0 12px 40px rgba(16, 24, 40, .14);
-  --shadow-tile: 0 1px 2px rgba(16, 24, 40, .04);
+  --page: 241 242 246;          /* #F1F2F6 */
+  --surface: 255 255 255;       /* #FFFFFF */
+  --tile: 245 246 249;          /* #F5F6F9 */
+  --tile-hover: 236 237 242;    /* #ECEDF2 hover on tiles / clickable rows */
+  --hairline: 232 233 239;      /* #E8E9EF */
+  --ink: 21 23 28;              /* #15171C */
+  --on-ink: 255 255 255;
+  --muted: 107 112 128;         /* #6B7080 */
+  --faint: 163 168 181;         /* #A3A8B5 */
+  --signal: 240 90 40;          /* #F05A28 */
+  --signal-strong: 209 69 22;   /* #D14516 */
+  --on-signal: 255 255 255;
+  --signal-text: 184 58 18;     /* #B83A12 */
+  --signal-soft: 253 233 225;   /* #FDE9E1 */
+  --sky: 90 180 229;            /* #5AB4E5 */
+  --sky-soft: 217 238 249;      /* #D9EEF9 */
+  --success: 46 158 106;        /* #2E9E6A */
+  --warning: 217 138 0;         /* #D98A00 */
+  --success-text: 31 122 82;    /* #1F7A52 */
+  --warning-text: 154 98 0;     /* #9A6200 */
+
+  /* v2 names → v3 tokens */
+  --bg: var(--page);
+  --surface-2: var(--tile);
+  --border: var(--hairline);
+  --fg: var(--ink);
+  --fg-muted: var(--muted);
+  --accent: var(--signal-strong);
+  --accent-hover: var(--signal-text);
+  --accent-soft: var(--tile);
+  --nav: var(--ink);
+  --nav-fg: var(--on-ink);
+  --serious: var(--signal);
+  --danger: var(--signal);
+  --serious-text: var(--signal-text);
+  --danger-text: var(--signal-text);
+  --glass: var(--surface);
+
+  --shadow-card: none;
+  --shadow-tile: none;
+  --shadow-float: 0 16px 48px rgba(21, 23, 28, .12);
   color-scheme: light;
 }
 [data-theme="dark"], .dark {
-  --bg: 11 18 32;             /* #0B1220 */
-  --surface: 18 26 43;        /* #121A2B */
-  --surface-2: 26 35 54;      /* #1A2336 */
-  --border: 36 48 73;         /* #243049 */
-  --fg: 230 234 242;          /* #E6EAF2 */
-  --fg-muted: 148 163 184;    /* #94A3B8 */
-  --accent: 76 126 240;       /* #4C7EF0 */
-  --accent-hover: 99 143 255; /* #638FFF */
-  --accent-soft: 27 42 78;    /* #1B2A4E */
-  --nav: 232 239 255;         /* #E8EFFF */
-  --nav-fg: 15 23 42;
-  --success: 52 211 153;      /* #34D399 */
-  --warning: 251 191 36;      /* #FBBF24 */
-  --serious: 251 146 60;      /* #FB923C */
-  --danger: 248 113 113;      /* #F87171 */
-  --success-text: 52 211 153;
-  --warning-text: 251 191 36;
-  --serious-text: 251 146 60;
-  --danger-text: 248 113 113;
-  --glass: 18 26 43;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .28);
-  --shadow-float: 0 16px 48px rgba(0, 0, 0, .55);
-  --shadow-tile: 0 1px 2px rgba(0, 0, 0, .3);
+  --page: 14 16 20;             /* #0E1014 */
+  --surface: 22 25 31;          /* #16191F */
+  --tile: 29 33 40;             /* #1D2128 */
+  --tile-hover: 36 40 49;       /* #242831 */
+  --hairline: 38 42 51;         /* #262A33 */
+  --ink: 242 243 245;           /* #F2F3F5 */
+  --on-ink: 21 23 28;
+  --muted: 139 144 158;         /* #8B909E */
+  --faint: 90 95 107;           /* #5A5F6B */
+  --signal: 255 109 58;         /* #FF6D3A */
+  --signal-strong: 255 109 58;
+  --on-signal: 21 23 28;
+  --signal-text: 255 138 92;    /* #FF8A5C */
+  --signal-soft: 58 34 25;      /* #3A2219 */
+  --sky: 108 192 236;           /* #6CC0EC */
+  --sky-soft: 28 50 64;         /* #1C3240 */
+  --success: 76 194 138;        /* #4CC28A */
+  --warning: 240 166 38;        /* #F0A626 */
+  --success-text: 76 194 138;
+  --warning-text: 240 166 38;
+  --shadow-float: 0 16px 48px rgba(0, 0, 0, .5);
   color-scheme: dark;
 }
 html, body, #root { height: 100%; }
 /* HeroUIProvider (react-aria OverlayProvider) adds a wrapper div: let it fill #root so the Shell can be full-height. */
 #root > div { height: 100%; }
-body { @apply bg-bg text-fg font-sans antialiased; font-feature-settings: "cv11", "ss01"; }
+body { @apply bg-page text-ink font-sans antialiased; font-size: 14px; line-height: 20px; }
+/* Urbanist ships no tabular figures (only ccmp/frac): the class keeps the request for fonts that have them. */
 .tabular { font-variant-numeric: tabular-nums; }
 /* Horizontal scrollers on narrow screens (tab strips) without a visible bar. */
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
-/* App background: airy tint with a soft accent glow (replaces .terrain-bg). */
-.page-bg {
-  background-color: rgb(var(--bg));
-  background-image:
-    radial-gradient(1100px 520px at 8% -10%, rgb(var(--accent) / 0.10), transparent 62%),
-    radial-gradient(900px 520px at 100% 0%, rgb(var(--accent) / 0.06), transparent 60%),
-    radial-gradient(1000px 600px at 50% 115%, rgb(124 156 255 / 0.07), transparent 60%);
-  background-attachment: fixed;
-}
-/* Frosted glass surface (floating cards, HUDs over 3D stages). */
-.glass {
-  background: rgb(var(--glass) / 0.72);
-  border: 1px solid rgb(var(--border) / 0.9);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+/* Focus: one visible ring everywhere (2px signal, offset 2px). Components that draw their own ring keep it. */
+:focus-visible { outline: 2px solid rgb(var(--signal)); outline-offset: 2px; }
+
+/* App background: the plain page token (v2 glows removed). Kept as a class for older markup. */
+.page-bg { background-color: rgb(var(--page)); }
+/* Overlay surface for HUDs over 3D stages and maps: flat white with a hairline edge, no blur, no shadow.
+ * `.glass` is the v2 name and an alias (screen agents: prefer `overlay-surface`). */
+.overlay-surface, .glass {
+  background: rgb(var(--surface));
+  border: 1px solid rgb(var(--hairline));
 }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: rgb(var(--fg-muted) / 0.28); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb { background: rgb(var(--muted) / 0.28); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 
-/* Case Analysis 3D stage: always a dark "lightbox" (imaging viewers are dark in both themes) */
-.case-stage {
-  background:
-    radial-gradient(60% 55% at 50% 42%, #1d2b3a 0%, #121a24 55%, #0b1118 100%);
-}
-.case-stage::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 4px);
-}
+/* Case Analysis 3D stage: the dark "lightbox" variant (imaging viewers), plain, no scanlines. */
+.case-stage { background: #14171C; }
 .case-label {
   position: relative; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 6px;
-  background: rgb(11 17 24 / 0.82); border: 1px solid rgb(230 236 238 / 0.18); color: #e6ecee;
-  backdrop-filter: blur(4px); transition: border-color .2s, box-shadow .2s;
+  font-size: 12px; line-height: 1; padding: 6px 10px; border-radius: 999px;
+  background: rgb(20 23 28 / 0.9); border: 1px solid rgb(242 243 245 / 0.16); color: #F2F3F5;
+  transition: border-color .2s;
 }
-.case-label.is-strong { border-color: #f2a541; box-shadow: 0 0 0 1px rgb(242 165 65 / 0.35), 0 0 22px rgb(255 106 58 / 0.3); }
-.case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(230 236 238 / 0.45); }
+.case-label.is-strong { border-color: #FF6D3A; }
+.case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(242 243 245 / 0.45); }
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.28); } 22% { transform: scale(1.05); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } }
 .beat { animation: heartbeat var(--beat, 0.85s) ease-in-out infinite; transform-origin: center; }

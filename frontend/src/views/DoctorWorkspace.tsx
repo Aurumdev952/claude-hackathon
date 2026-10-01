@@ -238,7 +238,7 @@ function PatientPanel({ patientId }: { patientId: number }) {
             </div>
             <div className="flex items-center gap-2">
               <Button radius="full" variant="flat" className="bg-surface-2 border border-border text-fg h-10" startContent={<MessageSquareText size={15} aria-hidden />} onPress={explain}>Explain</Button>
-              <Button radius="full" className="bg-cta-gradient text-white font-semibold h-10 px-5 shadow-[0_8px_20px_-8px_rgb(var(--accent)/0.7)]"
+              <Button radius="full" className="bg-signal-strong text-signal-on font-semibold h-10 px-5"
                       startContent={<Box size={16} aria-hidden />} onPress={() => nav(`/doctor/case/${patientId}`)}>Analyse case in 3D</Button>
             </div>
           </div>

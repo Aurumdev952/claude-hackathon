@@ -18,13 +18,15 @@ export type MetricDelta = {
 /** A number is animated; a string / node is shown as-is. */
 export type MetricValue = number | string | ReactNode | null | undefined;
 
-const DELTA_TONE = { good: "bg-success/10 text-tone-success", bad: "bg-danger/10 text-tone-danger", neutral: "bg-fg/5 text-fg-muted" } as const;
+/** Delta text colour: muted unless the change is bad (signal text). Good changes stay muted: calm by default. */
+const DELTA_TONE = { good: "text-muted", bad: "text-signal-text", neutral: "text-muted" } as const;
 
+/** Change vs a reference, shown as small muted text with a tiny arrow (v3; the v2 coloured chip is gone). Name kept. */
 export function DeltaChip({ delta, className = "" }: { delta: MetricDelta; className?: string }) {
   const Icon = delta.dir === 1 ? ArrowUpRight : delta.dir === -1 ? ArrowDownRight : ArrowRight;
   return (
-    <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular whitespace-nowrap ${DELTA_TONE[delta.tone ?? "neutral"]} ${className}`}>
-      <Icon size={12} aria-hidden />{delta.text}
+    <span className={`inline-flex items-center gap-0.5 text-label font-medium tabular whitespace-nowrap ${DELTA_TONE[delta.tone ?? "neutral"]} ${className}`}>
+      <Icon size={13} strokeWidth={2.2} aria-hidden />{delta.text}
     </span>
   );
 }
@@ -79,33 +81,34 @@ export type MetricCardProps = {
   children?: ReactNode;
 };
 
-/** Metric card (plan §A2, reference "Key areas of concern" cards): label + chevron, big number with a tiny unit, delta and
- * status chips, optional sparkline or gradient range bar. */
+/** Metric card (design v3, reference "Activity 2.780 Cal"): label as the card title, a big medium-weight number with a
+ * small muted unit, ONE helper line (at most one status pill + the delta as muted text), then an optional sky sparkline
+ * or a thin progress bar. */
 export function MetricCard({ label, value, unit, format, decimals, icon, iconTone, delta, status, aside, info, detail, detailLabel, onPress, spark, sparkColor, range,
   footer, size = "md", as = "article", role, className = "", children }: MetricCardProps) {
   const st = status ? (typeof status === "string" ? { status } : status) : null;
   return (
-    <Card as={as} role={role} padding="sm" className={`!p-4 ${className}`} onPress={onPress} pressLabel={typeof label === "string" ? label : undefined}
-          title={<span className="text-label font-medium text-fg-muted">{label}</span>} modalTitle={label} titleText={typeof label === "string" ? label : undefined} icon={icon} iconTone={iconTone} info={info} detail={detail} detailLabel={detailLabel ?? (typeof label === "string" ? `${label}: details` : undefined)}
-          headerClassName="!mb-2 !min-h-0"
-          actions={onPress && !detail ? <ChevronRight size={16} className="text-fg-muted" aria-hidden /> : undefined}>
+    <Card as={as} role={role} padding="sm" className={className} onPress={onPress} pressLabel={typeof label === "string" ? label : undefined}
+          title={<span className="block whitespace-normal line-clamp-2 text-[15px] leading-[20px] font-semibold text-ink">{label}</span>} modalTitle={label} titleText={typeof label === "string" ? label : undefined} icon={icon} iconTone={iconTone} info={info} detail={detail} detailLabel={detailLabel ?? (typeof label === "string" ? `${label}: details` : undefined)}
+          headerClassName="!mb-4 !items-start [&_h2]:whitespace-normal"
+          actions={onPress && !detail ? <ChevronRight size={16} className="text-muted mt-1" aria-hidden /> : undefined}>
       <div className="flex items-end justify-between gap-2">
-        <div className="flex items-baseline gap-1 min-w-0">
-          <Value value={value} format={format} decimals={decimals} className={`${size === "lg" ? "text-display" : "text-metric"} text-fg`} />
-          {unit && <span className="text-label text-fg-muted">{unit}</span>}
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <Value value={value} format={format} decimals={decimals} className={`${size === "lg" ? "text-display" : "text-metric"} text-ink`} />
+          {unit && <span className="text-[15px] leading-5 text-muted">{unit}</span>}
         </div>
-        {aside && <div className="text-label text-fg-muted whitespace-nowrap pb-1">{aside}</div>}
+        {aside && <div className="text-label text-muted whitespace-nowrap pb-1.5">{aside}</div>}
       </div>
       {(delta || st) && (
-        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
           {st && <StatusChip status={st.status} label={st.label} />}
           {delta && <DeltaChip delta={delta} />}
         </div>
       )}
-      {spark && spark.length > 1 && <div className="mt-3"><Sparkline values={spark} color={sparkColor} height={34} /></div>}
-      {range && <div className="mt-3"><GradientRangeBar {...range} value={range.value ?? (typeof value === "number" ? value : null)} /></div>}
+      {spark && spark.length > 1 && <div className="mt-auto pt-4"><Sparkline values={spark} color={sparkColor} height={36} /></div>}
+      {range && <div className="mt-4"><GradientRangeBar {...range} value={range.value ?? (typeof value === "number" ? value : null)} /></div>}
       {children}
-      {footer && <div className="mt-2 text-micro text-fg-muted">{footer}</div>}
+      {footer && <div className="mt-2 text-micro text-muted">{footer}</div>}
     </Card>
   );
 }
@@ -124,23 +127,24 @@ export type StatTileProps = {
   className?: string;
 };
 
-/** Small inner tile (reference "Age 36 years" / "CRP 1.8 mg/L" tiles): surface-2, icon, label, value + unit. */
+/** Nested tile (design v3, reference "Prady Lhambel 89%" tile): grey fill, radius 16, no border; muted label,
+ * medium-weight value with a small muted unit, at most one status pill or one muted line. */
 export function StatTile({ label, value, unit, format, decimals, icon, info, status, sub, className = "" }: StatTileProps) {
   return (
-    <div className={`rounded-tile bg-surface-2 border border-border/70 px-3 py-2.5 min-w-0 ${className}`}>
-      <div className="flex items-center gap-1.5 text-micro text-fg-muted">
-        {icon && <span className="text-accent shrink-0" aria-hidden>{icon}</span>}
+    <div className={`rounded-tile bg-tile px-4 py-3.5 min-w-0 ${className}`}>
+      <div className="flex items-center gap-1.5 text-label text-muted">
+        {icon && <span className="text-muted shrink-0 [&_svg]:w-[14px] [&_svg]:h-[14px]" aria-hidden>{icon}</span>}
         <span className="truncate">{label}</span>
-        {info && <InfoHint content={info} mode="tooltip" size={12} label={`About ${typeof label === "string" ? label : "this value"}`} className="!w-5 !h-5 !min-w-5 -my-1" />}
+        {info && <InfoHint content={info} mode="tooltip" size={13} label={`About ${typeof label === "string" ? label : "this value"}`} className="!w-5 !h-5 !min-w-5 -my-1" />}
       </div>
-      <div className="flex items-baseline gap-1 mt-0.5">
-        <Value value={value} format={format} decimals={decimals} className="text-[18px] font-semibold leading-6 text-fg" />
-        {unit && <span className="text-micro text-fg-muted">{unit}</span>}
+      <div className="flex items-baseline gap-1 mt-1">
+        <Value value={value} format={format} decimals={decimals} className="text-[24px] leading-8 font-medium tracking-[-0.01em] text-ink" />
+        {unit && <span className="text-label text-muted font-normal">{unit}</span>}
       </div>
       {(status || sub) && (
         <div className="flex items-center gap-1.5 mt-1">
           {status && <StatusChip status={status} />}
-          {sub && <span className="text-micro text-fg-muted leading-snug">{sub}</span>}
+          {sub && <span className="text-micro text-muted leading-snug">{sub}</span>}
         </div>
       )}
     </div>
@@ -161,32 +165,32 @@ export type PairCardProps = {
   className?: string;
 };
 
-/** "Heart age 46 yrs › Chronological age 42 yrs" layout (plan §A2). */
+/** Two values side by side ("Cases ×3.4 › ASR ×1.2"): small dot markers, medium-weight numbers, muted units. */
 export function PairCard({ left, right, visual, visualCaption, info, detail, title, className = "" }: PairCardProps) {
   const side = (s: PairSide) => (
     <div className="min-w-0">
-      <div className="flex items-center gap-1.5 text-label text-fg-muted">
-        <span className="w-1.5 h-3 rounded-sm shrink-0" style={{ background: s.marker ?? "rgb(var(--fg-muted) / .5)" }} aria-hidden />
+      <div className="flex items-center gap-1.5 text-label text-muted">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.marker ?? "rgb(var(--faint))" }} aria-hidden />
         <span className="truncate">{s.label}</span>
       </div>
-      <div className="flex items-baseline gap-1 mt-1">
-        <Value value={s.value} format={s.format} decimals={s.decimals} className="text-metric text-fg" />
-        {s.unit && <span className="text-label text-fg-muted">{s.unit}</span>}
+      <div className="flex items-baseline gap-1.5 mt-1">
+        <Value value={s.value} format={s.format} decimals={s.decimals} className="text-metric text-ink" />
+        {s.unit && <span className="text-[15px] leading-5 text-muted">{s.unit}</span>}
       </div>
     </div>
   );
   return (
-    <Card padding="sm" className={`!p-4 ${className}`} title={title} info={title ? info : undefined} detail={detail} headerClassName={title || detail ? "" : "!hidden"}>
-      {!title && info && <div className="absolute top-2 right-2"><InfoHint {...(typeof info === "object" && info !== null && !("$$typeof" in (info as object)) ? (info as object) : { content: info as ReactNode })} label="About this comparison" /></div>}
-      <div className={`flex items-center gap-4 ${!title && info ? "pr-5" : ""}`}>
+    <Card padding="sm" className={className} title={title} info={title ? info : undefined} detail={detail} headerClassName={title || detail ? "" : "!hidden"}>
+      {!title && info && <div className="absolute top-4 right-4"><InfoHint {...(typeof info === "object" && info !== null && !("$$typeof" in (info as object)) ? (info as object) : { content: info as ReactNode })} label="About this comparison" /></div>}
+      <div className={`flex items-center gap-5 ${!title && info ? "pr-6" : ""}`}>
         {visual && (
-          <div className="shrink-0 rounded-tile bg-surface-2 border border-border/70 p-2 flex flex-col items-center gap-1">
+          <div className="shrink-0 rounded-tile bg-tile p-2.5 flex flex-col items-center gap-1">
             {visual}
-            {visualCaption && <span className="text-micro font-semibold text-fg">{visualCaption}</span>}
+            {visualCaption && <span className="text-micro font-semibold text-ink">{visualCaption}</span>}
           </div>
         )}
         <div className="flex-1 min-w-0">{side(left)}</div>
-        <ChevronRight size={18} className="text-fg-muted/60 shrink-0" aria-hidden />
+        <span className="w-px self-stretch bg-hairline shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">{side(right)}</div>
       </div>
     </Card>

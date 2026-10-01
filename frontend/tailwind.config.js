@@ -1,37 +1,38 @@
-/** Early Signals v2 design tokens ("ClyHealth / MedEx" light bento system, plan §A1).
- * Every colour is an RGB-triplet CSS variable defined in src/styles.css (light default, dark via [data-theme="dark"] / .dark),
- * so a later Tailwind 4 / HeroUI 3 upgrade is mechanical. HeroUI's own palette (primary/default/success/warning/danger,
+/** Early Signals design v3 tokens ("Granger polish", design-v3.md). Every colour is an RGB-triplet CSS variable defined
+ * in src/styles.css (light default, dark via [data-theme="dark"] / .dark); the token table and the v2 → v3 name mapping
+ * live at the top of that file. HeroUI's own palette (primary = signal, default = greys, success/warning/danger,
  * background, content1-4, divider, focus) is configured below with the same hex values. */
 import { heroui } from "@heroui/theme";
 
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 // HeroUI scales: light runs 50 = lightest, dark runs 50 = darkest (HeroUI convention), so `text-success-700` reads in both.
-const green = { 50: "#F0FDF4", 100: "#DCFCE7", 200: "#BBF7D0", 300: "#86EFAC", 400: "#4ADE80", 500: "#22C55E", 600: "#16A34A", 700: "#15803D", 800: "#166534", 900: "#14532D" };
-const amber = { 50: "#FFFBEB", 100: "#FEF3C7", 200: "#FDE68A", 300: "#FCD34D", 400: "#FBBF24", 500: "#F59E0B", 600: "#D97706", 700: "#B45309", 800: "#92400E", 900: "#78350F" };
-const red = { 50: "#FEF2F2", 100: "#FEE2E2", 200: "#FECACA", 300: "#FCA5A5", 400: "#F87171", 500: "#EF4444", 600: "#DC2626", 700: "#B91C1C", 800: "#991B1B", 900: "#7F1D1D" };
+const signalLight = { 50: "#FEF4EF", 100: "#FDE9E1", 200: "#FBCDB9", 300: "#F8A98A", 400: "#F47E54", 500: "#F05A28", 600: "#D14516", 700: "#B83A12", 800: "#8F2E10", 900: "#6B240E" };
+const signalDark = { 50: "#24150F", 100: "#3A2219", 200: "#5E2C1C", 300: "#8C3518", 400: "#C2441A", 500: "#F05A28", 600: "#FF6D3A", 700: "#FF8A5C", 800: "#FFB08F", 900: "#FFDCCD" };
+const greenLight = { 50: "#EEF8F2", 100: "#DCF1E5", 200: "#B5E2C9", 300: "#83CDA8", 400: "#4FB585", 500: "#2E9E6A", 600: "#24855A", 700: "#1F7A52", 800: "#185F40", 900: "#11432D" };
+const amberLight = { 50: "#FDF6E7", 100: "#FBEDCC", 200: "#F6D894", 300: "#EFC05A", 400: "#E6A626", 500: "#D98A00", 600: "#B87500", 700: "#9A6200", 800: "#7A4E00", 900: "#5A3900" };
 
 const light = {
-  background: "#F3F5F9", foreground: "#0F172A", divider: "#E6EAF2", focus: "#3F6FE8", overlay: "#0B1220",
-  content1: { DEFAULT: "#FFFFFF", foreground: "#0F172A" }, content2: { DEFAULT: "#F7F8FB", foreground: "#0F172A" },
-  content3: { DEFAULT: "#EEF1F6", foreground: "#0F172A" }, content4: { DEFAULT: "#E6EAF2", foreground: "#0F172A" },
-  default: { 50: "#F7F8FB", 100: "#EEF1F6", 200: "#E6EAF2", 300: "#D5DBE6", 400: "#A9B3C4", 500: "#7C889C", 600: "#64748B", 700: "#475569", 800: "#1E293B", 900: "#0F172A", DEFAULT: "#E6EAF2", foreground: "#0F172A" },
-  primary: { 50: "#F3F6FF", 100: "#E8EFFF", 200: "#C9D8FB", 300: "#9DB7F4", 400: "#6F95EE", 500: "#3F6FE8", 600: "#2F5BD6", 700: "#2448AE", 800: "#1E3A8A", 900: "#172C66", DEFAULT: "#3F6FE8", foreground: "#FFFFFF" },
-  secondary: { DEFAULT: "#1E3A8A", foreground: "#FFFFFF" },
-  success: { ...green, DEFAULT: "#22C55E", foreground: "#FFFFFF" },
-  warning: { ...amber, DEFAULT: "#F59E0B", foreground: "#FFFFFF" },
-  danger: { ...red, DEFAULT: "#EF4444", foreground: "#FFFFFF" },
+  background: "#F1F2F6", foreground: "#15171C", divider: "#E8E9EF", focus: "#F05A28", overlay: "#15171C",
+  content1: { DEFAULT: "#FFFFFF", foreground: "#15171C" }, content2: { DEFAULT: "#F5F6F9", foreground: "#15171C" },
+  content3: { DEFAULT: "#ECEDF2", foreground: "#15171C" }, content4: { DEFAULT: "#E8E9EF", foreground: "#15171C" },
+  default: { 50: "#F5F6F9", 100: "#ECEDF2", 200: "#E8E9EF", 300: "#D6D8DF", 400: "#A3A8B5", 500: "#8B909E", 600: "#6B7080", 700: "#4A4F5C", 800: "#2A2D35", 900: "#15171C", DEFAULT: "#ECEDF2", foreground: "#15171C" },
+  primary: { ...signalLight, DEFAULT: "#D14516", foreground: "#FFFFFF" },
+  secondary: { DEFAULT: "#15171C", foreground: "#FFFFFF" },
+  success: { ...greenLight, DEFAULT: "#2E9E6A", foreground: "#FFFFFF" },
+  warning: { ...amberLight, DEFAULT: "#D98A00", foreground: "#15171C" },
+  danger: { ...signalLight, DEFAULT: "#D14516", foreground: "#FFFFFF" },
 };
 const dark = {
-  background: "#0B1220", foreground: "#E6EAF2", divider: "#243049", focus: "#4C7EF0", overlay: "#000000",
-  content1: { DEFAULT: "#121A2B", foreground: "#E6EAF2" }, content2: { DEFAULT: "#1A2336", foreground: "#E6EAF2" },
-  content3: { DEFAULT: "#243049", foreground: "#E6EAF2" }, content4: { DEFAULT: "#2E3B57", foreground: "#E6EAF2" },
-  default: { 50: "#121A2B", 100: "#1A2336", 200: "#243049", 300: "#2E3B57", 400: "#3E4C6A", 500: "#64748B", 600: "#94A3B8", 700: "#B6C2D6", 800: "#D5DBE6", 900: "#E6EAF2", DEFAULT: "#243049", foreground: "#E6EAF2" },
-  primary: { 50: "#101A33", 100: "#1B2A4E", 200: "#22386A", 300: "#2B4A8E", 400: "#3A63C4", 500: "#4C7EF0", 600: "#638FFF", 700: "#8FB0FF", 800: "#BCD0FF", 900: "#E8EFFF", DEFAULT: "#4C7EF0", foreground: "#FFFFFF" },
-  secondary: { DEFAULT: "#E8EFFF", foreground: "#0F172A" },
-  success: { 50: "#052E1F", 100: "#064E3B", 200: "#065F46", 300: "#047857", 400: "#059669", 500: "#10B981", 600: "#34D399", 700: "#6EE7B7", 800: "#A7F3D0", 900: "#D1FAE5", DEFAULT: "#34D399", foreground: "#0B1220" },
-  warning: { 50: "#2D1B05", 100: "#451A03", 200: "#78350F", 300: "#92400E", 400: "#B45309", 500: "#D97706", 600: "#F59E0B", 700: "#FBBF24", 800: "#FCD34D", 900: "#FEF3C7", DEFAULT: "#FBBF24", foreground: "#0B1220" },
-  danger: { 50: "#2A0E0E", 100: "#450A0A", 200: "#7F1D1D", 300: "#991B1B", 400: "#B91C1C", 500: "#DC2626", 600: "#EF4444", 700: "#F87171", 800: "#FCA5A5", 900: "#FEE2E2", DEFAULT: "#F87171", foreground: "#0B1220" },
+  background: "#0E1014", foreground: "#F2F3F5", divider: "#262A33", focus: "#FF6D3A", overlay: "#000000",
+  content1: { DEFAULT: "#16191F", foreground: "#F2F3F5" }, content2: { DEFAULT: "#1D2128", foreground: "#F2F3F5" },
+  content3: { DEFAULT: "#242831", foreground: "#F2F3F5" }, content4: { DEFAULT: "#2C313B", foreground: "#F2F3F5" },
+  default: { 50: "#16191F", 100: "#1D2128", 200: "#262A33", 300: "#2C313B", 400: "#3E4450", 500: "#5A5F6B", 600: "#8B909E", 700: "#B4B8C2", 800: "#D7DAE0", 900: "#F2F3F5", DEFAULT: "#262A33", foreground: "#F2F3F5" },
+  primary: { ...signalDark, DEFAULT: "#FF6D3A", foreground: "#15171C" },
+  secondary: { DEFAULT: "#F2F3F5", foreground: "#15171C" },
+  success: { 50: "#0F241A", 100: "#143524", 200: "#1A4A33", 300: "#226446", 400: "#2E8A5E", 500: "#2E9E6A", 600: "#4CC28A", 700: "#7AD4A9", 800: "#AEE6CB", 900: "#DDF5E9", DEFAULT: "#4CC28A", foreground: "#15171C" },
+  warning: { 50: "#2A1E05", 100: "#3D2B07", 200: "#5C410A", 300: "#7F590C", 400: "#A9760B", 500: "#D98A00", 600: "#F0A626", 700: "#F5BE5E", 800: "#F9D493", 900: "#FCEBCB", DEFAULT: "#F0A626", foreground: "#15171C" },
+  danger: { ...signalDark, DEFAULT: "#FF6D3A", foreground: "#15171C" },
 };
 
 export default {
@@ -41,9 +42,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        // semantic tokens (new)
-        bg: v("bg"),
+        // v3 tokens
+        page: v("page"),
         surface: { DEFAULT: v("surface"), 2: v("surface-2") },
+        tile: { DEFAULT: v("tile"), hover: v("tile-hover") },
+        hairline: v("hairline"),
+        ink: { DEFAULT: v("ink"), on: v("on-ink") },
+        muted: v("muted"),
+        faint: v("faint"),
+        signal: { DEFAULT: v("signal"), strong: v("signal-strong"), soft: v("signal-soft"), text: v("signal-text"), on: v("on-signal") },
+        sky: { DEFAULT: v("sky"), soft: v("sky-soft") },
+        // v2 names, pointed at v3 tokens in styles.css (bg → page, surface-2 → tile, border → hairline, fg → ink, accent → signal …)
+        bg: v("bg"),
         border: v("border"),
         fg: { DEFAULT: v("fg"), muted: v("fg-muted") },
         accent: { DEFAULT: v("accent"), hover: v("accent-hover"), soft: v("accent-soft") },
@@ -53,34 +63,32 @@ export default {
         tone: { success: v("success-text"), warning: v("warning-text"), serious: v("serious-text"), danger: v("danger-text") },
         glass: v("glass"),
       },
-      fontFamily: { sans: ['"Inter Variable"', "Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"] },
+      fontFamily: { sans: ['"Urbanist Variable"', "Urbanist", "system-ui", "-apple-system", "Segoe UI", "sans-serif"] },
+      // Type scale (design-v3 §Type). Urbanist runs small, so body is 14/20 and labels 13/18.
       fontSize: {
-        display: ["40px", { lineHeight: "44px", fontWeight: "600", letterSpacing: "-0.02em" }],
-        metric: ["28px", { lineHeight: "32px", fontWeight: "600", letterSpacing: "-0.015em" }],
-        h1: ["22px", { lineHeight: "28px", fontWeight: "600", letterSpacing: "-0.01em" }],
-        title: ["15px", { lineHeight: "20px", fontWeight: "600" }],
-        label: ["12.5px", { lineHeight: "16px" }],
-        micro: ["11px", { lineHeight: "14px" }],
+        display: ["48px", { lineHeight: "52px", fontWeight: "500", letterSpacing: "-0.02em" }],
+        metric: ["40px", { lineHeight: "44px", fontWeight: "500", letterSpacing: "-0.02em" }],
+        h1: ["28px", { lineHeight: "34px", fontWeight: "600", letterSpacing: "-0.01em" }],
+        title: ["17px", { lineHeight: "24px", fontWeight: "600" }],
+        body: ["14px", { lineHeight: "20px" }],
+        label: ["13px", { lineHeight: "18px", fontWeight: "500" }],
+        micro: ["12px", { lineHeight: "16px", fontWeight: "500" }],
       },
-      borderRadius: { tile: "14px", card: "18px", modal: "24px" },
+      borderRadius: { tile: "16px", card: "24px", hero: "28px", modal: "24px" },
       boxShadow: {
         card: "var(--shadow-card)",
         float: "var(--shadow-float)",
         tile: "var(--shadow-tile)",
       },
-      backgroundImage: {
-        "range-gradient": "linear-gradient(90deg, #22C55E 0%, #84CC16 28%, #F59E0B 58%, #F97316 78%, #EF4444 100%)",
-        "cta-gradient": "linear-gradient(135deg, rgb(var(--accent)) 0%, #6C8CFF 55%, #8B7CF6 100%)",
-      },
       keyframes: {
         pulseDot: { "0%,100%": { opacity: 1, transform: "scale(1)" }, "50%": { opacity: 0.35, transform: "scale(0.8)" } },
-        rise: { from: { opacity: 0, transform: "translateY(6px)" }, to: { opacity: 1, transform: "translateY(0)" } },
+        rise: { from: { opacity: 0 }, to: { opacity: 1 } },
         ping2: { "0%": { transform: "scale(1)", opacity: 0.55 }, "80%,100%": { transform: "scale(2.4)", opacity: 0 } },
         shimmer: { "100%": { transform: "translateX(100%)" } },
       },
       animation: {
         pulseDot: "pulseDot 1.6s ease-in-out infinite",
-        rise: "rise .35s ease-out both",
+        rise: "rise .25s ease-out both",
         ping2: "ping2 1.8s cubic-bezier(0,0,.2,1) infinite",
         shimmer: "shimmer 1.6s infinite",
       },
@@ -91,13 +99,14 @@ export default {
       defaultTheme: "light",
       defaultExtendTheme: "light",
       layout: {
-        radius: { small: "10px", medium: "14px", large: "18px" },
+        radius: { small: "12px", medium: "16px", large: "24px" },
         borderWidth: { small: "1px", medium: "1px", large: "2px" },
         disabledOpacity: "0.45",
+        // Flat UI: overlays (popover, dropdown, modal) carry the one soft shadow; `small` (tab cursor, switch thumb) is a hairline lift.
         boxShadow: {
-          small: "0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05)",
-          medium: "0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.08)",
-          large: "0 12px 40px rgba(16,24,40,.14)",
+          small: "0 1px 2px rgba(21,23,28,.06)",
+          medium: "0 16px 48px rgba(21,23,28,.12)",
+          large: "0 16px 48px rgba(21,23,28,.12)",
         },
       },
       themes: {
@@ -106,9 +115,9 @@ export default {
           colors: dark,
           layout: {
             boxShadow: {
-              small: "0 1px 2px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.25)",
-              medium: "0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35)",
-              large: "0 16px 48px rgba(0,0,0,.55)",
+              small: "0 1px 2px rgba(0,0,0,.3)",
+              medium: "0 16px 48px rgba(0,0,0,.5)",
+              large: "0 16px 48px rgba(0,0,0,.5)",
             },
           },
         },
