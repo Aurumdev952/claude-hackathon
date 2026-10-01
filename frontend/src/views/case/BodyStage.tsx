@@ -160,7 +160,7 @@ function OrganTable({ data, state }: { data: CaseData; state: BodyState }) {
               <td className="pl-4 text-[#b4c0c8]">{conds(id).join(", ") || "—"}</td>
             </tr>
           ))}
-          {data.tumour && (
+          {data.tumour && state.lesion && !state.lesion.suspected && (
             <tr className="border-t border-white/10"><td className="py-1.5">Tumour</td><td className="text-right">—</td>
               <td className="pl-4 text-[#b4c0c8]">{[data.tumour.lesion_location, data.tumour.t_stage, data.tumour.n_stage, data.tumour.m_stage, data.tumour.stage_group && `stage ${data.tumour.stage_group}`].filter(Boolean).join(" · ")}</td></tr>
           )}

@@ -17,17 +17,19 @@ const laneOf = (e: ReplayEvent) => (["ENDOSCOPY", "PATHOLOGY", "STAGING"].includ
 /** Timeline replay: scrub or play through the window; the body re-renders each organ's state at the playhead. */
 export function ReplayBar({ data }: { data: CaseData }) {
   const t0 = Date.parse(data.window.start), t1 = Date.parse(data.window.end);
+
   const { replayT, playing, speed, set } = useCaseUI();
   const raf = useRef<number>();
   useEffect(() => {
     if (!playing) return;
-    let last = performance.now(), acc = 0;
-    let cur = useCaseUI.getState().replayT ?? t0;
+    // position follows the wall clock since Play, so replay speed does not depend on the frame rate
+    const started = performance.now();
+    const base = useCaseUI.getState().replayT ?? t0;
+    let lastPush = 0;
     const tick = (now: number) => {
-      const dt = Math.min(0.5, (now - last) / 1000); last = now; acc += dt;   // wall-clock pace even at low frame rates
-      cur += dt * speed * MONTH;
+      const cur = base + ((now - started) / 1000) * speed * MONTH;
       if (cur >= t1) { set({ replayT: t1, playing: false }); return; }
-      if (acc >= 1 / 30) { set({ replayT: cur }); acc = 0; }   // ~30 store updates/s is plenty for the panels
+      if (now - lastPush >= 33) { set({ replayT: cur }); lastPush = now; }   // ~30 store updates/s is plenty for the panels
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
