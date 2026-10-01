@@ -16,10 +16,15 @@ test("doctor: open top patient, reasons + timeline render, acknowledge persists 
   test.skip(!alerts.data.length, "no NEW alerts at this facility");
   await page.getByRole("tab", { name: "Alerts inbox" }).click();
   await page.getByRole("button", { name: new RegExp(alerts.data[0].name) }).first().click();
-  await page.getByRole("button", { name: "Acknowledge" }).first().click();
+  // wait for the PATCH to land before reloading, otherwise the reload can abort it
+  const saved = page.waitForResponse((r) => r.url().includes("/alerts/") && r.request().method() === "PATCH");
+  await page.getByRole("button", { name: "Acknowledge", exact: true }).first().click();
+  const res = await saved;
+  expect(res.ok()).toBeTruthy();
+  const acked = (await res.json()).data?.alert_id ?? alerts.data[0].alert_id;
   await page.reload();
   const after = await (await page.request.get(`${API}/alerts?status=ACKNOWLEDGED`, { headers: { "X-Role": "doctor", "X-Facility-Id": String(fac) } })).json();
-  expect(after.data.map((a: any) => a.alert_id)).toContain(alerts.data[0].alert_id);
+  expect(after.data.map((a: any) => a.alert_id)).toContain(acked);
 });
 
 test("case analysis: 3D body renders, hover links panel and body, replay advances, table fallback", async ({ page }) => {
