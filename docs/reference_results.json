@@ -1,0 +1,23 @@
+{
+  "_about": "Results of the verified build (scale 1.0, seed 42, history to 2026-06-30) that scripts/verify_results.py compares against. 'tol' is the allowed absolute difference; the generator is deterministic, model training can differ slightly with thread counts.",
+  "scale": 1.0,
+  "seed": 42,
+  "history_end": "2026-06-30",
+  "checks": {
+    "national_asr_2024":        {"value": 34.7,  "tol": 2.0,   "label": "National ASR 2024 (per 100,000)"},
+    "incident_cases":           {"value": 2283,  "tol_pct": 3, "label": "Incident gastric cancer cases"},
+    "confirmed_cases":          {"value": 1860,  "tol_pct": 3, "label": "Histologically confirmed cases"},
+    "gi_cohort":                {"value": 49142, "tol_pct": 2, "label": "GI cohort size"},
+    "under50_apc":              {"value": 7.3,   "tol": 2.5,   "label": "Under-50 APC, last segment (%/yr)"},
+    "lisa_hh":                  {"value": ["NOR-GAK", "NOR-MUS", "WES-NGR", "WES-NYB", "WES-RUT"], "min_overlap": 4, "label": "LISA High-High districts"},
+    "surv_1y_all":              {"value": 0.346, "tol": 0.04,  "label": "1-year survival, all cases"},
+    "surv_1y_low_tier":         {"value": 0.238, "tol": 0.05,  "label": "1-year survival, low-testing facilities"},
+    "surv_1y_high_tier":        {"value": 0.477, "tol": 0.06,  "label": "1-year survival, high-testing facilities"},
+    "eradication_hr":           {"value": 0.55,  "tol": 0.12,  "label": "H. pylori eradication HR (CI must exclude 1)"},
+    "hiv_negative_control_hr":  {"value": 0.74,  "tol": 0.3,   "label": "HIV negative-control HR (CI must include 1)"},
+    "auroc_tier1":              {"value": 0.883, "tol": 0.03,  "label": "Test AUROC, Tier 1 points score"},
+    "auroc_tier2":              {"value": 0.964, "tol": 0.02,  "label": "Test AUROC, Tier 2 XGBoost"},
+    "auroc_tier3":              {"value": 0.963, "tol": 0.02,  "label": "Test AUROC, Tier 3 sequence model"},
+    "auroc_ensemble":           {"value": 0.970, "tol": 0.02,  "label": "Test AUROC, ensemble"}
+  }
+}

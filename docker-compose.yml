@@ -16,7 +16,7 @@ services:
     entrypoint: ["python", "-m", "generator", "--load-mysql"]
     profiles: ["seed"]
     env_file: .env
-    environment: {MYSQL_HOST: mysql}
+    environment: {MYSQL_HOST: mysql, MYSQL_USER: root}   # the mysql image creates root only
     volumes: ["./data:/data", "./config:/config:ro"]
     depends_on: {mysql: {condition: service_healthy}}
 
@@ -24,7 +24,7 @@ services:
     build: {context: ., dockerfile: docker/python.Dockerfile}
     command: ["python", "-m", "simulator.tick"]
     env_file: .env
-    environment: {MYSQL_HOST: mysql}
+    environment: {MYSQL_HOST: mysql, MYSQL_USER: root}   # the mysql image creates root only
     volumes: ["./data:/data", "./config:/config:ro"]
     depends_on: {mysql: {condition: service_healthy}}
 
@@ -32,7 +32,7 @@ services:
     build: {context: ., dockerfile: docker/python.Dockerfile}
     command: ["python", "-m", "pipeline.scheduler"]
     env_file: .env
-    environment: {MYSQL_HOST: mysql}
+    environment: {MYSQL_HOST: mysql, MYSQL_USER: root}   # the mysql image creates root only
     volumes: ["./data:/data", "./config:/config:ro"]
     depends_on: {mysql: {condition: service_healthy}}
 
