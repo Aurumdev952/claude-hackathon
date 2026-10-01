@@ -30,6 +30,11 @@ ORDER = ["refs", "extract", "dq_raw", "stage", "core", "marts", "score", "dq_mar
 def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_extract: bool = True,
         start_at: str | None = None) -> dict:
     """start_at (dev): skip the steps before it and reuse the tables already in the work db."""
+    if bootstrap and not start_at:
+        # a full rebuild starts from an empty file: DuckDB does not return space freed by CREATE OR REPLACE
+        from shared.config import ANALYTICS_DIR as _A
+        for f in (_A / "work.duckdb", _A / "work.duckdb.wal"):
+            f.unlink(missing_ok=True)
     con = work_connection()
     con.execute(LOG_DDL)
     run_id = (con.execute("SELECT coalesce(max(run_id), 0) + 1 FROM pipeline_run_log").fetchone()[0])
