@@ -1,0 +1,21 @@
+# MySQL 8 server settings for Early Signals (scripts/setup_ubuntu.sh copies this to /etc/mysql/mysql.conf.d/).
+# The same values the build machine used for the verified scale-1.0 run.
+[mysqld]
+# the bulk loader uses LOAD DATA LOCAL INFILE
+local_infile=1
+# ~12 GB of InnoDB data at scale 1.0; 3 GB keeps the live-insert index pages hot (raise on machines with >16 GB RAM)
+innodb_buffer_pool_size=3G
+# the simulator commits one transaction per tick; durability at the OS level is enough for synthetic data
+innodb_flush_log_at_trx_commit=2
+innodb_log_buffer_size=64M
+# the bulk load stalls on checkpoints with the 100 MB default ("Consider increasing innodb_redo_log_capacity")
+innodb_redo_log_capacity=512M
+max_allowed_packet=256M
+# leave 20% free in index pages so live inserts do not split every page (D-35)
+innodb_fill_factor=80
+# no replication: binary logs would double the disk used by the bulk load
+skip-log-bin
+bind-address=127.0.0.1
+
+[client]
+local_infile=1

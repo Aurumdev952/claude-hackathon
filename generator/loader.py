@@ -60,13 +60,15 @@ def load_all(bulk_dir: Path, ref: dict[str, pl.DataFrame], log=print):
         log(f"  {name}: {n:,} rows ({time.time() - t0:.1f}s)")
     # the simulator inserts at random positions of the uuid / person indexes; sorted index builds pack pages 100% full,
     # so every live insert would split a page (~130 MB per simulated day at scale 1.0). Leave 20% free (D-35).
+    cur.execute("SELECT @@GLOBAL.innodb_fill_factor")
+    prev_fill = int(cur.fetchone()[0])
     try:
         cur.execute("SET GLOBAL innodb_fill_factor = 80")
     except pymysql.MySQLError:
-        log("  (no privilege to set innodb_fill_factor; indexes built full)")
+        log(f"  (no privilege to set innodb_fill_factor; indexes built at {prev_fill}%)")
     _exec_script(cur, (SQL_DIR / "indexes.sql").read_text())
     try:
-        cur.execute("SET GLOBAL innodb_fill_factor = 100")
+        cur.execute(f"SET GLOBAL innodb_fill_factor = {prev_fill}")
     except pymysql.MySQLError:
         pass
     cur.execute("SET foreign_key_checks=1")
