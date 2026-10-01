@@ -93,6 +93,7 @@ test.describe("ministry analyst", () => {
     await expect(user(page).first()).toContainText("headline indicators", { timeout: 15_000 });
     await turnDone(page);
     await expect(assistant(page)).toHaveCount(1);
+    await expect(page.getByRole("alert")).toHaveCount(0);
   });
 });
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Brain, Check, ChevronDown, Code2, Database, ScanSearch, X } from "lucide-react";
+import { AlertTriangle, Brain, Check, ChevronDown, Code2, Database, ScanSearch, X } from "lucide-react";
 import { DataTable, DetailModal, useDetailModal, type DetailTab } from "@/components/ui";
 import { EASE } from "@/lib/motion";
 import { colLabel } from "../widgets/format";
@@ -48,7 +48,7 @@ export function Steps({ items, live }: { items: StepItem[]; live: boolean }) {
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
                 className="group inline-flex items-center gap-2 max-w-full rounded-full pl-1 pr-2.5 py-1 text-[12.5px] text-fg-muted hover:text-fg hover:bg-fg/[0.04] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">
           <span className={`w-5 h-5 rounded-full grid place-items-center ${errors ? "bg-warning/15 text-tone-warning" : "bg-success/15 text-tone-success"}`} aria-hidden>
-            {tools.length ? <Check size={12} strokeWidth={2.5} /> : <Brain size={12} />}
+            {errors ? <AlertTriangle size={11} strokeWidth={2.5} /> : tools.length ? <Check size={12} strokeWidth={2.5} /> : <Brain size={12} />}
           </span>
           <span className="font-medium shrink-0">{summary}</span>
           {labels.length > 0 && <span className="truncate hidden sm:inline">· {labels.join(" · ")}</span>}

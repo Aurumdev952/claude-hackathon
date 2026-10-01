@@ -56,7 +56,9 @@ export function ChoroplethMap({ spec, large = false }: { spec: Choro; large?: bo
     };
   }, [g.data, spec.level]);
 
-  const ranked = useMemo(() => (categorical ? spec.data : [...spec.data].sort((a, b) => (asNum(b[spec.valueKey]) ?? -Infinity) - (asNum(a[spec.valueKey]) ?? -Infinity))), [spec, categorical]);
+  const CAT_ORDER = ["HH", "HL", "LH", "LL"];
+  const catRank = (r: Row) => { const i = CAT_ORDER.indexOf(String(r[spec.valueKey])); return i < 0 ? (String(r[spec.valueKey]) === "NS" ? 99 : 50) : i; };
+  const ranked = useMemo(() => (categorical ? [...spec.data].sort((a, b) => catRank(a) - catRank(b)) : [...spec.data].sort((a, b) => (asNum(b[spec.valueKey]) ?? -Infinity) - (asNum(a[spec.valueKey]) ?? -Infinity))), [spec, categorical]);
   const label = colLabel(spec.valueKey);
 
   return (

@@ -24,7 +24,9 @@ type Props = {
 /** Error text from the AI SDK error (the server's `{error:{message}}` envelope when present). */
 function errorText(e: Error | undefined) {
   if (!e) return "";
-  try { const j = JSON.parse(e.message); return j?.error?.message ?? e.message; } catch { return e.message || "Something went wrong"; }
+  let t: string;
+  try { const j = JSON.parse(e.message); t = j?.error?.message ?? e.message; } catch { t = e.message || "Something went wrong"; }
+  return t.length > 220 ? `${t.slice(0, 220)}…` : t;
 }
 
 /** One conversation (plan §B7): useChat over the agent transport, edit / rewind / regenerate, auto-scroll, composer. */
@@ -139,7 +141,10 @@ export function Thread({ conversationId, initialMessages, autoSend, onStarted }:
   // ?q= deep link: send once on mount
   const autoSent = useRef(false);
   useEffect(() => {
-    if (autoSend && !autoSent.current && messages.length === 0) { autoSent.current = true; send(autoSend); }
+    if (!autoSend || autoSent.current || messages.length) return;
+    // deferred: StrictMode's mount / unmount / mount would otherwise abort the first request (useChat stops on unmount)
+    const t = setTimeout(() => { autoSent.current = true; send(autoSend); }, 0);
+    return () => clearTimeout(t);
   }, [autoSend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "/" focuses the composer
@@ -167,7 +172,7 @@ export function Thread({ conversationId, initialMessages, autoSend, onStarted }:
           ) : (
             messages.map((m, i) => (
               <MessageBubble key={m.id} message={m} role={role} isLast={i === messages.length - 1}
-                             streaming={busy && i === messages.length - 1 && m.role === "assistant"} busy={busy}
+                             streaming={busy && i === messages.length - 1 && m.role === "assistant"} busy={busy} errored={status === "error"}
                              animateIn={!mountedIds.current.has(m.id)}
                              onEdit={edit} onRewind={rewind} onRegenerate={regen} />
             ))
