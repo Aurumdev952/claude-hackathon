@@ -18,3 +18,4 @@ export { DataTable, type Column } from "./DataTable";
 export { Sparkline } from "./Sparkline";
 export { BandChip, SeverityChip } from "./Status";
 export { ErrorNote } from "./Panel";
+export { PortalContainerContext, usePortalContainer } from "./portal";

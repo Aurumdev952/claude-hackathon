@@ -1,4 +1,5 @@
 import { Tooltip } from "@heroui/react";
+import { usePortalContainer } from "@/components/ui";
 import { motion } from "framer-motion";
 import { Bean, Bone, Brain, Hand, HeartPulse, PersonStanding, Shield, Soup, Wind, type LucideIcon } from "lucide-react";
 import { SPRING } from "@/lib/motion";
@@ -58,6 +59,7 @@ export function SystemRail({ data, className = "" }: { data: CaseData; className
   const active = useActiveSystem(data);
   const set = useCaseUI((s) => s.set);
   const scores = scoresOf(data);
+  const portal = usePortalContainer();
   const pick = (k: SystemKey | null) => {
     if (k === null) return set({ system: null, selectedOrgan: null });
     const cands = organsIn(data, k).filter((o) => !SHELL.has(o));
@@ -65,7 +67,7 @@ export function SystemRail({ data, className = "" }: { data: CaseData; className
   };
   const item = (key: string, label: string, Icon: LucideIcon, on: boolean, dot: boolean, onPress: () => void) => (
     <li key={key}>
-      <Tooltip content={label} placement="right" delay={200} closeDelay={0} offset={10}
+      <Tooltip content={label} placement="right" delay={200} closeDelay={0} offset={10} portalContainer={portal}
                classNames={{ content: "bg-fg text-bg text-xs font-medium px-2.5 py-1 rounded-lg shadow-float" }}>
         <button type="button" onClick={onPress} aria-label={label} aria-pressed={on}
                 className="group relative w-9 h-9 grid place-items-center rounded-[11px] transition-colors hover:bg-fg/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60">

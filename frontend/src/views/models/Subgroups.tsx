@@ -33,6 +33,7 @@ export function SubgroupTable({ rows, models, overall }: { rows: Subgroup[]; mod
         <span className="flex-1" />
         <span className="text-[10px] text-fg-muted flex items-center gap-1.5"><span className="inline-block w-px h-3 bg-fg" aria-hidden />overall AUROC {fmt(ov, 3)}</span>
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full text-xs tabular">
         <thead>
           <tr className="text-fg-muted text-micro">
@@ -79,6 +80,7 @@ export function SubgroupTable({ rows, models, overall }: { rows: Subgroup[]; mod
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

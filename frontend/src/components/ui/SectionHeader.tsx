@@ -39,7 +39,7 @@ export function PageHeader({ title, eyebrow, info, lede, actions, right, icon, c
           {hint ? <InfoHint {...infoProps(hint, title, `About ${typeof title === "string" ? title : "this page"}`)} placement="bottom-start" /> : null}
         </div>
       </div>
-      {right}
+      {right && <div className="max-w-full min-w-0 overflow-x-auto scrollbar-none -my-1 py-1">{right}</div>}
       {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
     </header>
   );

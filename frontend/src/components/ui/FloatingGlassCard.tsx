@@ -31,7 +31,7 @@ export function FloatingGlassCard({ open = true, count, title, body, icon, cta, 
         <motion.aside role={role} aria-label={ariaLabel}
                       initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.97 }}
                       transition={SPRING_SOFT}
-                      className={`${POS[position]} w-[300px] rounded-[20px] glass shadow-float p-4 ${className}`}>
+                      className={`${POS[position]} w-[300px] max-w-[calc(100vw-2.5rem)] rounded-[20px] glass shadow-float p-4 ${className}`}>
           <div className="flex items-start gap-3">
             {icon && <span className="w-9 h-9 shrink-0 rounded-tile bg-accent-soft text-accent grid place-items-center" aria-hidden>{icon}</span>}
             <div className="min-w-0 flex-1">

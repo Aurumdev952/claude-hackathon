@@ -4,6 +4,7 @@ import { BarChart3, BookOpen, Table2 } from "lucide-react";
 import { modalMotion } from "@/lib/motion";
 import { PillTabs } from "./PillTabs";
 import { InfoHint } from "./InfoHint";
+import { usePortalContainer } from "./portal";
 
 export type DetailTab = { key: string; label: ReactNode; content: ReactNode; count?: number; icon?: ReactNode };
 
@@ -27,8 +28,9 @@ export type DetailModalProps = {
 
 /** Detail modal (plan §A2): HeroUI Modal with blur backdrop, spring entrance, focus trap, Esc to close. */
 export function DetailModal({ isOpen, onOpenChange, onClose, title, icon, subtitle, info, size = "4xl", tabs, defaultTab, children, footer }: DetailModalProps) {
+  const portal = usePortalContainer();
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} onClose={onClose} size={size} backdrop="blur" placement="center" scrollBehavior="inside"
+    <Modal isOpen={isOpen} portalContainer={portal} onOpenChange={onOpenChange} onClose={onClose} size={size} backdrop="blur" placement="center" scrollBehavior="inside"
            motionProps={modalMotion as any}
            classNames={{
              base: "rounded-modal bg-surface border border-border shadow-float max-h-[88vh]",

@@ -11,6 +11,9 @@ export type CardDetail = ReactNode | (Omit<DetailModalProps, "isOpen" | "onOpenC
 
 export type CardProps = {
   title?: ReactNode;
+  /** Heading of the detail modal when it should differ from the (styled) card title. Defaults to `detail.title`, then
+   * `titleText`, then `title`. */
+  modalTitle?: ReactNode;
   /** Plain-text title for accessible names when `title` is a node. */
   titleText?: string;
   /** Icon shown in a soft tinted tile before the title. */
@@ -58,11 +61,11 @@ const PAD = { none: "p-0", sm: "p-3.5", md: "p-5", lg: "p-6" } as const;
 
 const isInfoObject = (x: unknown): x is Pick<InfoHintProps, "about" | "method" | "notes" | "content"> =>
   !!x && typeof x === "object" && !("$$typeof" in (x as object)) && !Array.isArray(x) && ("about" in (x as object) || "method" in (x as object) || "notes" in (x as object) || "content" in (x as object));
-const isDetailObject = (x: unknown): x is Exclude<CardDetail, ReactNode> =>
+export const isDetailObject = (x: unknown): x is Exclude<CardDetail, ReactNode> =>
   !!x && typeof x === "object" && !("$$typeof" in (x as object)) && !Array.isArray(x) && ("tabs" in (x as object) || "children" in (x as object));
 
 /** Bento card (plan §A2): icon tile + title + ⓘ + actions + chevron → DetailModal; staggered entrance; hover lift when clickable. */
-export function Card({ title, titleText, icon, iconTone = "accent", info, actions, detail, detailLabel = "Open details", onPress, pressLabel, tone = "default", padding = "md", as = "section",
+export function Card({ title, modalTitle, titleText, icon, iconTone = "accent", info, actions, detail, detailLabel = "Open details", onPress, pressLabel, tone = "default", padding = "md", as = "section",
   role, className = "", headerClassName = "", bodyClassName = "", style, footer, children, static: noAnim, ...rest }: CardProps) {
   const scope = useMotionScope();
   const reduce = useReducedMotion();
@@ -83,13 +86,13 @@ export function Card({ title, titleText, icon, iconTone = "accent", info, action
        className={`relative min-w-0 flex flex-col rounded-card ${TONE[tone]} ${PAD[padding]} ${onPress ? "cursor-pointer transition-shadow hover:shadow-float focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" : ""} ${className}`}>
       <MotionScopeContext.Provider value="item">
         {hasHeader && (
-          <header className={`flex items-center gap-2.5 min-h-8 mb-3 ${padding === "none" ? "px-5 pt-4" : ""} ${headerClassName}`}>
+          <header className={`flex items-center max-sm:flex-wrap gap-2.5 min-h-8 mb-3 ${padding === "none" ? "px-5 pt-4" : ""} ${headerClassName}`}>
             {icon && <span className={`w-8 h-8 shrink-0 rounded-[10px] grid place-items-center ${ICON_TONE[iconTone]}`} aria-hidden>{icon}</span>}
             <div className="min-w-0 flex-1 flex items-center gap-0.5">
               {title !== undefined && <h2 className="text-title text-fg truncate">{title}</h2>}
               {infoNode}
             </div>
-            {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+            {actions && <div className="flex items-center gap-2 shrink-0 max-sm:shrink max-sm:min-w-0 max-sm:max-w-full max-sm:overflow-x-auto scrollbar-none">{actions}</div>}
             {detail && (
               <Button isIconOnly size="sm" radius="full" variant="flat" aria-label={detailLabel} onPress={d.open}
                       className="min-w-8 w-8 h-8 bg-surface-2 border border-border text-fg-muted data-[hover=true]:text-fg data-[hover=true]:bg-surface">
@@ -103,7 +106,7 @@ export function Card({ title, titleText, icon, iconTone = "accent", info, action
       </MotionScopeContext.Provider>
     </M>
     {/* outside the card so portal events never bubble into a clickable card */}
-    {detail && <DetailModal {...detailProps} {...d.modalProps} title={detailProps.title ?? title ?? ""} icon={detailProps.icon ?? icon} />}
+    {detail && <DetailModal {...detailProps} {...d.modalProps} title={detailProps.title ?? modalTitle ?? name ?? title ?? ""} icon={detailProps.icon ?? icon} />}
     </>
   );
 }

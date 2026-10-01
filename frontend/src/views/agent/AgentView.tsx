@@ -65,7 +65,7 @@ export default function AgentView() {
   );
 
   return (
-    <div className="h-[calc(100dvh-104px)] min-h-[520px] grid gap-4 lg:grid-cols-[272px_minmax(0,1fr)]" data-testid="agent-view">
+    <div className="h-full min-h-[520px] grid gap-4 lg:grid-cols-[272px_minmax(0,1fr)]" data-testid="agent-view">
       <div className="hidden lg:flex min-h-0">{sidebar}</div>
 
       <AnimatePresence>
@@ -124,12 +124,12 @@ function ThreadSkeleton({ error, onRetry }: { error: boolean; onRetry: () => voi
 
 function PickFacility() {
   return (
-    <div className="h-[calc(100dvh-104px)] grid place-items-center">
+    <div className="h-full min-h-[420px] grid place-items-center">
       <div className="text-center max-w-sm flex flex-col items-center gap-3">
         <span className="w-12 h-12 rounded-full bg-accent-soft text-accent grid place-items-center" aria-hidden><Stethoscope size={20} /></span>
         <h1 className="text-h1 text-fg">Choose your facility</h1>
         <p className="text-[13.5px] text-fg-muted">The clinical assistant only sees patients of one facility. Pick it in the Patients view first.</p>
-        <Link to="/doctor" className="btn btn-primary mt-1">Open Patients</Link>
+        <Button as={Link} to="/doctor" color="primary" radius="full" size="sm" className="mt-1 font-medium">Open Patients</Button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button, Popover, PopoverContent, PopoverTrigger, Tooltip } from "@heroui/react";
 import { Info } from "lucide-react";
+import { usePortalContainer } from "./portal";
 
 export type InfoHintProps = {
   /** Free-form content (shown under "About" when other sections are present). */
@@ -23,6 +24,7 @@ const has = (x: ReactNode) => x !== undefined && x !== null && x !== false && x 
 
 /** ⓘ info icon (plan §A2): absorbs the subtitles, method notes, captions and disclaimers that used to sit on screen. */
 export function InfoHint({ content, about, method, notes, title, label = "More information", mode = "popover", placement = "bottom-end", size = 15, className = "" }: InfoHintProps) {
+  const portal = usePortalContainer();
   const aboutBody = has(about) ? about : content;
   const sections = ([["About", aboutBody], ["Method", method], ["Notes", notes]] as const).filter(([, v]) => has(v));
   if (!sections.length) return null;
@@ -34,7 +36,7 @@ export function InfoHint({ content, about, method, notes, title, label = "More i
   );
   if (mode === "tooltip") {
     return (
-      <Tooltip content={<div className="max-w-[260px] text-xs leading-relaxed">{sections.map(([, v]) => v)[0]}</div>} placement={placement} delay={150} closeDelay={60}
+      <Tooltip content={<div className="max-w-[260px] text-xs leading-relaxed">{sections.map(([, v]) => v)[0]}</div>} placement={placement} delay={150} closeDelay={60} portalContainer={portal}
                classNames={{ content: "bg-surface text-fg border border-border shadow-float rounded-tile px-3 py-2" }}>
         {trigger}
       </Tooltip>
@@ -42,7 +44,7 @@ export function InfoHint({ content, about, method, notes, title, label = "More i
   }
   const single = sections.length === 1 && sections[0][0] === "About";
   return (
-    <Popover placement={placement} showArrow offset={8} backdrop="transparent"
+    <Popover placement={placement} showArrow offset={8} backdrop="transparent" portalContainer={portal}
              classNames={{ content: "p-0 bg-surface border border-border shadow-float rounded-tile", base: "before:bg-surface" }}>
       <PopoverTrigger>{trigger}</PopoverTrigger>
       <PopoverContent>

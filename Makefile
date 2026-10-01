@@ -18,7 +18,7 @@ MYSQL_CLI = mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_R
 
 setup:                      ## toolchains + deps (run before the event, on good internet)
 	uv sync --all-extras
-	cd frontend && npm ci
+	cd frontend && pnpm install --frozen-lockfile
 	-command -v ollama >/dev/null && ollama pull qwen2.5-coder:7b && ollama pull llama3.1:8b
 
 doctor:                     ## check this machine (tools, RAM, disk, MySQL) before a full build
@@ -92,7 +92,7 @@ api:
 	PYTHONPATH=. uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && pnpm dev
 
 sim:
 	$(PY) -m simulator.tick $(if $(filter true,$(DEMO_MODE)),--demo,)

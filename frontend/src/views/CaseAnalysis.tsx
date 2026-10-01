@@ -45,7 +45,7 @@ export default function CaseAnalysis() {
   if (q.error) return <div className="p-4"><ErrorNote error={q.error} /></div>;
   const data = q.data!.data;
   return (
-    <div className="grid gap-4 xl:h-[calc(100vh-80px)] min-h-[720px] grid-cols-1 xl:grid-cols-2" data-testid="case-analysis">
+    <div className="grid gap-4 xl:h-full min-h-[720px] grid-cols-1 xl:grid-cols-2" data-testid="case-analysis">
       <section className="min-h-0 min-w-0 xl:h-full h-[760px]" aria-label="3D body"><BodyStage data={data} bottomLeft={<CaseInsights data={data} />} /></section>
       <aside className="min-h-0 min-w-0 overflow-auto -mr-1 pr-1 pb-4" aria-label="Case details"><CasePanel data={data} /></aside>
     </div>

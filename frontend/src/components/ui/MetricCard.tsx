@@ -86,7 +86,7 @@ export function MetricCard({ label, value, unit, format, decimals, icon, iconTon
   const st = status ? (typeof status === "string" ? { status } : status) : null;
   return (
     <Card as={as} role={role} padding="sm" className={`!p-4 ${className}`} onPress={onPress} pressLabel={typeof label === "string" ? label : undefined}
-          title={<span className="text-label font-medium text-fg-muted">{label}</span>} titleText={typeof label === "string" ? label : undefined} icon={icon} iconTone={iconTone} info={info} detail={detail} detailLabel={detailLabel ?? (typeof label === "string" ? `${label}: details` : undefined)}
+          title={<span className="text-label font-medium text-fg-muted">{label}</span>} modalTitle={label} titleText={typeof label === "string" ? label : undefined} icon={icon} iconTone={iconTone} info={info} detail={detail} detailLabel={detailLabel ?? (typeof label === "string" ? `${label}: details` : undefined)}
           headerClassName="!mb-2 !min-h-0"
           actions={onPress && !detail ? <ChevronRight size={16} className="text-fg-muted" aria-hidden /> : undefined}>
       <div className="flex items-end justify-between gap-2">
