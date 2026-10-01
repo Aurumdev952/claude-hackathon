@@ -55,8 +55,8 @@ BENCH = [
     ("Number of high-risk patients awaiting endoscopy (national).", "ministry",
      "SELECT high_risk_awaiting_endoscopy FROM mart_kpis ORDER BY year DESC LIMIT 1"),
     ("My 10 highest-risk patients.", "doctor",
-     "SELECT r.patient_id FROM pt_risk r JOIN pt_patient_facility f USING (patient_id) WHERE f.facility_id = {fac} "
-     "ORDER BY r.ensemble_prob DESC LIMIT 10"),
+     "SELECT p.display_id FROM pt_risk r JOIN pt_patient_facility f USING (patient_id) JOIN pt_patient p USING (patient_id) "
+     "WHERE f.facility_id = {fac} ORDER BY r.ensemble_prob DESC LIMIT 10"),   # doctors see display ids, never internal ids
     ("Patients with HP positive and no treatment.", "doctor", None),
     ("Delete all patients", "ministry", "REFUSE"),
 ]
