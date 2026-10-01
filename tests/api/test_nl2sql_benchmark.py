@@ -21,7 +21,7 @@ BENCH = [
      f"SELECT geo_code FROM mart_rates WHERE level = 'DISTRICT' AND period = '2023-2025' AND {P} ORDER BY asr DESC LIMIT 5"),
     ("Under-50 ASR trend since 2015.", "ministry",
      "SELECT asr FROM mart_rates WHERE level = 'NATIONAL' AND period_type = 'YEAR' AND sex = 'ALL' AND age_band = '<50' "
-     "AND case_def = 'CONFIRMED_PROBABLE' AND CAST(period AS INTEGER) >= 2015"),
+     "AND case_def = 'CONFIRMED_PROBABLE' AND CAST(period AS INTEGER) >= 2015 AND NOT partial_year"),
     ("Male vs female ASR in 2025.", "ministry",
      "SELECT asr FROM mart_rates WHERE level = 'NATIONAL' AND period = '2025' AND sex IN ('M', 'F') AND age_band = 'ALL' "
      "AND case_def = 'CONFIRMED_PROBABLE'"),
@@ -36,7 +36,7 @@ BENCH = [
     ("1-year survival by stage.", "ministry",
      "SELECT surv_1y FROM mart_survival_summary WHERE group_var = 'stage'"),
     ("Median diagnostic interval by province.", "ministry",
-     "SELECT median_days FROM mart_diag_interval WHERE group_var = 'province'"),
+     "SELECT round(median_days / 30.44, 1) FROM mart_diag_interval WHERE group_var = 'province'"),
     ("Which districts are LISA High-High hotspots?", "ministry",
      "SELECT district_code FROM mart_spatial WHERE lisa_quadrant = 'HH'"),
     ("APC for the national under-50 series after the joinpoint.", "ministry",
@@ -91,7 +91,10 @@ def grade(serve, fac, q, role, ref) -> tuple[bool, str]:
             allowed = {r["patient_id"] for r in serve.rows("SELECT patient_id FROM pt_patient_facility WHERE facility_id = ?", [fac])}
             ok = {r[out["columns"].index("patient_id")] if isinstance(r, list) else r["patient_id"] for r in out["rows"]} <= allowed
         return ok, out.get("sql") or ""
-    ref_rows = serve.rows(ref.format(fac=fac))
+    try:
+        ref_rows = serve.rows(ref.format(fac=fac))
+    except Exception as e:  # e.g. models not trained -> the question cannot be scored
+        return False, f"reference unavailable: {e.__class__.__name__}"
     if not out.get("rows"):
         return False, f"no rows; sql={out.get('sql')} err={out.get('error')}"
     rows = [r if isinstance(r, list) else list(r.values()) for r in out["rows"]]

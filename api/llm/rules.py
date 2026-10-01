@@ -96,12 +96,14 @@ def match(question: str, role: str, facility_id: int | None, last_full_year: int
     if re.search(r"stage iv|stage 4|late stage", q) and "province" in q:
         return ("rates", "SELECT m.geo_code, p.name, round(m.pct_known, 1) AS pct_stage_iv, m.n FROM mart_stage_mix m "
                          "JOIN ref_province p ON p.province_code = m.geo_code WHERE m.level = 'PROVINCE' AND m.year = 'ALL' "
-                         "AND m.facility_tier = 'ALL' AND m.stage_group = 'IV' ORDER BY m.pct_known DESC")
+                         "AND m.facility_tier = 'ALL' AND m.stage_group = 'IV' ORDER BY m.pct_known DESC"
+                         + (" LIMIT 1" if re.search(r"\bwhich\b.*\b(highest|lowest|most|largest)\b", q) else ""))
     if re.search(r"pylori|hp test", q) and re.search(r"fewest|lowest|below|least", q):
         thr = re.search(r"below (\d+(?:\.\d+)?)\s*%", q)
         where = f" AND hp_test_rate < {float(thr.group(1)) / 100}" if thr else ""
         return ("facilities", f"SELECT name, district_code, round(100 * hp_test_rate, 1) AS hp_test_rate_pct, n_dyspepsia "
-                              f"FROM mart_facility_quality WHERE n_dyspepsia >= 10{where} ORDER BY hp_test_rate ASC LIMIT {_n(q, 10)}")
+                              f"FROM mart_facility_quality WHERE n_dyspepsia >= 10{where} ORDER BY hp_test_rate ASC"
+                              + ("" if thr else f" LIMIT {_n(q, 10)}"))   # a threshold asks for all facilities below it
     if re.search(r"\bapc\b|annual percent", q):
         sid = f"NATIONAL|ALL|{band}|CONFIRMED_PROBABLE"
         return ("trends", f"SELECT series_id, segment_no, start_year, end_year, round(apc, 1) AS apc, round(apc_lci, 1) AS apc_lci, "
