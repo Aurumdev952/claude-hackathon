@@ -153,9 +153,9 @@ export function HoverCard({ hover, rows, metric, rank, n, spatial, w }: {
         <div className="text-fog tabular">#{rank.get(r.geo_code) ?? "—"} of {n}</div>
       </div>
       <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 mt-1.5 tabular">
-        {metric.key !== "asr" && metric.key !== "lisa_quadrant" && (<><dt className="text-fog">{metric.short}</dt><dd className="font-semibold">{metric.format(r[metric.key] as number | null)}</dd></>)}
-        <dt className="text-fog">ASR (95% CI)</dt><dd><b>{fmt(r.asr)}</b> <span className="text-fog">{fmt(r.asr_lci)}–{fmt(r.asr_uci)}</span></dd>
-        {metric.key !== "crude_rate" && (<><dt className="text-fog">Crude rate</dt><dd>{fmt(r.crude_rate)}</dd></>)}
+        {metric.key !== "asr" && metric.key !== "lisa_quadrant" && (<><dt className="text-fog">{metric.short}</dt><dd className="font-semibold">{r.suppressed && !["sir", "hp_test_rate", "pct_stage4"].includes(metric.key) ? "—" : metric.format(r[metric.key] as number | null)}</dd></>)}
+        <dt className="text-fog">ASR (95% CI)</dt><dd>{r.suppressed ? "—" : <><b>{fmt(r.asr)}</b> <span className="text-fog">{fmt(r.asr_lci)}–{fmt(r.asr_uci)}</span></>}</dd>
+        {metric.key !== "crude_rate" && (<><dt className="text-fog">Crude rate</dt><dd>{r.suppressed ? "—" : fmt(r.crude_rate)}</dd></>)}
         <dt className="text-fog">Cases</dt><dd>{r.suppressed ? "<5" : int(r.cases)}</dd>
         <dt className="text-fog">LISA</dt><dd><span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ background: rgbCss(lisaRgb(q)) }} aria-hidden />{q === "NS" ? "not significant" : `${q}${s?.lisa_p !== null && s?.lisa_p !== undefined ? ` · p ${fmt(s.lisa_p, 3)}` : ""}`}</dd>
       </dl>

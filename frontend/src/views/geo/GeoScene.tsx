@@ -211,8 +211,21 @@ export function GeoScene(p: SceneProps) {
     const top = rows.filter((r) => !r.suppressed && !isLowCoverage(r) && numeric(r, k) !== null).sort((a, b) => (numeric(b, k) ?? 0) - (numeric(a, k) ?? 0)).slice(0, nLab).map((r) => r.geo_code);
     return Array.from(new Set([...top, p.selected, p.highlight].filter(Boolean) as string[]));
   }, [rows, metric.key, nLab, p.selected, p.highlight]);
-  if (p.districts && !p.hexPoints) {
-    const feats = p.districts.features.filter((f: any) => labelCodes.includes(f.properties.district_code));
+  if (p.districts && !p.hexPoints && vs && size) {
+    // Greedy screen-space collision filter (priority = order in labelCodes: selection/highlight first, then rank).
+    const vp = new WebMercatorViewport({ ...vs, width: size.w, height: size.h });
+    const order = [p.selected, p.highlight, ...labelCodes].filter((c, i, a) => c && a.indexOf(c) === i) as string[];
+    const placed: [number, number, number, number][] = [];
+    const feats: any[] = [];
+    for (const code of order) {
+      const f = p.districts.features.find((x: any) => x.properties.district_code === code);
+      if (!f) continue;
+      const [sx, sy] = vp.project([f.properties.centroid[0], f.properties.centroid[1], heightOf(code) * rise + 600]);
+      const w = f.properties.name.length * 7 + 12, h = 20;
+      const box: [number, number, number, number] = [sx - w / 2, sy - 10 - h, sx + w / 2, sy - 10];
+      if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
+      placed.push(box); feats.push(f);
+    }
     layers.push(new TextLayer({
       id: "labels", data: feats, getText: (f: any) => f.properties.name, getPosition: (f: any) => [f.properties.centroid[0], f.properties.centroid[1], heightOf(f.properties.district_code) * rise + 600] as [number, number, number],
       getSize: mini ? 11 : 12, getColor: t.label, background: true, getBackgroundColor: t.labelBg, backgroundPadding: [5, 3, 5, 3],

@@ -94,12 +94,15 @@ function JpChart({ jp, color }: { jp: Joinpoint; color: string }) {
       return a.asr + ((c.asr - a.asr) * (y - a.year)) / (c.year - a.year);
     };
     const joins = jp.segments.slice(1).map((s) => s.start_year);
+    // Keep the axis on the data: zero-case years have unbounded upper CIs, so whiskers are clipped at 1.6x the largest estimate.
+    const peak = Math.max(...obs.map((o) => o.asr ?? 0), ...fit.map((p) => p.asr));
+    const yMax = niceCeil(Math.max(peak * 1.6, ...obs.filter((o) => (o.cases ?? 0) >= 5).map((o) => o.uci ?? 0)) , peak * 1.6);
     const y0 = Math.min(...jp.observed.map((o) => o.year)), y1 = Math.max(...jp.observed.map((o) => o.year));
     return {
       ...b,
       grid: { left: 44, right: 18, top: 34, bottom: 26 },
       xAxis: { ...b.xAxis, type: "value", min: y0 - 0.4, max: y1 + 0.4, interval: 1, axisLabel: { ...b.xAxis.axisLabel, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } },
-      yAxis: { ...b.yAxis, type: "value", min: 0, name: "ASR per 100,000" },
+      yAxis: { ...b.yAxis, type: "value", min: 0, max: yMax, name: "ASR per 100,000" },
       tooltip: {
         ...b.tooltip, trigger: "axis",
         formatter: (ps: any) => {
@@ -110,7 +113,7 @@ function JpChart({ jp, color }: { jp: Joinpoint; color: string }) {
           return tipHead(String(yr)) +
             (o ? tipRow(color, "Observed", fmt(o.asr, 1), o.lci !== null ? `[${fmt(o.lci, 1)}–${fmt(o.uci, 1)}]` : "") : "") +
             (fv ? tipRow(null, "Fitted", fmt(fv.asr, 1)) : "") +
-            (o ? tipRow(null, "Cases", int(o.cases)) : "") +
+            (o ? tipRow(null, "Cases", o.cases > 0 && o.cases < 5 ? "<5" : int(o.cases)) : "") +
             (seg ? tipRow(null, `Segment ${seg.segment_no} APC`, `${signed(seg.apc, 1, "%")}`, `[${fmt(seg.apc_lci, 1)}, ${fmt(seg.apc_uci, 1)}]`) : "") +
             (o?.partial_year ? tipNote("Year to date — excluded from the fit.") : o?.coverage_flag ? tipNote("Low EMR coverage year.") : "");
         },
@@ -140,6 +143,12 @@ function JpChart({ jp, color }: { jp: Joinpoint; color: string }) {
     } as EChartsOption;
   }, [jp, color, pal]);
   return <EChart option={option} height={250} ariaLabel={`Joinpoint fit for ${jp.series_id}`} />;
+}
+
+function niceCeil(v: number, cap: number) {
+  const x = Math.min(v, Math.max(cap, 1));
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * p).find((m) => m >= x) ?? x;
 }
 
 function SegTable({ jp }: { jp: Joinpoint }) {

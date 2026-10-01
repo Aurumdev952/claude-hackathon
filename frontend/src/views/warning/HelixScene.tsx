@@ -110,11 +110,11 @@ export function HelixScene(p: HelixProps) {
   }, [p.events, p.hidden]);
   return (
     <Canvas frameloop="demand" dpr={[1, 2]} gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
-            camera={{ position: [10.5, 9.5, 13.5], fov: 32, near: 0.1, far: 100 }}
+            camera={{ position: [11, 10.4, 14.6], fov: 32, near: 0.1, far: 100 }}
             onPointerMissed={() => p.onHover(null)} aria-label="3D journey helix of pre-diagnostic events">
       <ambientLight intensity={0.85} />
       <directionalLight position={[4, 10, 6]} intensity={1.1} />
-      <OrbitControls makeDefault target={[0, HH * 0.42, 0]} enableDamping={!p.reducedMotion} dampingFactor={0.12} minDistance={5} maxDistance={26} rotateSpeed={0.7} />
+      <OrbitControls makeDefault target={[0, HH * 0.47, 0]} enableDamping={!p.reducedMotion} dampingFactor={0.12} minDistance={5} maxDistance={26} rotateSpeed={0.7} />
       <Rings counts={counts} />
       <Dots {...p} pos={pos} />
       {p.hoverCase !== null && <CasePath events={p.events} pos={pos} hoverCase={p.hoverCase} />}
