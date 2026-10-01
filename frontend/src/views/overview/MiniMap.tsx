@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGeo, useProvGeo } from "@/api/hooks";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { Loading } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useThemeMode } from "@/components/charts/EChart";

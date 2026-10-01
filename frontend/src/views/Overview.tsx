@@ -5,7 +5,7 @@ import { Activity, ArrowUpRight, GitCommitHorizontal, Map as MapIcon, Scale, Tre
 import type { RateRow } from "@/api/types";
 import { useFiltersMeta, useKpis } from "@/api/hooks";
 import { BentoGrid, Card, chartDetailTabs, DataTable, GridItem, Loading, MetricCard, PageHeader, PairCard, Skeleton, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { useThemeMode } from "@/components/charts/EChart";
 import { SERIES } from "@/lib/viz";
 import { fmt, int, signed } from "@/lib/format";

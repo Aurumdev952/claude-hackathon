@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Clock } from "lucide-react";
 import { Card, chartDetailTabs, DataTable, Loading, Seg, StatTile } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt, int } from "@/lib/format";
 import { alpha, chartBase, Key, tipHead, tipRow, usePalette } from "../trends/kit";
 import { DAYS_PER_MONTH, IntervalRow, MALARIA_ENDEMIC, PROVINCES, useIntervals, useOr } from "./api";

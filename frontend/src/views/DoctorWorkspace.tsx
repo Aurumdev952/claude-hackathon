@@ -16,7 +16,7 @@ import {
 import { BandChip, SeverityChip } from "@/components/ui/Status";
 import { useRole } from "@/state/role";
 import { date, fmt, signed } from "@/lib/format";
-import { itemEnter, stagger } from "@/lib/motion";
+import { itemEnter, stagger, useGesture } from "@/lib/motion";
 import { FacilityPicker } from "./doctor/FacilityPicker";
 import { RISK_METHOD, RiskCard } from "./doctor/RiskCard";
 import { MiniSeries, Timeline } from "./doctor/Timeline";
@@ -177,10 +177,11 @@ function MeasureTile({ label, icon, value, unit, decimals = 1, status, statusLab
       </span>
     </>
   );
+  const lift = useGesture({ y: -2 });
   const cls = "text-left rounded-tile bg-surface-2 border border-border/70 p-3 min-w-0 flex flex-col gap-1.5";
   if (!onPress) return <motion.div variants={itemEnter} className={cls}>{body}</motion.div>;
   return (
-    <motion.button type="button" onClick={onPress} variants={itemEnter} whileHover={{ y: -2 }} aria-label={`${label}: open chart`}
+    <motion.button type="button" onClick={onPress} variants={itemEnter} {...lift} aria-label={`${label}: open chart`}
                    className={`${cls} cursor-pointer hover:shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}>{body}</motion.button>
   );
 }

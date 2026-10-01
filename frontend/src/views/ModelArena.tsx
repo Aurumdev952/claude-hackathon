@@ -3,7 +3,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Activity, Brain, Hourglass, Scale, Sparkles, Target, Users } from "lucide-react";
 import { ApiError, get } from "@/api/client";
 import { BentoGrid, Card, chartDetailTabs, DataTable, GridItem, Loading, PageHeader, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { date, fmt } from "@/lib/format";
 import { Empty } from "./quality/kit";
 import { ModelCards } from "./models/ModelCards";

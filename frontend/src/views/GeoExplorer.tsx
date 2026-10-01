@@ -4,7 +4,7 @@ import { BarChart3, Building2, Crosshair, Flame, Hexagon, Map as MapIcon, Rotate
 import type { MapRow } from "@/api/types";
 import { useGeo, useProvGeo } from "@/api/hooks";
 import { BentoGrid, Card, chartDetailTabs, DataTable, DeltaChip, FloatingGlassCard, GridItem, InfoHint, Loading, PageHeader, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { useThemeMode } from "@/components/charts/EChart";
 import { fmt, int } from "@/lib/format";
 import { useFilters } from "@/state/filters";

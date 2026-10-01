@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { Dna, MousePointer2 } from "lucide-react";
 import { EChart } from "@/components/charts/EChart";
 import { Card, chartDetailTabs, Loading, Seg, StatusChip } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { detectWebGL } from "@/components/three/body/util";
 import { SERIES } from "@/lib/viz";
 import { int } from "@/lib/format";

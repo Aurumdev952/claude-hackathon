@@ -53,33 +53,35 @@ function Headline() {
   const os = old?.segments[old.segments.length - 1];
   const crude = useMemo(() => {
     const r = (rates ?? []).filter((x) => !x.partial_year);
-    const a = r.find((x) => x.period === "2015"), b = r.find((x) => x.period === "2019");
-    return a?.cases && b?.cases && a.asr && b.asr ? { cases: b.cases / a.cases, asr: (100 * (b.asr - a.asr)) / a.asr } : null;
+    // first roll-out year with both a count and an ASR (2015 can lack an ASR) against 2019
+    const a = [...r].sort((x, y) => String(x.period).localeCompare(String(y.period))).find((x) => String(x.period) < "2019" && x.cases && x.asr);
+    const b = r.find((x) => x.period === "2019");
+    return a?.cases && b?.cases && a.asr && b.asr ? { from: a.period, to: b.period, cases: b.cases / a.cases, asr: (100 * (b.asr - a.asr)) / a.asr } : null;
   }, [rates]);
   const lastFull = (nat?.observed ?? []).filter((o) => !o.partial_year).slice(-1)[0];
   const aapc = nat?.aapc_last10.value ?? null;
   return (
-    <BentoGrid>
-      <GridItem span={{ sm: 6, xl: 3 }}>
+    <BentoGrid role="list" aria-label="Trend headlines">
+      <GridItem span={{ sm: 6, xl: 3 }} role="listitem">
         <MetricCard label="Under-50 trend" icon={<TrendingUp size={15} />} iconTone={ys?.significant && ys.apc > 0 ? "warning" : "accent"}
           value={ys ? signed(ys.apc, 1, "%") : "—"} unit="per year" status={trendStatus(ys)} aside={ys ? `since ${ys.start_year}` : undefined}
           range={apcRange(ys)} info={ys ? <>Joinpoint, national under 50, latest segment since {ys.start_year} · 95% CI {fmt(ys.apc_lci, 1)} to {fmt(ys.apc_uci, 1)}.</> : "Joinpoint, national <50"} />
       </GridItem>
-      <GridItem span={{ sm: 6, xl: 3 }}>
+      <GridItem span={{ sm: 6, xl: 3 }} role="listitem">
         <MetricCard label="65+ trend" icon={<Users size={15} />} iconTone={os?.significant ? "warning" : "accent"}
           value={os ? signed(os.apc, 1, "%") : "—"} unit="per year" status={trendStatus(os)} aside={os ? `${os.start_year}–${os.end_year}` : undefined}
           range={apcRange(os)} info={os ? <>Joinpoint, national 65+, {os.start_year}–{os.end_year} · {os.significant ? "significant" : "CI includes 0"} [{fmt(os.apc_lci, 1)}, {fmt(os.apc_uci, 1)}].</> : "Joinpoint, national 65+"} />
       </GridItem>
-      <GridItem span={{ sm: 6, xl: 3 }}>
-        <MetricCard label="Cases 2015 → 2019" icon={<Layers size={15} />}
+      <GridItem span={{ sm: 6, xl: 3 }} role="listitem">
+        <MetricCard label={crude ? `Cases ${crude.from} → ${crude.to}` : "Cases 2015 → 2019"} icon={<Layers size={15} />}
           value={crude ? `×${fmt(crude.cases, 1)}` : "—"} status={crude ? { status: "info", label: "EMR roll-out" } : null}
           delta={crude ? { text: `ASR ${signed(crude.asr, 0, "%")}`, dir: crude.asr > 2 ? 1 : crude.asr < -2 ? -1 : 0, tone: "neutral" } : null}
           info={crude ? <>Recorded cases multiplied by {fmt(crude.cases, 1)} while the ASR moved {signed(crude.asr, 0, "%")} — EMR roll-out, not risk.</> : "Crude counts vs ASR"}>
           {crude && <CasesVsAsrBars cases={crude.cases} asr={1 + crude.asr / 100} colors={[pal.series[0], pal.series[2]]} />}
         </MetricCard>
       </GridItem>
-      <GridItem span={{ sm: 6, xl: 3 }}>
-        <MetricCard label={`National ASR ${lastFull?.year ?? ""}`} icon={<Activity size={15} />}
+      <GridItem span={{ sm: 6, xl: 3 }} role="listitem">
+        <MetricCard label={lastFull ? `National ASR ${lastFull.year}` : "National ASR"} icon={<Activity size={15} />}
           value={lastFull ? fmt(lastFull.asr, 1) : "—"} unit="per 100k"
           delta={aapc !== null ? { text: `AAPC ${signed(aapc, 1, "%")}`, dir: aapc > 0.5 ? 1 : aapc < -0.5 ? -1 : 0, tone: "neutral" } : null}
           spark={(nat?.observed ?? []).filter((o) => !o.partial_year).map((o) => o.asr)} sparkColor={pal.series[0]}

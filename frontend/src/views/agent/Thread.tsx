@@ -76,9 +76,12 @@ export function Thread({ conversationId, initialMessages, autoSend, onStarted }:
     pinnedRef.current = p;
     setPinned(p);
   };
+  // the welcome screen (no messages yet) reads from the top, even when it is taller than the thread (phones)
+  const emptyRef = useRef(true);
+  emptyRef.current = messages.length === 0;
   const toBottom = useCallback((smooth = false) => {
     const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    if (el) el.scrollTo({ top: emptyRef.current ? 0 : el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }, []);
   useLayoutEffect(() => { if (pinnedRef.current) toBottom(false); }, [messages, status, toBottom]);
   useEffect(() => {

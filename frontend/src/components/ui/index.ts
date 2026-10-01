@@ -17,5 +17,5 @@ export { SectionHeader, PageHeader } from "./SectionHeader";
 export { DataTable, type Column } from "./DataTable";
 export { Sparkline } from "./Sparkline";
 export { BandChip, SeverityChip } from "./Status";
-export { ErrorNote } from "./Panel";
+export { ErrorNote } from "./ErrorNote";
 export { PortalContainerContext, usePortalContainer } from "./portal";

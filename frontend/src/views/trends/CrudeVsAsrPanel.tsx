@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
 import { Scale } from "lucide-react";
 import { AnimatedNumber, Card, chartDetailTabs, DataTable, DeltaChip, Loading, Seg } from "@/components/ui";
-import { ErrorNote } from "@/components/ui/Panel";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
 import { useFilters } from "@/state/filters";

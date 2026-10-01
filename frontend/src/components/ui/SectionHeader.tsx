@@ -32,7 +32,7 @@ export function PageHeader({ title, eyebrow, info, lede, actions, right, icon, c
   return (
     <header className={`flex items-center gap-4 flex-wrap min-w-0 ${className}`}>
       {icon && <span className="w-10 h-10 shrink-0 rounded-tile bg-surface border border-border shadow-tile text-accent grid place-items-center" aria-hidden>{icon}</span>}
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 ${icon ? "max-sm:basis-[calc(100%-56px)]" : "max-sm:basis-full"}`}>
         {eyebrow && <div className="text-label font-medium text-accent">{eyebrow}</div>}
         <div className="flex items-center gap-0.5 min-w-0">
           <h1 className="text-h1 text-fg sm:truncate max-sm:text-[19px] max-sm:leading-6">{title}</h1>
