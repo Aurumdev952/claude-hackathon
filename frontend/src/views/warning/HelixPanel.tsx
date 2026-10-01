@@ -117,7 +117,7 @@ function Bars({ byMonth, colors, hidden }: { byMonth: Record<string, number>[]; 
     const kinds = KINDS.filter((k) => !hidden.has(k.id));
     return {
       ...b,
-      grid: { left: 44, right: 12, top: 18, bottom: 30 },
+      grid: { left: 44, right: 12, top: 30, bottom: 30 },
       xAxis: { ...b.xAxis, type: "category", data: byMonth.map((r) => String(r.month)), axisLabel: { ...b.xAxis.axisLabel, interval: 2 } },
       yAxis: { ...b.yAxis, type: "value", name: "events (sample)" },
       tooltip: { ...b.tooltip, trigger: "axis", axisPointer: { type: "shadow" }, formatter: (ps: any) => {

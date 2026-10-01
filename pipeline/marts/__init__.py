@@ -11,6 +11,7 @@ def build_all(con, sim_time, log=print):
         ("stage_mix", clinical.build_stage_mix), ("characteristics", clinical.build_characteristics),
         ("survival", clinical.build_survival), ("cox", clinical.build_cox),
         ("warning", warning.build_warning), ("facility", facility.build_facility_quality),
+        ("referral_flows", facility.build_referral_flows),
         ("cohort_funnel", cohort.build_cohort_funnel), ("data_quality", cohort.build_data_quality),
         ("events", cohort.build_events), ("patients", patient.build_patient_tables), ("points", points.build_points),
         ("rate_surface", surfaces.build_rate_surface), ("journey", surfaces.build_journey),

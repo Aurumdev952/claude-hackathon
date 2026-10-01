@@ -27,11 +27,17 @@ WITH histo AS (SELECT patient_id, min(datetime) AS t, arg_min(location_id, datet
                       arg_min(lauren, datetime) AS lauren_code FROM core_fact_pathology WHERE histology = 7130 GROUP BY 1),
 c16 AS (SELECT patient_id, min(dx_datetime) AS t, arg_min(location_id, dx_datetime) AS loc
         FROM core_fact_diagnosis WHERE concept_id BETWEEN 2000 AND 2004 GROUP BY 1),
+-- incident evidence: the diagnostic work-up is in the EMR (histology, a "suspected gastric malignancy" diagnosis or
+-- staging). C16 codes seen only at follow-up visits belong to people diagnosed before their facility's EMR went live
+-- (prevalent at EMR entry, D-24): they are kept in core_gc_prevalent and excluded from incidence.
+workup AS (SELECT patient_id FROM core_fact_diagnosis WHERE concept_id = 2005
+           UNION SELECT patient_id FROM core_fact_staging),
 cases AS (
   SELECT coalesce(h.patient_id, c.patient_id) AS patient_id,
          CASE WHEN h.patient_id IS NOT NULL THEN 'CONFIRMED' ELSE 'PROBABLE' END AS case_status,
          CAST(coalesce(h.t, c.t) AS DATE) AS dx_date, coalesce(h.loc, c.loc) AS diag_facility_id, h.lauren_code
   FROM histo h FULL OUTER JOIN c16 c USING (patient_id)
+  WHERE h.patient_id IS NOT NULL OR c.patient_id IN (SELECT patient_id FROM workup)
 ),
 base AS (
   SELECT k.*, p.sex, p.birthdate, date_diff('year', p.birthdate, k.dx_date) AS age_at_dx,
@@ -97,3 +103,8 @@ ALTER TABLE core_gc_case ADD COLUMN surv_days INTEGER;
 ALTER TABLE core_gc_case ADD COLUMN event_death BOOLEAN;
 UPDATE core_gc_case SET surv_days = greatest(0, date_diff('day', dx_date, end_date)),
                         event_death = death_date IS NOT NULL AND death_date <= DATE '{{sim_date}}';
+
+CREATE OR REPLACE TABLE core_gc_prevalent AS
+SELECT c.patient_id, CAST(min(c.dx_datetime) AS DATE) AS first_c16_date
+FROM core_fact_diagnosis c WHERE c.concept_id BETWEEN 2000 AND 2004
+  AND c.patient_id NOT IN (SELECT patient_id FROM core_gc_case) GROUP BY 1;

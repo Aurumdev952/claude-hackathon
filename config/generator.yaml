@@ -50,6 +50,7 @@ gastric_cancer:
 insights:
   ins1: {enabled: true, districts: [WES-NYB, NOR-MUS, WES-RUT], hp_prev: 0.78,
          smoked_food_prev: 0.55, high_salt_prev: 0.55, residual_rr: 2.0,   # D-23: 1.4 gave 2.0x national ASR
+         spillover_rr: 1.35,  # D-24: bordering districts (highland belt) so the cluster is contiguous
          micro_cluster: {district: NOR-MUS, sector: auto, rr: 2.5}}
   ins1b: {enabled: true, district: SOU-NYG, age60plus_multiplier: 2.2}
   ins2: {enabled: true, age_lt: 50, start_year: 2019, annual_multiplier: 1.08,
@@ -57,8 +58,8 @@ insights:
   ins3: {enabled: true}
   ins4: {enabled: true}
   ins5: {enabled: true, district: WES-RUS, endoscopy_from: 2021-07-01,
-         pre_access_terminal_dx: 0.35, pre_access_workup_dx: 0.45,
-         pre_access_referral_completion: 0.2}   # without local endoscopy many cases die undiagnosed
+         pre_access_terminal_dx: 0.5, pre_access_workup_dx: 0.6,   # D-24: 0.35/0.45/0.2 gave +185%
+         pre_access_referral_completion: 0.3}   # without local endoscopy many cases die undiagnosed
   ins6: {enabled: true, provinces: [EAS, SOU], misattribution_prob: 0.55,   # D-23
          suppress_days: [300, 450], anchor_after: 0.15}
   ins7: {enabled: true}

@@ -7,6 +7,10 @@ import { useRole } from "@/state/role";
 import { AnswerCard, Chip, UserBubble } from "./ask/Message";
 import { useAsk, type AskResult } from "./ask/store";
 
+/** Extra examples the rule-based (template) provider is known to answer; shown under the API's suggestions. */
+const MORE_MINISTRY = ["What is the median diagnostic interval by province?", "Compare the male and female rate in 2024",
+  "Which provinces have the most stage IV cancers?", "How has the rate in Musanze changed over time?", "What was the national rate in 2024?"];
+
 const SOURCES = [
   { t: "Incidence rates", d: "ASR & crude, by district, province, sex, age band, year" },
   { t: "Trends", d: "Joinpoint segments and annual % change" },
@@ -76,7 +80,7 @@ export default function AskData() {
         </header>
 
         <div className="flex-1 min-h-0 overflow-auto px-4 py-4 flex flex-col gap-4" aria-live="polite" aria-relevant="additions">
-          {turns.length === 0 ? <Welcome suggestions={suggestions} onAsk={ask} loading={sugg.isLoading} /> : turns.map((t) => (
+          {turns.length === 0 ? <Welcome suggestions={suggestions} more={role === "ministry" ? MORE_MINISTRY : []} onAsk={ask} loading={sugg.isLoading} /> : turns.map((t) => (
             <div key={t.id} className="flex flex-col gap-2.5">
               <UserBubble t={t} />
               <AnswerCard t={t} onAsk={(q) => ask(q)} onRetry={() => ask(t.question, t.id)} />
@@ -135,7 +139,7 @@ export default function AskData() {
   );
 }
 
-function Welcome({ suggestions, onAsk, loading }: { suggestions: string[]; onAsk: (q: string) => void; loading: boolean }) {
+function Welcome({ suggestions, more, onAsk, loading }: { suggestions: string[]; more: string[]; onAsk: (q: string) => void; loading: boolean }) {
   return (
     <div className="m-auto max-w-xl text-center py-6">
       <svg viewBox="0 0 120 40" className="w-28 mx-auto mb-3" aria-hidden>
@@ -148,6 +152,12 @@ function Welcome({ suggestions, onAsk, loading }: { suggestions: string[]; onAsk
       <div className="flex flex-wrap justify-center gap-2 mt-5" aria-label="Suggested questions">
         {loading ? <span className="text-xs text-fog animate-pulse">Loading suggestions…</span> : suggestions.map((s) => <Chip key={s} q={s} onAsk={onAsk} />)}
       </div>
+      {more.length > 0 && (<>
+        <div className="panel-title mt-6 mb-2">More you can ask</div>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+          {more.map((q) => <button key={q} onClick={() => onAsk(q)} className="text-xs text-fog hover:text-mist underline decoration-line underline-offset-4 hover:decoration-kivu rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-kivu">{q}</button>)}
+        </div>
+      </>)}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { EChart, base } from "@/components/charts/EChart";
-import { useGeo } from "@/api/hooks";
+import { useGeo, useProvGeo } from "@/api/hooks";
 import { seqColor } from "@/lib/viz";
 import { tooltip, ttHead, ttRow, usePalette, xAxis, yAxis } from "../quality/kit";
 import { colLabel, fmtVal, isNumCol, isPct } from "./format";
@@ -16,7 +16,11 @@ export function resolveSpec(r: AskResult): ChartSpec | null {
     const v = pref && num.includes(pref) ? pref : num.find((c) => !/_(lci|uci)$/.test(c) && c !== "year") ?? num[0];
     return { type: "kpi", value: v };
   }
-  if (r.chart && r.chart.type !== "table") return r.chart;
+  if (r.chart && r.chart.type !== "table") {
+    // prefer the age-standardised rate as the plotted measure when the result carries it
+    if ((r.chart.type === "line" || r.chart.type === "bar") && r.columns.includes("asr") && r.chart.y !== "asr") return { ...r.chart, y: "asr" };
+    return r.chart;
+  }
   const cat = r.columns.filter((c) => !num.includes(c));
   if (r.rows.length === 1 && num.length) return { type: "kpi", value: num[num.length - 1] };
   if (cat.length && num.length) return { type: "bar", x: cat[0], y: num[0] };
@@ -104,11 +108,14 @@ function Bar({ r, x, y }: { r: AskResult; x: string; y: string }) {
   return <EChart option={option} height={Math.max(140, r.rows.length * 26 + 32)} ariaLabel={`${colLabel(y)} by ${colLabel(r.columns[nameIdx])}`} />;
 }
 
-type Feat = { properties: { district_code: string; name: string }; geometry: { type: string; coordinates: any } };
+type Feat = { properties: { district_code?: string; province_code?: string; name: string }; geometry: { type: string; coordinates: any } };
+const PROV_CODES = new Set(["KGL", "NOR", "SOU", "EAS", "WES"]);
 
 /** Mini choropleth (SPEC §15.2: geo_code -> mini map) beside a ranked list; sequential ramp = magnitude. */
 function MiniMap({ r, geo, value }: { r: AskResult; geo: string; value: string }) {
-  const g = useGeo();
+  const isProv = r.rows.every((row) => PROV_CODES.has(String(row[r.columns.indexOf(geo)])));
+  const gd = useGeo(), gp = useProvGeo();
+  const g = isProv ? gp : gd;
   usePalette();
   const [hover, setHover] = useState<{ name: string; v: unknown; x: number; y: number } | null>(null);
   const gi = col(r, geo), vi = col(r, value), ni = col(r, "name");
@@ -123,14 +130,14 @@ function MiniMap({ r, geo, value }: { r: AskResult; geo: string; value: string }
     const rings = (f: Feat): number[][][] => (f.geometry.type === "Polygon" ? f.geometry.coordinates : f.geometry.coordinates.flat());
     feats.forEach((f) => rings(f).forEach((ring) => ring.forEach(([x, y]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); })));
     const kx = Math.cos(((minY + maxY) / 2) * Math.PI / 180), W = 300, s = W / ((maxX - minX) * kx), H = (maxY - minY) * s;
-    return { W, H, paths: feats.map((f) => ({ code: f.properties.district_code, name: f.properties.name,
+    return { W, H, paths: feats.map((f) => ({ code: String(f.properties.district_code ?? f.properties.province_code), name: f.properties.name,
       d: rings(f).map((ring) => "M" + ring.map(([x, y]) => `${((x - minX) * kx * s).toFixed(1)},${((maxY - y) * s).toFixed(1)}`).join("L") + "Z").join("") })) };
   }, [g.data]);
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 items-start">
       <div className="relative">
         {shapes ? (
-          <svg viewBox={`0 0 ${shapes.W} ${shapes.H}`} className="w-full" role="img" aria-label={`Map of ${colLabel(value)} by district`}>
+          <svg viewBox={`0 0 ${shapes.W} ${shapes.H}`} className="w-full" role="img" aria-label={`Map of ${colLabel(value)} by ${isProv ? "province" : "district"}`}>
             {shapes.paths.map((p) => {
               const v = vals.get(p.code);
               return <path key={p.code} d={p.d} fill={typeof v === "number" ? seqColor(t(v)) : "rgb(var(--ridge2))"} stroke="rgb(var(--ridge))" strokeWidth={0.8}
@@ -142,7 +149,7 @@ function MiniMap({ r, geo, value }: { r: AskResult; geo: string; value: string }
         {hover && <div className="absolute z-20 panel bg-ridge px-2.5 py-1.5 text-xs pointer-events-none whitespace-nowrap" style={{ left: hover.x + 10, top: hover.y + 10 }}>
           <b>{hover.name}</b> <span className="tabular text-fog">{typeof hover.v === "number" ? `${colLabel(value)} ${fmtVal(value, hover.v)}` : "not in result"}</span></div>}
       </div>
-      <ol className="text-xs flex flex-col gap-1" aria-label="Ranked districts">
+      <ol className="text-xs flex flex-col gap-1" aria-label={isProv ? "Ranked provinces" : "Ranked districts"}>
         {r.rows.slice(0, 10).map((row, i) => (
           <li key={i} className="flex items-center gap-2">
             <span className="w-4 text-right text-fog tabular">{i + 1}</span>

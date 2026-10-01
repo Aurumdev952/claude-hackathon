@@ -44,7 +44,7 @@ function Headline() {
   const lastFull = (nat?.observed ?? []).filter((o) => !o.partial_year).slice(-1)[0];
   return (
     <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
-      <StatTile label="Under-50 trend" icon={<TrendingUp size={12} aria-hidden />} tone="warn"
+      <StatTile label="Under-50 trend" icon={<TrendingUp size={12} aria-hidden />} tone={ys?.significant && ys.apc > 0 ? "warn" : "neutral"}
         value={ys ? signed(ys.apc, 1, "%") : "—"} unit="per year"
         sub={ys ? <>since {ys.start_year} · 95% CI {fmt(ys.apc_lci, 1)} to {fmt(ys.apc_uci, 1)}</> : "Joinpoint, national <50"} />
       <StatTile label="65+ trend" icon={<Users size={12} aria-hidden />} tone={os?.significant ? "warn" : "neutral"}

@@ -33,7 +33,7 @@ export function CountsVsAsr({ rows, height = 230 }: { rows: RateRow[]; height?: 
       { name: "Crude case count", icon: "path://M0,2h12v2h-12z" }, { name: "Age-standardised rate", icon: "path://M0,2h12v2h-12z" },
       { name: "Low coverage / YTD", icon: "path://M0,2h4v2h-4zM7,2h4v2h-4z", itemStyle: { color: k.muted } } as any] },
     xAxis: { ...(b.xAxis as object), type: "value", min: first.year - 0.3, max: last.year + 0.3, interval: 1, axisLabel: { color: k.muted, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } } as any,
-    yAxis: { ...(b.yAxis as object), type: "value", min: 0, name: `index, ${baseRow.year} = 100`, nameGap: 10 } as any,
+    yAxis: { ...(b.yAxis as object), type: "value", min: 0 } as any,
     tooltip: { ...(b.tooltip as object), formatter: (ps: any) => {
       const y = Math.round(ps[0]?.value?.[0]); const r = ys.find((x) => x.year === y); if (!r) return "";
       return `<b>${y}</b>${flag(r) ? ` <span style="color:${k.muted}">${r.partial_year ? "· year to date" : "· low EMR coverage"}</span>` : ""}<br/>Cases: <b>${int(r.cases)}</b> (index ${fmt(idxC(r), 0)})<br/>ASR: <b>${fmt(r.asr)}</b> per 100k (index ${fmt(idxA(r), 0)})`;

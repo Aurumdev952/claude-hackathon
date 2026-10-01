@@ -8,3 +8,8 @@ def score_patients(con, sim_time, log=print):
     except ImportError:
         return
     score_in_pipeline(con, sim_time, log)
+    # the KPI mart is built before scoring, so its risk-based tile is filled in here (latest year only)
+    if con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'pt_risk'").fetchone()[0]:
+        con.execute("""UPDATE mart_kpis SET high_risk_awaiting_endoscopy =
+                         (SELECT count(*) FROM pt_risk WHERE risk_band = 'HIGH' AND NOT coalesce(scoped_since_flag, FALSE))
+                       WHERE year = (SELECT max(year) FROM mart_kpis)""")

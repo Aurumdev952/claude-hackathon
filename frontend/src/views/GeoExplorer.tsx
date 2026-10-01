@@ -94,6 +94,7 @@ export default function GeoExplorer() {
     const t = setInterval(() => setIdx((i) => { if (i >= periods.length - 1) { setPlaying(false); return i; } return i + 1; }), reducedMotion() ? 1800 : 1500);
     return () => clearInterval(t);
   }, [playing, periods.length]);
+  useEffect(() => setHover(null), [selected]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") { if (selected) select(null); setCallout(false); } };
     window.addEventListener("keydown", h);
@@ -288,19 +289,21 @@ function DistrictTable({ rows, rank, spatial, onSelect }: { rows: MapRow[]; rank
 function HotspotList({ rows, spatial, onSelect }: { rows: MapRow[]; spatial: Map<string, any>; onSelect: (c: string) => void }) {
   const hh = rows.filter((r) => (r.lisa_quadrant ?? spatial.get(r.geo_code)?.lisa_quadrant) === "HH").sort((a, b) => (spatial.get(b.geo_code)?.sir ?? 0) - (spatial.get(a.geo_code)?.sir ?? 0));
   const other = rows.filter((r) => ["HL", "LH", "LL"].includes(r.lisa_quadrant ?? ""));
+  const fdr = hh.filter((r) => spatial.get(r.geo_code)?.lisa_quadrant_fdr === "HH").length;
   if (!rows.length) return <Loading h={80} />;
   return (
     <div className="text-xs">
-      <p className="text-fog mb-2 leading-snug">{hh.length} district{hh.length === 1 ? "" : "s"} form a significant High–High cluster; {other.length} other{other.length === 1 ? " is" : "s are"} spatial outliers or cold spots.</p>
+      <p className="text-fog mb-2 leading-snug">{hh.length} {hh.length === 1 ? "district forms" : "districts form"} a High–High cluster at p &lt; 0.05 ({fdr} survive{fdr === 1 ? "s" : ""} FDR correction); {other.length} other{other.length === 1 ? " is a" : "s are"} spatial outlier{other.length === 1 ? "" : "s"} or cold spot{other.length === 1 ? "" : "s"}.</p>
       <ul className="divide-y divide-line/40">
         {hh.map((r) => { const s = spatial.get(r.geo_code); return (
-          <li key={r.geo_code}><button className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-ridge2/40 rounded px-1" onClick={() => onSelect(r.geo_code)}>
+          <li key={r.geo_code}><button className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-ridge2/40 rounded px-1 focus-visible:ring-2 ring-kivu" onClick={() => onSelect(r.geo_code)}>
             <span className="chip bg-ridge2 text-mist">HH</span><span className="font-medium flex-1">{r.name}</span>
-            <span className="tabular text-fog">SIR <b className="text-mist">{fmt(s?.sir, 2)}</b> ({fmt(s?.sir_lci, 2)}–{fmt(s?.sir_uci, 2)})</span>
+            <span className="tabular text-fog w-[52px] text-right" title="Permutation p-value (FDR q in brackets)">p {fmt(s?.lisa_p, 3)}</span>
+            <span className="tabular text-fog w-[148px] text-right">SIR <b className="text-mist">{fmt(s?.sir, 2)}</b> ({fmt(s?.sir_lci, 2)}–{fmt(s?.sir_uci, 2)})</span>
           </button></li>
         ); })}
       </ul>
-      <p className="text-[10px] text-fog mt-2">{LISA_LABEL.HH}: high rate surrounded by high-rate neighbours (p &lt; 0.05, 999 permutations).</p>
+      <p className="text-[10px] text-fog mt-2">{LISA_LABEL.HH}: high rate surrounded by high-rate neighbours (999 permutations). An SIR CI that includes 1.0 means the district alone is not significantly above the national level.</p>
     </div>
   );
 }
