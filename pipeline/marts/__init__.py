@@ -17,6 +17,9 @@ def build_all(con, sim_time, log=print):
         ("rate_surface", surfaces.build_rate_surface), ("journey", surfaces.build_journey),
         ("kpis", cohort.build_kpis),
     ]
+    # v3 hooks (docs/contracts/v3-loop.md): care marts (L2) and forecasting/monitoring marts (L3)
+    from . import care as care_marts, forecast as forecast_marts
+    steps += [("care", care_marts.build_care), ("forecast", forecast_marts.build_forecast)]
     for name, fn in steps:
         t = time.time()
         fn(con, sim_time, log)

@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from shared.config import SIM_STATE_DIR
 
 from .deps import SERVE
-from .routers import admin, ai, epi, meta, models, patients
+from .routers import admin, ai, care, epi, forecast, meta, models, patient_app, patients
 from .ws import HUB, endpoint
 
 PREFIX = "/api/v1"
@@ -79,6 +79,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
                                                             "details": {"errors": json.loads(json.dumps(exc.errors(), default=str))}}})
 
 
-for r in (meta.router, epi.router, models.router, patients.router, ai.router, admin.router):
+for r in (meta.router, epi.router, models.router, patients.router, ai.router, admin.router,
+          care.router, patient_app.router, forecast.router):  # v3 routers (docs/contracts/v3-loop.md)
     app.include_router(r, prefix=PREFIX)
 app.add_api_websocket_route(f"{PREFIX}/ws", endpoint)

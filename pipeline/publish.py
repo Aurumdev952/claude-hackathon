@@ -8,7 +8,7 @@ import os
 from shared.config import ANALYTICS_DIR
 
 CURRENT = ANALYTICS_DIR / "current.json"
-SERVE_PREFIXES = ("mart_", "pt_", "ml_")
+SERVE_PREFIXES = ("mart_", "pt_", "ml_", "care_", "ext_")  # care_/ext_: v3 (docs/contracts/v3-loop.md)
 SERVE_EXTRA = ["core_dim_location", "core_gc_case", "core_gi_cohort", "core_facility_events", "pipeline_run_log",
                "ref_district", "ref_province", "dq_raw_results", "dq_mart_results", "mart_stage_tier_test"]
 
