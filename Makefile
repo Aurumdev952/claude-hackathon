@@ -8,7 +8,7 @@ SNAP := data/snapshots/latest
         reset-demo test test-insights test-fast e2e frontend api sim lint
 
 setup:                      ## toolchains + deps (run before the event, on good internet)
-	uv sync --extra dev
+	uv sync --all-extras
 	cd frontend && npm ci
 	-command -v ollama >/dev/null && ollama pull qwen2.5-coder:7b && ollama pull llama3.1:8b
 

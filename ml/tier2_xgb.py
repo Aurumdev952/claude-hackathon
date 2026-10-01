@@ -54,6 +54,9 @@ def _fmt(feature: str, value) -> str | None:
 
 
 def top_reasons(feature_names, contribs: np.ndarray, X: pd.DataFrame, raw: pd.DataFrame, k: int = 5) -> list[list[dict]]:
+    # column arrays instead of per-row .iloc (49k rows x several lookups was minutes of pandas overhead)
+    xcol = {f: X[f].to_numpy() for f in feature_names if "=" in f}
+    rcol = {c: raw[c].to_numpy() for c in raw.columns}
     out = []
     for i in range(contribs.shape[0]):
         order = np.argsort(-contribs[i])
@@ -63,13 +66,14 @@ def top_reasons(feature_names, contribs: np.ndarray, X: pd.DataFrame, raw: pd.Da
                 break
             f = feature_names[j]
             base = f.split("=")[0]
-            if "=" in f and X.iloc[i][f] != 1:
+            if "=" in f and xcol[f][i] != 1:
                 continue
-            label = _fmt(f, raw.iloc[i][base] if base in raw.columns and "=" not in f else 1)
+            label = _fmt(f, rcol[base][i] if base in rcol and "=" not in f else 1)
             if label is None:
                 continue
+            rv = rcol[base][i] if base in rcol else None
             rs.append({"feature": f, "label": label, "contribution": round(float(contribs[i, j]), 3),
-                       "value": None if "=" in f or pd.isna(raw.iloc[i].get(base)) else float(raw.iloc[i][base])})
+                       "value": None if "=" in f or pd.isna(rv) else float(rv)})
         out.append(rs)
     return out
 

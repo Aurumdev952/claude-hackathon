@@ -112,20 +112,27 @@ def logits(p, ids, days, age, static, cfg, train=False, rng=None):
     return logits_from_embedded(p, embed(p, ids, days, age), mask, static, cfg, train, rng)
 
 
+_IG_CACHE: dict = {}
+
+
+def _ig_fn(cfg: dict, steps: int):
+    """One jitted function per (config, steps): eager jax.grad would re-trace the GRU scan on every call."""
+    key = (tuple(sorted((k, str(v)) for k, v in cfg.items())), steps)
+    if key not in _IG_CACHE:
+        def run(p, ids, days, age, static):
+            x = embed(p, ids, days, age)
+            mask = ids != 0
+            g = jax.grad(lambda xs: logits_from_embedded(p, xs, mask, static, cfg).sum())
+            alphas = jnp.linspace(1.0 / steps, 1.0, steps)
+            total = jax.lax.fori_loop(0, steps, lambda i, acc: acc + g(x * alphas[i]), jnp.zeros_like(x))
+            return jnp.where(mask, (x * total / steps).sum(-1), 0.0)
+        _IG_CACHE[key] = jax.jit(run)
+    return _IG_CACHE[key]
+
+
 def integrated_gradients(p, ids, days, age, static, cfg, steps: int = 16) -> np.ndarray:
     """Attribution per sequence position: sum over dims of (x - 0) * mean grad along the straight path."""
-    x = embed(p, ids, days, age)
-    mask = ids != 0
-
-    def f(xs):
-        return logits_from_embedded(p, xs, mask, static, cfg).sum()
-
-    g = jax.grad(f)
-    total = jnp.zeros_like(x)
-    for a in np.linspace(1.0 / steps, 1.0, steps):
-        total = total + g(x * a)
-    attr = (x * total / steps).sum(-1)
-    return np.asarray(jnp.where(mask, attr, 0.0))
+    return np.asarray(_ig_fn(cfg, steps)(p, ids, days, age, static))
 
 
 def flatten(p) -> dict:

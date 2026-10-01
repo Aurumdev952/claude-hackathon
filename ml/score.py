@@ -6,6 +6,7 @@ pt_features, pt_risk (bands, top SHAP reasons, Tier 3 attributions), ml_risk_his
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -45,7 +46,7 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     t2 = tier2_xgb.predict(clf, iso, X)
     contrib = tier2_xgb.shap_values(clf, X)
     reasons = tier2_xgb.top_reasons(meta["features"], contrib, X, feats)
-    t3, attn = _tier3(con, act.get(3), feats, X)
+    t3, attn = _tier3(con, act.get(3), feats, X, log)
     ens = np.nanmean(np.vstack([t2, t3]), axis=0) if t3 is not None else t2
     params = act[2]["params"]
     hi, med = params["high_cut"], params["medium_cut"]
@@ -77,7 +78,7 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     log(f"    scored {len(risk):,} patients: HIGH={n_hi:,} MEDIUM={int((band == 'MEDIUM').sum()):,}")
 
 
-def _tier3(con, m, feats, X):
+def _tier3(con, m, feats, X, log=print):
     if not m:
         return None, None
     from .tier3_seq import dataset as D
@@ -98,17 +99,51 @@ def _tier3(con, m, feats, X):
     S = S.astype(np.float32)
     z = T3.predict_logits(p, cfg, ids, days, age, S)
     prob = T3.calibrated(z, meta["temperature"], iso)
-    # Integrated Gradients for the top-scoring 10% (shown in the Doctor timeline)
+    # Integrated Gradients for the top-scoring 10% (shown in the Doctor timeline). IG is the costliest scoring step, so
+    # attributions are cached per patient and recomputed only when the event history, the model, or 28 days have passed
     attn = [[] for _ in range(len(lm))]
     top = np.argsort(-prob)[: max(1, len(prob) // 10)]
     inv = {v: k for k, v in tok.vocab.items()}
-    for i in range(0, len(top), 256):
-        b = top[i:i + 256]
+    L = pd.Timestamp(lm["L"].iloc[0]).date()
+    l_ord = L.toordinal()
+    model_id = path.name
+    con.execute("""CREATE TABLE IF NOT EXISTS cache_t3_attr (patient_id INTEGER, model_id VARCHAR, seq_hash VARCHAR,
+                   computed DATE, attn VARCHAR)""")
+    pids = lm["patient_id"].to_numpy()
+
+    def seq_hash(row):
+        m = ids[row] > 0  # event identity = token + absolute date, so the hash is stable as the landmark moves
+        return hashlib.blake2b(ids[row][m].tobytes() + np.round(l_ord - days[row][m], 3).tobytes(), digest_size=12).hexdigest()
+
+    hashes = {int(r): seq_hash(r) for r in top}
+    cached = {int(a): (h, c, j) for a, h, c, j in con.execute(
+        "SELECT patient_id, seq_hash, computed, attn FROM cache_t3_attr WHERE model_id = ?", [model_id]).fetchall()}
+    todo, fresh = [], {}
+    for r in top:
+        c = cached.get(int(pids[r]))
+        if c and c[0] == hashes[int(r)] and (L - c[1]).days < 28:
+            fresh[int(r)] = json.loads(c[2])
+        else:
+            todo.append(int(r))
+    for i in range(0, len(todo), 256):
+        b = np.array(todo[i:i + 256])
         a = M3.integrated_gradients(p, ids[b], days[b], age[b], S[b], cfg)
         for j, row in enumerate(b):
             order = np.argsort(-a[j])[:5]
-            attn[row] = [{"token": inv.get(int(ids[row, k]), "?"), "days_before": float(days[row, k]),
-                          "attribution": round(float(a[j, k]), 4)} for k in order if a[j, k] > 0 and ids[row, k] > 2]
+            fresh[int(row)] = [{"token": inv.get(int(ids[row, k]), "?"), "event_day": float(l_ord - days[row, k]),
+                                "attribution": round(float(a[j, k]), 4)} for k in order if a[j, k] > 0 and ids[row, k] > 2]
+    if todo:
+        upd = pd.DataFrame({"patient_id": pids[todo].astype(np.int64), "model_id": model_id,
+                            "seq_hash": [hashes[r] for r in todo], "computed": L,
+                            "attn": [json.dumps(fresh[r]) for r in todo]})
+        con.register("_attr", upd)
+        con.execute("DELETE FROM cache_t3_attr WHERE patient_id IN (SELECT patient_id FROM _attr)")
+        con.execute("INSERT INTO cache_t3_attr SELECT patient_id, model_id, seq_hash, computed, attn FROM _attr")
+        con.unregister("_attr")
+    for row, items in fresh.items():
+        attn[row] = [{"token": it["token"], "days_before": round(l_ord - it["event_day"], 3), "attribution": it["attribution"]}
+                     for it in items]
+    log(f"    tier3 attributions: {len(todo):,} computed, {len(top) - len(todo):,} from cache")
     return prob, attn
 
 
