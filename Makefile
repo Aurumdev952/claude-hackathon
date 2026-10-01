@@ -46,7 +46,7 @@ reproduce-no-mysql:         ## same, without MySQL (dashboard only, no live loop
 
 verify:                     ## published results vs the reference run (docs/reference_results.json), then all Python tests
 	$(PY) scripts/verify_results.py
-	PYTHONPATH=. uv run pytest -q
+	PYTHONPATH=. uv run pytest
 
 generate:                   ## synthetic EMR at SCALE -> data/bulk (Parquet) + data/ground_truth.json, no MySQL
 	$(PY) -m generator --scale $(SCALE)
@@ -125,13 +125,13 @@ reset-demo:                 ## fresh demo in < 2 min
 	rm -f data/analytics/app_state.sqlite data/sim_state/*.json
 
 test:                       ## all Python tests (realism, methods, insight recovery, leakage, API contract, NL->SQL)
-	PYTHONPATH=. uv run pytest -q
+	PYTHONPATH=. uv run pytest
 
 test-insights:              ## ground-truth recovery only
-	PYTHONPATH=. uv run pytest -q tests/insights
+	PYTHONPATH=. uv run pytest tests/insights
 
 test-fast:
-	PYTHONPATH=. uv run pytest -q tests/pipeline tests/api
+	PYTHONPATH=. uv run pytest tests/pipeline tests/api
 
 e2e:                        ## Playwright journeys (API on :8000 and Vite on :5173 must be running)
 	cd frontend && npx playwright test
