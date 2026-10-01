@@ -33,8 +33,8 @@ LAUREN_CODE = {"intestinal": 7140, "diffuse": 7141, "mixed": 7142}
 SURV_MEDIAN_M = {"I": 60, "II": 16, "III": 8, "IV": 4.0}   # D-06: tuned so 1-y survival hits §8.8/INS-4 targets
 SURV_SHAPE = 1.5
 # INS-4 facility practice: patients who first present at low-testing-tier facilities reach curative care less often
-TIER_CURATIVE = {"low": 0.4, "medium": 0.8, "high": 0.9}
-TIER_BSC_IV = {"low": 0.65, "medium": 0.4, "high": 0.25}
+TIER_CURATIVE = {"low": 0.3, "medium": 0.8, "high": 0.9}
+TIER_BSC_IV = {"low": 0.75, "medium": 0.4, "high": 0.25}
 TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)

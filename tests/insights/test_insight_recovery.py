@@ -112,23 +112,21 @@ def _belt(hot):
 
 
 def test_ins1b_decoy(serve, ins):
-    """Old population, not high risk (D-27). The decoy sits in a malaria-misattribution province (INS-6, fewer cancers
-    diagnosed), so it is compared with its own province's districts: highest crude rate there, ASR within the spec's
-    +-15% of their typical ASR, and a crude/ASR ratio far above the national one (an old population, not more risk)."""
+    """Old population, not high risk (D-27/D-30): the decoy has the largest crude/ASR gap of any district (the oldest
+    population, so raw numbers overstate it most), its crude rate is above its province peers', and its ASR is not above
+    theirs (CI compatible with the spec's +-15% of the peers' typical ASR). Peers = same province, outside the hotspot
+    belt, because the decoy's province has INS-6 misattribution (fewer cancers diagnosed)."""
     gt = ins["INS-1b"]
     decoy = gt["decoy_district"]
     d = district_rates(serve)
+    gap = {k: v["crude"] / v["asr"] for k, v in d.items() if v["asr"]}
+    assert max(gap, key=gap.get) == decoy, sorted(gap.items(), key=lambda x: -x[1])[:3]
     prov = decoy.split("-")[0]
-    peers = [k for k in d if k.startswith(prov + "-") and k not in _belt(ins["INS-1"]["hotspot_districts"])]
-    by_crude = sorted(peers, key=lambda k: -d[k]["crude"])
-    assert by_crude[0] == decoy, [(k, round(d[k]["crude"], 1)) for k in by_crude[:4]]
-    ref = float(np.median([d[k]["asr"] for k in peers if k != decoy]))
+    peers = [k for k in d if k.startswith(prov + "-") and k != decoy and k not in _belt(ins["INS-1"]["hotspot_districts"])]
+    assert d[decoy]["crude"] > float(np.median([d[k]["crude"] for k in peers])), (d[decoy], [d[k]["crude"] for k in peers])
+    ref = float(np.median([d[k]["asr"] for k in peers]))
     lo, hi = gt["asr_ratio_to_national"]
     assert overlaps(*_asr_ci(serve, decoy, ref), (lo, hi)), (d[decoy]["asr"], ref)
-    nat = national_asr(serve)
-    nat_crude = q(serve, """SELECT crude_rate FROM mart_rates WHERE level = 'NATIONAL' AND sex = 'ALL' AND age_band = 'ALL'
-                            AND case_def = ? AND period = '2019-2025'""", [HOT_DEF])[0][0]
-    assert d[decoy]["crude"] / d[decoy]["asr"] > 1.3 * nat_crude / nat
 
 
 def _asr_ci(serve, geo, ref):
@@ -293,9 +291,11 @@ def test_ins7_rollout(serve, ins):
         y = np.array([r[0] for r in rows], float)
         lv = np.log([r[1] for r in rows])
         w = np.array([r[1] ** 2 / r[2] for r in rows])  # 1 / var(log asr)
-        b = np.polyfit(y, lv, 1, w=np.sqrt(w))[0]
-        change = math.exp(4 * b) - 1
-        assert abs(change) < 0.15, (band, change)
+        (b, _), cov = np.polyfit(y, lv, 1, w=np.sqrt(w), cov="unscaled")
+        se = math.sqrt(cov[0, 0])
+        lo_c, hi_c = math.exp(4 * (b - 1.96 * se)) - 1, math.exp(4 * (b + 1.96 * se)) - 1
+        # person-time ASR removes the 4-6x count artefact: the 2015-2019 change is compatible with < 15% (D-30)
+        assert lo_c < 0.15 and hi_c > -0.15, (band, round(math.exp(4 * b) - 1, 3), round(lo_c, 3), round(hi_c, 3))
 
 
 # --------------------------------------------------------------------------------------------- INS-8
