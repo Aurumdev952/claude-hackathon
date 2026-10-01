@@ -8,6 +8,8 @@ import { BandMark } from "./BandMark";
 
 /** Method text shared by the doctor views (lives behind ⓘ). */
 export const RISK_METHOD = "Final band = mean of the calibrated XGBoost and sequence-model probabilities; HIGH is the top 2% of eligible GI-cohort patients (endoscopy capacity), MEDIUM the next 8%. Thresholds were frozen at training time.";
+/** What the three tier tiles are (Risk card ⓘ notes). */
+export const TIERS_NOTE = "Points: tier 1, a transparent points score from symptoms, age, labs and visit pattern. XGBoost: tier 2, calibrated gradient-boosted trees. Sequence: tier 3, a sequence model over the visit timeline. Both models give a 12-month probability.";
 export const SHAP_NOTE = "Contributions are SHAP values (log-odds) from the XGBoost model. Decision support only, synthetic data.";
 const NOT_SCORED = "Diagnosed, outside the GI cohort, or models not trained.";
 
@@ -62,7 +64,7 @@ const TIERS = (risk: any) => [
 
 /** Risk summary (reference "Activity 2.780 Cal"): 48px probability with a muted unit, one helper line, a thin track and
  * the three model tiers as grey tiles. */
-export function RiskSummary({ risk, tiers = true }: { risk: any; tiers?: boolean }) {
+export function RiskSummary({ risk, tiers = true, showBand = true }: { risk: any; tiers?: boolean; showBand?: boolean }) {
   if (!risk) return <NotScored />;
   const high = risk.risk_band === "HIGH";
   return (
@@ -73,14 +75,14 @@ export function RiskSummary({ risk, tiers = true }: { risk: any; tiers?: boolean
       </div>
       <div className="flex items-center gap-3 mt-1 text-label font-normal text-muted">
         <span>12-month probability</span>
-        <BandMark band={risk.risk_band} label={`${String(risk.risk_band ?? "").charAt(0)}${String(risk.risk_band ?? "").slice(1).toLowerCase()} band`} />
+        {showBand && <BandMark band={risk.risk_band} label={`${String(risk.risk_band ?? "").charAt(0)}${String(risk.risk_band ?? "").slice(1).toLowerCase()} band`} />}
       </div>
       <div className="mt-4">
         <Track value={risk.ensemble_prob} tone={high ? "signal" : "sky"} label="Ensemble 12-month probability" />
       </div>
       {tiers && (
         <div className="grid grid-cols-3 gap-2 mt-5">
-          {TIERS(risk).map((t) => <StatTile key={t.k} label={t.k} value={t.v} sub={t.sub} info={t.info} className="!px-3.5" />)}
+          {TIERS(risk).map((t) => <StatTile key={t.k} label={t.k} value={t.v} sub={t.sub} className="!px-3.5" />)}
         </div>
       )}
     </div>

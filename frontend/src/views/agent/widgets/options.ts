@@ -49,7 +49,7 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
       series.push(
         { name: `${seriesLabel(s)} CI low`, type: "line", stack: `ci${i}`, yAxisIndex, data: lo.map((v) => v ?? "-"), symbol: "none", lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false }, z: 1 },
         { name: `${seriesLabel(s)} 95% CI`, type: "line", stack: `ci${i}`, yAxisIndex, data: hi.map((v, j) => (v !== null && lo[j] !== null ? v - (lo[j] as number) : "-")),
-          symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: alphaHex(c, 0.13) }, silent: true, tooltip: { show: false }, z: 1 },
+          symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: alphaHex(c, 0.16) }, silent: true, tooltip: { show: false }, z: 1 },
       );
     }
     const vals = spec.data.map((r) => asNum(r[s.key]));
@@ -60,7 +60,7 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
       stack: stacked ? "total" : undefined,
       lineStyle: { width: 2.25, color: c, type: s.dashed ? "dashed" : "solid" },
       itemStyle: { color: c, borderColor: k.surface, borderWidth: 2 },
-      areaStyle: area ? { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: alphaHex(c, stacked ? 0.55 : 0.28) }, { offset: 1, color: alphaHex(c, stacked ? 0.35 : 0.02) }] } } : undefined,
+      areaStyle: area ? { color: alphaHex(c, stacked ? 0.45 : 0.14) } : undefined,
       emphasis: { focus: spec.series.length > 1 ? "series" : "none", scale: 1.4 },
       endLabel: spec.series.length <= 3 && lastIdx >= 0 && !compact
         ? { show: true, color: k.primary, fontSize: 11, fontWeight: 600, distance: 6, formatter: () => cellText(spec.data[lastIdx], s.key, undefined, spec.unit) } : undefined,
@@ -124,7 +124,7 @@ export function barOption(spec: Bar, S: string[], k: Ink) {
       name: seriesLabel(s), type: "bar", stack: spec.stacked ? "total" : undefined, barMaxWidth: horiz ? 16 : 28, barGap: "30%",
       data: spec.data.map((r) => asNum(r[s.key]) ?? "-"),
       itemStyle: { color: c, borderRadius: spec.stacked ? 2 : horiz ? [0, 6, 6, 0] : [6, 6, 0, 0] },
-      emphasis: { itemStyle: { color: c, shadowBlur: 8, shadowColor: alphaHex(c, 0.35) } },
+      emphasis: { itemStyle: { color: c } },
       label: single && spec.data.length <= 16 && !spec.stacked ? {
         show: true, position: horiz ? "right" : "top", color: k.secondary, fontSize: 10.5, fontWeight: 500, distance: s.lci ? 4 : 5,
         formatter: (p: any) => cellText(spec.data[p.dataIndex], s.key, undefined, spec.unit),
