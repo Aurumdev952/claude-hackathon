@@ -1,6 +1,6 @@
 -- SPEC §10.5 probabilistic duplicate resolution.
 -- Blocking: sex + first-address district + birthdate, plus birth year +-1 with the same phone when a birthdate is estimated.
--- equi-joins so DuckDB can hash-join (an OR in the join condition degrades to a per-block cross product).
+-- Written as equi-joins so DuckDB can hash-join (an OR in the join condition degrades to a per-block cross product).
 -- Score: 0.4*JW(given) + 0.4*JW(family) + 0.2*phone_match, re-normalised over names when a phone is missing.
 -- Link rule (D-24): score >= 0.92 and either a matching phone, or the same birthdate in the same first sector where
 -- the birthdate is exact, or (estimated) at least one of the two full names is unique in the district
