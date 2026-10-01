@@ -130,7 +130,7 @@ export const getPatientTimeline = defineTool({
       const ev = await timelineEvents(pid, where, params);
       const risk = await patientRisk(pid);
       const hl = highlights(ev, risk);
-      const events = ev.map((e, k) => ({ ...e, highlight: hl.has(k) }));
+      const events = ev.map((e, k) => ({ ...e, highlight: hl.has(k) }) as RowObject);
       const counts: Record<string, number> = {};
       for (const e of events) counts[String(e.event_type)] = (counts[String(e.event_type)] ?? 0) + 1;
       return { ok: true, patient_id: pid, window: { from, to: i.to ?? null }, counts, n_events: events.length, series: series(ev), events };

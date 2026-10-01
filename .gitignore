@@ -32,3 +32,6 @@ evals/agent/results/*
 !evals/agent/results/latest.json
 reports/snapshots/*.json
 !reports/snapshots/latest.json
+
+# libsql test artefacts (":memory:" opened as a file path)
+:memory:*

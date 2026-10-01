@@ -30,7 +30,11 @@ export function suppressObserved(points: Obj[] | null | undefined): Obj[] {
 }
 
 /** n_* columns that count model artefacts, not people. */
-const NOT_PERSON_COUNTS = new Set(["n_joinpoints", "n_features", "n_segments", "n_models", "n_folds"]);
+const NOT_PERSON_COUNTS = new Set([
+  "n_joinpoints", "n_features", "n_segments", "n_models", "n_folds",
+  // process / model-evaluation denominators (facility H. pylori testing, model test split): not disease counts
+  "n_dyspepsia", "n_hp_tested", "n_pos", "n_neg",
+]);
 
 /** Count-like columns in mart rows (cases, n, n_*, *_count, count*). */
 export function isCountKey(k: string): boolean {
@@ -44,6 +48,7 @@ export function isCountKey(k: string): boolean {
 /** Rate / proportion columns that would let a suppressed count be back-calculated. */
 export function isDerivedKey(k: string): boolean {
   const l = k.toLowerCase();
+  if (l.startsWith("hp_test") || l.startsWith("funnel_") || l.startsWith("target_")) return false; // other denominator
   return RATE_FIELDS.includes(l) || l === "rate" || l === "pct" || l === "pct_known" || l === "lci" || l === "uci" ||
     l.endsWith("_rate") || l.endsWith("_pct") || l.startsWith("pct_") || l.endsWith("_lci") || l.endsWith("_uci");
 }

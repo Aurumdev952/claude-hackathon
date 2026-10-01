@@ -81,8 +81,8 @@ export class ConversationRepo {
     const rows = await d
       .select({
         c: conversations,
-        n: sql<number>`(SELECT count(*) FROM messages m WHERE m.conversation_id = ${conversations.id})`,
-        last: sql<string | null>`(SELECT m.parts FROM messages m WHERE m.conversation_id = ${conversations.id} ORDER BY m.seq DESC LIMIT 1)`,
+        n: sql<number>`(SELECT count(*) FROM messages m WHERE m.conversation_id = "conversations"."id")`,
+        last: sql<string | null>`(SELECT m.parts FROM messages m WHERE m.conversation_id = "conversations"."id" ORDER BY m.seq DESC LIMIT 1)`,
       })
       .from(conversations)
       .where(where)

@@ -81,6 +81,11 @@ export const getSurvival = defineTool({
     }
     return out;
   },
+  modelView(o) {
+    const c = (o as { curve?: { dataset_id: string; n_points: number; rows: unknown[] } }).curve;
+    if (!c) return o;
+    return { ...o, curve: { dataset_id: c.dataset_id, n_points: c.n_points, note: "KM curve rows available to make_chart / run_python via dataset_id" } };
+  },
 });
 
 export const getFacilityQuality = defineTool({
