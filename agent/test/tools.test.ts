@@ -140,8 +140,8 @@ describe("doctor tools", () => {
     expect(rk.rows).toHaveLength(2);
     expect(rk.current.top_reasons[0].feature).toBe("hb_drop_12m");
     const al = await run("list_alerts", {}, t);
-    expect(al.total).toBe(3);
-    expect(al.by_severity).toEqual({ HIGH: 1, MEDIUM: 2 });
+    expect(al.total).toBe(4); // a-001..a-003 plus a-005 (a stale pre-diagnosis alert on the treated case)
+    expect(al.by_severity).toEqual({ HIGH: 2, MEDIUM: 2 });
   });
 
   it("make_patient_widget builds a valid PatientWidget; model view has no names", async () => {

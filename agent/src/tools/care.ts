@@ -333,19 +333,22 @@ export const getPatientJourney = defineTool({
 
 // ------------------------------------------------------------------------------------------------ draft (preview only)
 async function suggestPathway(pid: number): Promise<{ pathway: Pathway; rationale: string; alert_id: string | null } | null> {
-  const open = (await alertsFor("a.patient_id = ?", [pid])).filter((a) => a.status === "NEW" || a.status === "ACKNOWLEDGED");
-  for (const trig of TRIGGER_ORDER) {
-    const a = open.find((x) => x.trigger === trig);
-    if (a) return { pathway: TRIGGER_PATHWAY[trig], rationale: `Open ${trig} alert (${a.severity}): ${a.summary ?? ""}`.trim(), alert_id: String(a.alert_id) };
-  }
   const db = SERVE();
   const p = await db.one("SELECT is_case, dead FROM pt_patient WHERE patient_id = ?", [pid]);
+  // a diagnosed patient is past screening: an alert raised before the diagnosis (high risk, alarm without endoscopy) must
+  // not lead to another referral; the next plan follows the treatment stage
   if (p?.is_case && !p.dead) {
     const rec = (await db.hasTable("pt_recovery")) ? await db.one("SELECT intent, gastrectomy FROM pt_recovery WHERE patient_id = ?", [pid]) : null;
     const intent = String(rec?.intent ?? "").toUpperCase();
     if (/PALL|BEST SUPPORTIVE|^BSC$/.test(intent)) return { pathway: "PALLIATIVE_SUPPORT", rationale: `Diagnosed, treatment intent ${rec?.intent}`, alert_id: null };
     if (rec?.gastrectomy) return { pathway: "SURVIVORSHIP", rationale: "Diagnosed and treated with curative gastrectomy", alert_id: null };
     return { pathway: "ONCOLOGY_TREATMENT", rationale: "Diagnosed; no treatment plan recorded yet", alert_id: null };
+  }
+  if (p?.dead) return null;
+  const open = (await alertsFor("a.patient_id = ?", [pid])).filter((a) => a.status === "NEW" || a.status === "ACKNOWLEDGED");
+  for (const trig of TRIGGER_ORDER) {
+    const a = open.find((x) => x.trigger === trig);
+    if (a) return { pathway: TRIGGER_PATHWAY[trig], rationale: `Open ${trig} alert (${a.severity}): ${a.summary ?? ""}`.trim(), alert_id: String(a.alert_id) };
   }
   if (await db.hasTable("pt_risk")) {
     const r = await db.one("SELECT risk_band FROM pt_risk WHERE patient_id = ?", [pid]);
