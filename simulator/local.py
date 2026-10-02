@@ -162,7 +162,7 @@ def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: boo
             t = time.time()
             try:
                 from . import care_world as cwm
-                cw = cwm.step(t0, t1, adapter=ad, seed=seed, log=log)
+                cw = cwm.step(t0, t1, adapter=ad, seed=seed, log=log, replayed=rows)
             except Exception as e:  # noqa: BLE001 - the clock keeps going without the care world
                 log(f"  care world failed: {e.__class__.__name__}: {e}")
                 cw = {"error": f"{e.__class__.__name__}: {e}"}
