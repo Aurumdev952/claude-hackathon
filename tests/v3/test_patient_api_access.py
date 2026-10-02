@@ -238,8 +238,10 @@ def test_ministry_aggregates_are_suppressed_and_anonymous(client, ctx, url):
 
 def test_suppress_helper():
     from api.routers.care import suppress
-    assert suppress({"n": 3, "rate": 0.5, "adhered": 1}, ("n", "adhered"), ("rate",)) == \
+    assert suppress({"n": 3, "rate": 0.0, "adhered": 0}, ("n", "adhered"), ("rate",)) == \
         {"n": None, "n_label": "<5", "rate": None, "adhered": None, "adhered_label": "<5"}
+    assert suppress({"n": 9, "rate": 0.3, "adhered": 3}, ("n", "adhered")) == \
+        {"n": 9, "rate": 0.3, "adhered": None, "adhered_label": "<5"}
     assert suppress({"n": 7, "rate": 0.5}, ("n",), ("rate",)) == {"n": 7, "rate": 0.5}
     assert suppress({"n": 0}, ("n",)) == {"n": 0}
 

@@ -183,18 +183,22 @@ def _recovery_shape(rec: dict | None) -> dict | None:
 
 # ------------------------------------------------------------------------------------------------ ministry
 def suppress(row: dict, fields: tuple[str, ...], derived: tuple[str, ...] = ()) -> dict:
-    """Small cells: counts 1-4 become null with a "<5" label; derived values of a suppressed base become null."""
+    """Small cells: counts 1-4 become null with a "<5" label. When the base count (first field) is suppressed, every
+    other count and derived value of the row is hidden too, so nothing can be back-calculated."""
     out = dict(row)
-    hidden = False
-    for f in fields:
+    base = out.get(fields[0]) if fields else None
+    if base is not None and 0 < base < 5:
+        for f in fields:
+            out[f] = None
+            out[f"{f}_label"] = "<5"
+        for f in derived:
+            out[f] = None
+        return out
+    for f in fields[1:]:
         v = out.get(f)
         if v is not None and 0 < v < 5:
             out[f] = None
             out[f"{f}_label"] = "<5"
-            hidden = hidden or f == fields[0]
-    if hidden:
-        for f in derived:
-            out[f] = None
     return out
 
 
