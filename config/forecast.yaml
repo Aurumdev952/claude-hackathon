@@ -40,7 +40,7 @@ scenario:
   # priors (generator relative risks, docs: config/generator.yaml gastric_cancer.rr) for the covariate model;
   # the fitted coefficients are blended with these by precision weighting
   priors:
-    hp:      {rr: 3.0, sd: 0.4}
+    hp:      {rr: 3.0, sd: 0.25}   # tight: province-level survey prevalences give only weak (ecological) evidence
     smoking: {rr: 1.6, sd: 0.3}
     salt:    {rr: 1.5, sd: 0.3}
   access_early_logodds: {prior: 0.45, sd: 0.25}   # endoscopy access -> odds of stage I/II at diagnosis
