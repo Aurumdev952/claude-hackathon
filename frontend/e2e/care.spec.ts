@@ -131,6 +131,43 @@ test("follow-ups tab: worklist with likely-to-attend and row actions", async ({ 
   await expect(page.getByRole("list", { name: "Plan steps" })).toBeVisible();
 });
 
+test("follow-ups: a next-plan suggestion opens the approval modal with its pathway pre-selected (not submitted)", async ({ page }) => {
+  // KAY-0001274A at Kayonza (1219): cancer found at the referral endoscopy -> specialist treatment suggested. Falls back to
+  // any open suggestion (1219, then Musanze) so the spec survives a regenerated dataset. Nothing is approved: the shared
+  // demo state keeps the suggestion.
+  const facs: [number, string][] = [[1219, "Kayonza District Hospital (Synthetic)"], [FAC, "Musanze District Hospital (Synthetic)"]];
+  let pick: { fac: number; name: string; s: any } | null = null;
+  for (const [fac, name] of facs) {
+    const rows = (await json(page, "/care/suggestions", { "X-Role": "doctor", "X-Facility-Id": String(fac) })).data as any[];
+    const s = rows.find((r) => r.display_id === "KAY-0001274A") ?? rows[0];
+    if (s) { pick = { fac, name, s }; break; }
+  }
+  test.skip(!pick, "no open next-plan suggestion in this dataset");
+  const { fac, name, s } = pick!;
+  // role guards on the endpoint
+  expect((await page.request.get(`${API}/care/suggestions`, { headers: { "X-Role": "ministry" } })).status()).toBe(403);
+  await page.addInitScript(([f, n]) => {
+    localStorage.setItem("es-role", JSON.stringify({ state: { role: "doctor", facilityId: f, facilityName: n, patientId: null, patientDisplayId: null }, version: 0 }));
+  }, [fac, name] as const);
+  await page.goto("/doctor");
+  await page.getByRole("tab", { name: /Follow-ups/ }).click();
+  const list = page.getByRole("list", { name: "Suggested next plans" });
+  const row = list.getByRole("listitem").filter({ hasText: s.display_id });
+  await expect(row).toContainText(s.pathway_name);
+  await expect(row).toContainText(s.reason);
+  await row.getByRole("button", { name: new RegExp(`^Start .* plan for ${s.display_id}`) }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("radio", { name: new RegExp(s.pathway_name) })).toHaveAttribute("aria-checked", "true");
+  await expect(dialog.getByRole("radio", { checked: true })).toContainText("Suggested");
+  if (s.pathway === "ONCOLOGY_TREATMENT") await expect(dialog.getByRole("radio", { checked: true })).toContainText("Specialist treatment");
+  await expect(dialog.getByRole("button", { name: "Approve and notify" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // still open: nothing was created
+  const after = (await json(page, "/care/suggestions", { "X-Role": "doctor", "X-Facility-Id": String(fac) })).data as any[];
+  expect(after.some((r) => r.patient_id === s.patient_id && r.pathway === s.pathway)).toBeTruthy();
+});
+
 test("case screen: Journey tab for the oncology demo patient (MUS-00154716)", async ({ page }) => {
   const found = (await json(page, "/patients?status=diagnosed&q=MUS-00154716", DOC)).data as any[];
   test.skip(!found.length, "oncology demo patient not in this dataset");
