@@ -16,7 +16,7 @@ from typing import Any, Iterable, Optional
 import httpx
 
 DEFAULT_URL = "http://localhost:8787"
-WIDGET_TOOLS = {"make_chart", "make_patient_widget", "run_python"}
+WIDGET_TOOLS = {"make_chart", "make_patient_widget", "run_python", "create_video"}
 # Text the agent streams when the model call itself failed (agent/src/agents/run.ts onError): not an answer.
 AGENT_ERROR_RE = re.compile(r"^\s*(Agent error:|The language model rejected the request)|Key limit exceeded|insufficient credits", re.I)
 
@@ -133,7 +133,7 @@ def parse_response(golden_id: str, role: str, facility_id: Optional[int], questi
         out = p.get("output")
         if p.get("state") == "output-error":
             widget_errors.append({"tool": name, "error": p.get("errorText")})
-        elif isinstance(out, dict) and out.get("kind") in ("chart", "patient", "artifact"):
+        elif isinstance(out, dict) and out.get("kind") in ("chart", "patient", "artifact", "video"):
             widgets.append({"tool": name, "output": out})
             _collect_names(out, names)
         elif isinstance(out, dict):
