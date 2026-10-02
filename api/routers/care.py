@@ -94,7 +94,13 @@ def list_plans(status: str | None = None, r: Role = Depends(d)):
 @router.get("/patients/{patient_id}/care")
 def patient_care(patient_id: int, r: Role = Depends(d)):
     check_access(patient_id, r)
-    return envelope({"plans": engine.plans_for(patient_id)})
+    return envelope({"plans": engine.plans_for(patient_id), "suggested_next": engine.suggestions(patient_id=patient_id)})
+
+
+@router.get("/care/suggestions")
+def care_suggestions(r: Role = Depends(d)):
+    """Open next-plan suggestions for the doctor's facility (a suggestion is never a plan: the doctor starts it)."""
+    return envelope(engine.suggestions(facility_id=r.facility_id))
 
 
 @router.patch("/care/tasks/{task_id}")

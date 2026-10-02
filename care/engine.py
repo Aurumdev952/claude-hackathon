@@ -1064,6 +1064,84 @@ def worklist(facility_id: int, con=None) -> list[dict]:
     return out
 
 
+def _suggestion_reason(detail: dict, from_pathway: str | None, task_type: str | None, result: str | None) -> str:
+    nxt = detail.get("pathway")
+    if nxt == "ONCOLOGY_TREATMENT":
+        if from_pathway == "ANAEMIA_WORKUP":
+            return "Cancer found during the anaemia work-up"
+        return "Cancer found at the referral endoscopy"
+    if nxt == "SURVIVORSHIP":
+        return "Curative treatment completed"
+    if nxt == "PALLIATIVE_SUPPORT":
+        return "Best supportive care chosen" if result == "BSC" else "Treatment goal is comfort and symptom control"
+    return "Suggested after the previous plan"
+
+
+def suggestions(facility_id: int | None = None, patient_id: int | None = None, con=None) -> list[dict]:
+    """Open next-plan suggestions (NEXT_PATHWAY_SUGGESTED events the doctor has not acted on yet).
+
+    The latest suggestion per patient and pathway stays open until a plan on that pathway is created at or after it (any
+    status except CANCELLED); one with an open plan on that pathway is not offered either (a new plan would be a 409).
+    Nothing is created automatically: the doctor starts the plan. With `facility_id`, only patients the facility can
+    reach (pt_patient_facility link, or a care plan approved at / targeted to it: api.routers.care.check_access)."""
+    store = get_store()
+    where, params = ["e.kind = 'NEXT_PATHWAY_SUGGESTED'"], []
+    if patient_id is not None:
+        where.append("e.patient_id = ?")
+        params.append(int(patient_id))
+    evs = store.rows(f"""SELECT e.id, e.plan_id, e.task_id, e.patient_id, e.detail, e.sim_time, p.pathway AS from_pathway,
+                                p.display_id, t.type AS task_type, t.result
+                         FROM care_events e JOIN care_plans p ON p.id = e.plan_id LEFT JOIN care_tasks t ON t.id = e.task_id
+                         WHERE {' AND '.join(where)} ORDER BY e.sim_time, e.id""", params)
+    if not evs:
+        return []
+    latest: dict[tuple[int, str], dict] = {}
+    for e in evs:
+        try:
+            detail = json.loads(e["detail"] or "{}")
+        except json.JSONDecodeError:
+            continue
+        if not detail.get("pathway"):
+            continue
+        latest[(int(e["patient_id"]), detail["pathway"])] = {**e, "detail_obj": detail}
+    pids = sorted({k[0] for k in latest})
+    marks = ",".join("?" * len(pids))
+    plans = store.rows(f"SELECT patient_id, pathway, status, approved_at, facility_id, target_facility_id FROM care_plans "
+                       f"WHERE patient_id IN ({marks})", pids)
+    reach: set[int] | None = None
+    db = None
+    if facility_id is not None:
+        fid = int(facility_id)
+        reach = {int(p["patient_id"]) for p in plans if fid in (p["facility_id"], p["target_facility_id"])}
+        db = DB(con)
+        if db.has("pt_patient_facility"):
+            reach |= {int(r["patient_id"]) for r in db.rows(
+                f"SELECT DISTINCT patient_id FROM pt_patient_facility WHERE facility_id = ? AND patient_id IN ({marks})",
+                [fid, *pids])}
+    db = db or DB(con)
+    dead: set[int] = set()
+    if db.has("pt_patient"):
+        dead = {int(r["patient_id"]) for r in db.rows(
+            f"SELECT patient_id FROM pt_patient WHERE coalesce(dead, FALSE) AND patient_id IN ({marks})", pids)}
+    names = {k: v["name"] for k, v in pathways.pathways().items()}
+    out = []
+    for (pid, pw), e in latest.items():
+        if reach is not None and pid not in reach:
+            continue
+        if pid in dead:
+            continue
+        since = to_dt(e["sim_time"])
+        acted = any(int(p["patient_id"]) == pid and p["pathway"] == pw and p["status"] != "CANCELLED" and
+                    (to_dt(p["approved_at"]) >= since or p["status"] in PLAN_OPEN) for p in plans)
+        if acted:
+            continue
+        out.append({"patient_id": pid, "display_id": e["display_id"], "pathway": pw, "pathway_name": names.get(pw, pw),
+                    "reason": _suggestion_reason(e["detail_obj"], e["from_pathway"], e["task_type"], e["result"]),
+                    "since": e["sim_time"], "from_plan_id": e["plan_id"]})
+    out.sort(key=lambda s: s["since"], reverse=True)
+    return out
+
+
 def p_adhere(task: dict, ctx: dict, overdue_days: int, base: float | None = None) -> float:
     """P(the patient completes this task): the adherence model's on-time probability at approval (ml.adherence, L3;
     a config prior until enough outcomes exist), lowered for days overdue and escalation steps already used."""
