@@ -229,7 +229,7 @@ describe("doctor care tools", () => {
     expect(hits.some((h) => /\/care\/plans|\/care\/tasks|\/me\//.test(h.url) && h.method !== "GET")).toBe(false);
   });
 
-  it("draft_care_plan suggests survivorship for a treated case and reports the preview service being down", async () => {
+  it("draft_care_plan suggests survivorship for a treated case (despite a stale pre-diagnosis alert) and reports the preview service being down", async () => {
     const o = await run("draft_care_plan", { display_id: "ES-0003-C" }, doctor());
     expect(o.ok).toBe(false);
     expect(o).toMatchObject({ draft: true, approved: false, suggested_pathway: "SURVIVORSHIP" });

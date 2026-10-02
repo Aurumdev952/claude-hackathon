@@ -196,6 +196,8 @@ export async function buildFixture(file = FIXTURE_DB): Promise<string> {
     ["a-002", 1, 101, "2026-06-15 23:59:59", "HB_DROP", "MEDIUM", "NEW", "Haemoglobin fell 2.4 g/dL in 12 months with no GI work-up.", reasons(true), "Investigate falling haemoglobin: FBC, iron studies, consider GI work-up"],
     ["a-003", 2, 101, "2026-05-01 23:59:59", "HP_POS_UNTREATED", "MEDIUM", "NEW", "H. pylori positive more than 30 days ago, no eradication therapy recorded.", "[]", "Start H. pylori eradication therapy per national guideline"],
     ["a-004", 4, 102, "2026-06-30 23:59:59", "RISK_BAND_HIGH", "HIGH", "NEW", "Gastric cancer risk in the top 2% of the GI cohort (12-month probability 9.5%).", reasons(false), "Consider upper GI endoscopy referral"],
+    // raised before the diagnosis and never closed: a diagnosed patient's draft must not follow it back to screening
+    ["a-005", 3, 101, "2025-09-01 23:59:59", "RISK_BAND_HIGH", "HIGH", "NEW", "Gastric cancer risk in the top 2% of the GI cohort (12-month probability 21.0%).", "[]", "Consider upper GI endoscopy referral"],
   ])}`);
   await run(`CREATE TABLE pt_timeline (patient_id INTEGER, ts TIMESTAMP, event_type VARCHAR, concept_id INTEGER, label VARCHAR, value_num DOUBLE, value_text VARCHAR,
              unit VARCHAR, facility_id INTEGER, is_abnormal BOOLEAN, encounter_id INTEGER, organ_ids VARCHAR[], organ_weight DOUBLE, region VARCHAR)`);
