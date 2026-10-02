@@ -174,7 +174,10 @@ export async function buildPatientProps(patientId: number | string, headers: Rol
       thresholds: thr ? { medium: round(thr.medium_cut ?? thr.medium ?? null, 4), high: round(thr.high_cut ?? thr.high ?? null, 4) } : null,
     },
     organs, timeline, care, journey, tumour, alerts,
-    next_step: (c.alerts ?? []).find((a: any) => a.suggested_action)?.suggested_action ?? null,
+    // an alert's screening suggestion only while the patient is undiagnosed and the alert is still open; otherwise the
+    // summary shows the active care plan's next step (a diagnosed patient in treatment must not be told to get scoped)
+    next_step: h.is_case ? null
+      : (c.alerts ?? []).find((a: any) => a.suggested_action && ["NEW", "ACKNOWLEDGED"].includes(String(a.status ?? "NEW").toUpperCase()))?.suggested_action ?? null,
   });
   assertNoNames(props, names);
   return props;
@@ -375,6 +378,8 @@ export async function buildMinistryProps(params: MinistryParams, headers: RoleHe
     history: (forecast.history ?? []).map(fp).filter((x: any) => Number.isFinite(x.year) && x.year >= P.from),
     forecast: forecast.forecast.map(fp).filter((x: any) => Number.isFinite(x.year)),
     label: forecast.model ? `Model: ${typeof forecast.model === "string" ? forecast.model : forecast.model.name ?? forecast.model.id ?? ""}` : undefined,
+    metric: forecast.metric === "cases" ? "cases" as const : "asr" as const,
+    source: forecast.run?.source_label ?? undefined,
   } : null;
 
   // ---- model performance: the active tier-2 model on the test split
@@ -429,7 +434,9 @@ export function keyMessages(p: MinistryReelProps): string[] {
   }
   if (p.forecast?.forecast.length) {
     const e = p.forecast.forecast[p.forecast.forecast.length - 1];
-    if (e.value != null) c.push({ score: 1.2, text: `The ${e.year} forecast is ${e.value.toFixed(1)} per 100,000${e.lo95 != null && e.hi95 != null ? ` (95% interval ${e.lo95.toFixed(1)} to ${e.hi95.toFixed(1)})` : ""}.` });
+    const cases = p.forecast.metric === "cases";
+    const v = (x: number) => (cases ? Math.round(x).toLocaleString("en-GB") : x.toFixed(1));
+    if (e.value != null) c.push({ score: 1.2, text: `The ${e.year} forecast is ${v(e.value)} ${cases ? "new cases" : "per 100,000"}${e.lo95 != null && e.hi95 != null ? ` (95% interval ${v(e.lo95)} to ${v(e.hi95)})` : ""}.` });
   }
   if (p.models?.ppv != null) c.push({ score: p.models.ppv * 2, text: `Of every 100 patients the model ranks highest, about ${Math.round(p.models.ppv * 100)} are diagnosed with gastric cancer.` });
   return c.map((x, i) => ({ ...x, i })).sort((a, b) => b.score - a.score || a.i - b.i).slice(0, 3).map((x) => x.text);
