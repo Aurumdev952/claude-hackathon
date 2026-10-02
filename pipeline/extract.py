@@ -54,14 +54,22 @@ def incremental_extract(con, log=print) -> dict[str, int]:
             cols = [r[0] for r in con.execute(f"DESCRIBE raw_{t}").fetchall()]
             src_cols = {r[0] for r in con.execute(f"DESCRIBE src.{t}").fetchall()}
             cl = ", ".join(c for c in cols if c in src_cols)
-            # two id ranges (v3 contract §2): generator/replayed ids below CARE_ID_BASE, care-created ids above it
-            for wtbl, lo, hi in ((t, 0, CARE_ID_BASE), (f"{t}#care", CARE_ID_BASE - 1, 2**63 - 1)):
-                wm = con.execute("SELECT last_id FROM etl_watermark WHERE tbl = ?", [wtbl]).fetchone()
-                wm = max(int(wm[0]), lo) if wm else lo
-                con.execute(f"INSERT INTO raw_{t} ({cl}) SELECT {cl} FROM src.{t} WHERE {key} > {wm} AND {key} < {hi}")
-                mx = con.execute(f"SELECT max({key}) FROM raw_{t} WHERE {key} > {wm} AND {key} < {hi}").fetchone()[0]
-                if mx is not None:
-                    con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [wtbl, int(mx)])
+            # two id ranges (v3 contract §2): generator/replayed ids below CARE_ID_BASE use the id watermark
+            wm = con.execute("SELECT last_id FROM etl_watermark WHERE tbl = ?", [t]).fetchone()
+            wm = max(int(wm[0]), 0) if wm else 0
+            con.execute(f"INSERT INTO raw_{t} ({cl}) SELECT {cl} FROM src.{t} WHERE {key} > {wm} AND {key} < {CARE_ID_BASE}")
+            mx = con.execute(f"SELECT max({key}) FROM raw_{t} WHERE {key} > {wm} AND {key} < {CARE_ID_BASE}").fetchone()[0]
+            if mx is not None:
+                con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [t, int(mx)])
+            # care-created ids (>= CARE_ID_BASE) are NOT insert-ordered: re-simulated rows dated after a tick get their ids
+            # when the intervention runs but reach MySQL only when the sim clock replays them, after rows with higher ids.
+            # A watermark would skip them for ever, so the care range is an anti-join on the id (as in local_extract).
+            # `<t>#care` is still updated, as the largest care id seen (informational).
+            con.execute(f"""INSERT INTO raw_{t} ({cl}) SELECT {cl} FROM src.{t} s WHERE s.{key} >= {CARE_ID_BASE}
+                            AND s.{key} NOT IN (SELECT {key} FROM raw_{t} WHERE {key} >= {CARE_ID_BASE})""")
+            mx = con.execute(f"SELECT max({key}) FROM raw_{t} WHERE {key} >= {CARE_ID_BASE}").fetchone()[0]
+            if mx is not None:
+                con.execute("INSERT OR REPLACE INTO etl_watermark VALUES (?, ?, now())", [f"{t}#care", int(mx)])
             n1 = con.execute(f"SELECT count(*) FROM raw_{t}").fetchone()[0]
             new[t] = n1 - n0
         con.execute("CREATE OR REPLACE TABLE raw_sim_tick_log AS SELECT * FROM src.sim_tick_log")

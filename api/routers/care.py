@@ -11,6 +11,7 @@ from care import engine, journey as journey_mod, pathways
 from care.store import get_store
 
 from ..deps import SERVE, APIError, Role, doctor, envelope, ministry, parse_json, role
+from ..suppress import suppress_breakdowns, suppress_group, suppress_row
 
 router = APIRouter()
 
@@ -184,27 +185,16 @@ def _recovery_shape(rec: dict | None) -> dict | None:
 
 
 # ------------------------------------------------------------------------------------------------ ministry
+# Every ministry aggregate goes through api/suppress.py: primary suppression (1-4 -> null + "<5"), complementary
+# suppression across the rows of a breakdown against its totals, complements inside a row, and derived values
+# (rates, medians, percentages, survival) hidden whenever a count behind them is.
 def suppress(row: dict, fields: tuple[str, ...], derived: tuple[str, ...] = ()) -> dict:
-    """Small cells: counts 1-4 become null with a "<5" label. When the base count (first field) is suppressed, every
-    other count and derived value of the row is hidden too, so nothing can be back-calculated."""
-    out = dict(row)
-    base = out.get(fields[0]) if fields else None
-    if base is not None and 0 < base < 5:
-        for f in fields:
-            out[f] = None
-            out[f"{f}_label"] = "<5"
-        for f in derived:
-            out[f] = None
-        return out
-    for f in fields[1:]:
-        v = out.get(f)
-        if v is not None and 0 < v < 5:
-            out[f] = None
-            out[f"{f}_label"] = "<5"
-    return out
+    """Single-row suppression (kept for callers of the old helper): see api.suppress.suppress_row."""
+    return suppress_row(row, fields, derived)
 
 
 FUNNEL = ("flagged", "approved", "notified", "attended", "endoscopy", "cancer_found", "early_stage")
+FUNNEL_PAIRS = (("early_stage", "cancer_found"),)  # early-stage cancers are a subset of the cancers found
 
 
 @router.get("/care/funnel")
@@ -223,13 +213,17 @@ def funnel(from_: str | None = Query(None, alias="from"), to: str | None = None,
         where.append("district_code = ?")
         params.append(district)
     w = " AND ".join(where)
-    sums = ", ".join(f"sum({f})::INT AS {f}" for f in FUNNEL)
-    tot = SERVE.one(f"SELECT {sums} FROM mart_care_funnel WHERE {w}", params) or {}
-    steps = [suppress({"step": f, "n": tot.get(f) or 0}, ("n",)) for f in FUNNEL]
-    by_d = [suppress(x, FUNNEL) for x in SERVE.rows(f"SELECT district_code, {sums} FROM mart_care_funnel WHERE {w} GROUP BY 1 ORDER BY 1",
-                                                    params)]
-    by_p = [suppress(x, FUNNEL) for x in SERVE.rows(f"SELECT pathway, {sums} FROM mart_care_funnel WHERE {w} GROUP BY 1 ORDER BY 1",
-                                                    params)]
+    sums = ", ".join(f"coalesce(sum({f}), 0)::INT AS {f}" for f in FUNNEL)
+    tot = SERVE.one(f"SELECT {sums} FROM mart_care_funnel WHERE {w}", params) or {f: 0 for f in FUNNEL}
+    d_rows = SERVE.rows(f"SELECT district_code, {sums} FROM mart_care_funnel WHERE {w} GROUP BY 1 ORDER BY 1", params)
+    p_rows = SERVE.rows(f"SELECT pathway, {sums} FROM mart_care_funnel WHERE {w} GROUP BY 1 ORDER BY 1", params)
+    tot_s, (by_d, by_p) = suppress_breakdowns(tot, [d_rows, p_rows], FUNNEL, pairs=FUNNEL_PAIRS)
+    steps = []
+    for f in FUNNEL:
+        st = {"step": f, "n": tot_s.get(f) if tot_s.get(f) is not None else (None if tot.get(f) else 0)}
+        if tot_s.get(f"{f}_label"):
+            st["n_label"] = "<5"
+        steps.append(st)
     return envelope({"steps": steps, "by_district": by_d, "by_pathway": by_p, "filters": {"from": from_, "to": to, "district": district}})
 
 
@@ -239,13 +233,33 @@ def adherence(by: str = "channel", r: Role = Depends(m)):
         raise APIError(400, "INVALID_FILTER", "by must be channel|distance|sex|age|district|pathway")
     rows = SERVE.rows("SELECT * FROM mart_care_adherence WHERE dim = ? ORDER BY level", [by]) \
         if SERVE.has_table("mart_care_adherence") else []
-    return envelope([suppress(x, ("n", "adhered"), ("rate", "median_days")) for x in rows])
+    # every dimension partitions the same outcomes, so the levels of one dimension are a breakdown of a shared total;
+    # n - adhered (not adhered) is a complement inside the row
+    out, _ = suppress_group(rows, ("n", "adhered"), base="n", pairs=(("adhered", "n"),),
+                            derived={"rate": ("n", "adhered"), "median_days": ("n", "adhered")})
+    return envelope(out)
 
 
 @router.get("/care/impact")
 def impact(r: Role = Depends(m)):
     rows = SERVE.rows("SELECT * FROM mart_care_impact ORDER BY route") if SERVE.has_table("mart_care_impact") else []
-    out = [suppress(x, ("n", "n_surv_eligible"), ("early_stage_pct", "surv_1y")) for x in rows]
+    has = bool(rows) and "n_staged" in rows[0]
+    # a derived value is hidden when any count it is computed from is small or hidden (older marts without the helper
+    # counts: when n or n_surv_eligible is)
+    # The percentage = part / (part + complement): hidden when the part or its complement is small (early vs later
+    # stage among the staged, deaths vs survivors among the eligible). Older marts without these helper counts: when
+    # n or n_surv_eligible is small or hidden.
+    derived = {"early_stage_pct": ("n",), "surv_1y": ("n", "n_surv_eligible")}
+    if has:
+        for x in rows:
+            x["_n_late"] = (x.get("n_staged") or 0) - (x.get("n_early") or 0)
+            x["_n_alive_1y"] = (x.get("n_surv_eligible") or 0) - (x.get("n_dead_1y") or 0)
+        derived = {"early_stage_pct": ("n_early", "_n_late"), "surv_1y": ("n_dead_1y", "_n_alive_1y")}
+    # the routes split the same diagnoses: complementary suppression across them as well
+    out, _ = suppress_group(rows, ("n", "n_surv_eligible"), derived=derived)
+    for x in out:
+        for k in ("n_staged", "n_early", "n_dead_1y", "_n_late", "_n_alive_1y"):
+            x.pop(k, None)
     return envelope(out, caveat="Synthetic data. Care-pathway and usual-route diagnoses differ in who was flagged and when; "
                                 "this is an associational comparison, not a causal effect.")
 
@@ -254,4 +268,5 @@ def impact(r: Role = Depends(m)):
 def chw_workload(r: Role = Depends(m)):
     rows = SERVE.rows("""SELECT w.*, d.name AS district_name FROM mart_chw_workload w LEFT JOIN ref_district d USING (district_code)
                          ORDER BY open_visits DESC""") if SERVE.has_table("mart_chw_workload") else []
-    return envelope([suppress(x, ("open_visits", "overdue", "completed_30d")) for x in rows])
+    out, _ = suppress_group(rows, ("open_visits", "overdue", "completed_30d"), pairs=(("overdue", "open_visits"),))
+    return envelope(out)

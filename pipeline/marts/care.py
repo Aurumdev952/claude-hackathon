@@ -219,7 +219,7 @@ def _impact(con, S: str):
     """Stage at diagnosis and 1-year survival, care-pathway vs usual-route diagnoses. Associational only."""
     if not _has(con, "core_gc_case"):
         con.execute("""CREATE OR REPLACE TABLE mart_care_impact (route VARCHAR, n INTEGER, early_stage_pct DOUBLE, surv_1y DOUBLE,
-                       n_surv_eligible INTEGER, note VARCHAR)""")
+                       n_surv_eligible INTEGER, note VARCHAR, n_staged INTEGER, n_early INTEGER, n_dead_1y INTEGER)""")
         return
     con.execute(f"""
         CREATE OR REPLACE TABLE mart_care_impact AS
@@ -237,7 +237,11 @@ def _impact(con, S: str):
                round(1 - count(*) FILTER (WHERE coalesce(TRY_CAST(r.event_death AS INTEGER), 0) = 1 AND r.surv_days < 365)::DOUBLE /
                      nullif(count(*) FILTER (WHERE (coalesce(TRY_CAST(r.event_death AS INTEGER), 0) = 1 AND r.surv_days < 365) OR r.surv_days >= 365), 0), 3) AS surv_1y,
                count(*) FILTER (WHERE (coalesce(TRY_CAST(r.event_death AS INTEGER), 0) = 1 AND r.surv_days < 365) OR r.surv_days >= 365)::INT AS n_surv_eligible,
-               'Synthetic data; associational comparison, not a causal effect estimate' AS note
+               'Synthetic data; associational comparison, not a causal effect estimate' AS note,
+               -- the counts behind the two percentages (the API suppresses a percentage when any of them is small)
+               count(*) FILTER (WHERE r.stage_group IN ('I', 'II', 'III', 'IV'))::INT AS n_staged,
+               count(*) FILTER (WHERE r.stage_group IN ('I', 'II'))::INT AS n_early,
+               count(*) FILTER (WHERE coalesce(TRY_CAST(r.event_death AS INTEGER), 0) = 1 AND r.surv_days < 365)::INT AS n_dead_1y
         FROM routes LEFT JOIN r USING (route) GROUP BY 1 ORDER BY 1""")
 
 
