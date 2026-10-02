@@ -3,17 +3,23 @@
 `advance(days)` moves the simulated "now" from t0 to t1 = t0 + days and makes the EMR, the care engine and the
 analytics catch up, in this order:
 
-1. replay the pre-simulated future rows dated in (t0, t1] (`data/bulk/future`, D-07) plus deferred re-simulated rows
+1. collect the pre-simulated future rows dated in (t0, t1] (`data/bulk/future`, D-07) plus deferred re-simulated rows
    (`writeback/deferred`), excluding superseded patients' rows;
-2. `simulator.care_world.step(t0, t1)`: how patients react to open care tasks (endoscopies, labs, CHW visits, ...);
-3. write the write-back parts (`care.emr`), one `sim_tick_log` row, and `data/sim_state/sim_state.json`;
+2. `simulator.care_world.step(t0, t1)`: how patients react to open care tasks (endoscopies, labs, CHW visits, ...).
+   A care-driven endoscopy may supersede the patient's future from a day inside this tick, so the supersede filter is
+   applied again to the collected rows after the world step (no original diagnosis next to the re-simulated one);
+3. write the replayed rows (`care.emr`), one `sim_tick_log` row, and `data/sim_state/sim_state.json`;
 4. `pipeline.run(extract_local=True)` through the core step (local extract ingests the new parts);
-5. `care.engine.reconcile(t0, t1, con)` on the work DB (evidence straight from the new raw rows) when importable;
+5. `care.engine.reconcile(t0, t1, con, outcomes=...)` on the work DB (evidence straight from the new raw rows; the care
+   world's declines close tasks as DECLINED) when importable;
 6. care snapshot, marts (fast tick: heavy population marts once per sim month), score, publish;
    then `ml.retrain.maybe_retrain(t1)` when importable (L3: retrain + forecast refit every 30 sim days);
 7. `data/sim_state/last_tick.json` (the API `_watch()` broadcasts it as `sim_tick`).
 
-A file lock (`data/sim_state/advance.lock`) serialises callers: a second caller gets `BusyError`. The auto clock
+A file lock (`data/sim_state/advance.lock`) serialises callers: a second caller gets `BusyError`. Every other action
+that writes the work DB or publishes (model promote / rollback / retrain jobs in the API) takes the same lock through
+`acquire(label)` / `exclusive(label)`. `advance_progress.json` is always released (running=false, with the error) when
+an advance fails. The auto clock
 (`--auto`, `make sim-local`) follows `data/sim_state/control.json` {paused, seconds_per_day, demo_mode,
 fast_forward_days}. The sim ends at 2027-12-31.
 """
@@ -70,24 +76,34 @@ def _iso(t: dt.datetime) -> str:
 
 
 # ----------------------------------------------------------------------------------------------- replay
-def replay_rows(t0: dt.datetime, t1: dt.datetime, adapter) -> dict[str, pl.DataFrame]:
-    """Pre-simulated future rows + deferred re-simulated rows in (t0, t1], superseded rows removed."""
+def replay_raw(t0: dt.datetime, t1: dt.datetime, adapter) -> dict[str, pl.DataFrame]:
+    """Pre-simulated future rows + deferred re-simulated rows in (t0, t1], before any supersede filter. Every frame
+    carries `_sup` (0 = generator future, else the supersede seq that created the deferred rows)."""
     fut_dir = config.BULK_DIR / "future"
     fut = {n: pl.scan_parquet(fut_dir / f"{n}.parquet") for n in ALL_TABLES if (fut_dir / f"{n}.parquet").exists()}
-    sup = adapter.superseded()
-    rows = emr.drop_superseded(emr.window(fut, t0, t1), sup, 0)
+    rows = {t: df.with_columns(pl.lit(0, pl.Int64).alias("_sup")) for t, df in emr.window(fut, t0, t1).items()}
     dfr = adapter.deferred()
     if dfr:
-        d = emr.drop_superseded(emr.window(dfr, t0, t1), sup, "_sup")
-        for t, df in d.items():
-            if df.height:
-                df = df.drop("_sup")
+        for t, df in emr.window(dfr, t0, t1).items():
+            if df.height and "_sup" in df.columns:
+                df = df.with_columns(pl.col("_sup").cast(pl.Int64))
                 rows[t] = pl.concat([rows[t], df], how="vertical_relaxed") if rows.get(t) is not None else df
     return rows
 
 
+def finalize_replay(raw: dict[str, pl.DataFrame], sup: pl.DataFrame) -> dict[str, pl.DataFrame]:
+    """Drop the rows that the supersede records cover (each record applies to rows created before it) and `_sup`."""
+    rows = emr.drop_superseded(raw, sup, "_sup")
+    return {t: df.drop("_sup") if "_sup" in df.columns else df for t, df in rows.items()}
+
+
+def replay_rows(t0: dt.datetime, t1: dt.datetime, adapter) -> dict[str, pl.DataFrame]:
+    """Pre-simulated future rows + deferred re-simulated rows in (t0, t1], superseded rows removed."""
+    return finalize_replay(replay_raw(t0, t1, adapter), adapter.superseded())
+
+
 # ----------------------------------------------------------------------------------------------- care hooks
-def _care_reconcile(t0: dt.datetime, t1: dt.datetime, log) -> dict:
+def _care_reconcile(t0: dt.datetime, t1: dt.datetime, log, outcomes: list[dict] | None = None) -> dict:
     try:
         from care import engine
     except Exception as e:  # noqa: BLE001 - L2 builds the engine in parallel
@@ -96,7 +112,10 @@ def _care_reconcile(t0: dt.datetime, t1: dt.datetime, log) -> dict:
     from pipeline.db import work_connection
     con = work_connection()
     try:
-        out = engine.reconcile(t0, t1, con, log=log)
+        try:
+            out = engine.reconcile(t0, t1, con, log=log, outcomes=outcomes)
+        except TypeError:  # an engine without the outcomes parameter
+            out = engine.reconcile(t0, t1, con, log=log)
         try:
             from care import snapshot
             snapshot.to_duckdb(con)
@@ -125,8 +144,11 @@ def _learning_loop(t1: dt.datetime, log) -> dict | None:
 
 # ----------------------------------------------------------------------------------------------- advance
 class _Lock:
-    def __init__(self, path: Path):
-        self.path, self.fh = path, None
+    """Non-blocking exclusive flock on `path`; BusyError when held. The holder's label is written into the file so a
+    busy caller learns who holds it. flock is per open file, so it also excludes other threads of this process."""
+
+    def __init__(self, path: Path, label: str = "advance"):
+        self.path, self.fh, self.label = path, None, label
 
     def __enter__(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,13 +157,60 @@ class _Lock:
             fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             self.fh.close()
-            info = _json(_dir() / "advance_progress.json", {})
-            raise BusyError(f"an advance is already running ({info.get('step', 'unknown step')})") from None
+            self.fh = None
+            raise BusyError(f"the simulation data is busy: {_holder()}") from None
+        try:
+            self.fh.seek(0)
+            self.fh.truncate()
+            self.fh.write(json.dumps({"label": self.label, "pid": os.getpid(), "since": dt.datetime.now().isoformat()}))
+            self.fh.flush()
+        except OSError:
+            pass
         return self
 
     def __exit__(self, *exc):
-        fcntl.flock(self.fh, fcntl.LOCK_UN)
-        self.fh.close()
+        self.release()
+
+    def release(self):
+        if self.fh is not None:
+            fcntl.flock(self.fh, fcntl.LOCK_UN)
+            self.fh.close()
+            self.fh = None
+
+
+def _lock_path() -> Path:
+    return _dir() / "advance.lock"
+
+
+def _holder() -> str:
+    try:
+        info = json.loads(_lock_path().read_text() or "{}")
+    except (OSError, json.JSONDecodeError):
+        info = {}
+    if info.get("label") == "advance":
+        step = _json(_dir() / "advance_progress.json", {}).get("step", "unknown step")
+        return f"an advance is already running ({step})"
+    return f"{info.get('label') or 'another job'} is running"
+
+
+def acquire(label: str) -> _Lock:
+    """Take the advance lock for another writer of the work DB / publisher (model jobs). Raises BusyError. The caller
+    releases it with `.release()` (it may do so from another thread)."""
+    return _Lock(_lock_path(), label).__enter__()
+
+
+def exclusive(label: str) -> _Lock:
+    """`with exclusive("models: promote"): ...` - the advance lock as a context manager."""
+    return _Lock(_lock_path(), label)
+
+
+def lock_free() -> bool:
+    """True when nobody holds the advance lock (probe: take and release it)."""
+    try:
+        with _Lock(_lock_path(), "probe"):
+            return True
+    except BusyError:
+        return False
 
 
 def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: bool = True, care_world: bool = True,
@@ -160,73 +229,90 @@ def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: boo
         if on_progress:
             on_progress(frac, step)
 
-    with _Lock(_dir() / "advance.lock"):
-        t0 = sim_time()
-        t1 = min(t0 + dt.timedelta(days=days), SIM_END)
-        if t1 <= t0:
-            return {"tick_id": None, "sim_time_from": _iso(t0), "sim_time_to": _iso(t0), "rows": {}, "care": {},
-                    "pipeline_s": 0.0, "status": "horizon"}
-        ad = emr.get_adapter()
-        timings: dict[str, float] = {}
-        prog(0.02, "replay")
+    with _Lock(_lock_path(), "advance"):
+        try:
+            return _advance_locked(days, prog, prog_file, wall0, on_progress=on_progress, fast=fast,
+                                   run_pipeline=run_pipeline, care_world=care_world, learning_loop=learning_loop, seed=seed,
+                                   log=log)
+        except BaseException as e:
+            # never leave running=true behind (the auto clock would wait for a job that is gone)
+            _write(prog_file, {"pid": os.getpid(), "days": days, "progress": 1.0, "step": "failed", "running": False,
+                               "error": f"{e.__class__.__name__}: {e}", "finished": dt.datetime.now().isoformat()})
+            raise
+
+
+def _advance_locked(days: int, prog, prog_file: Path, wall0: float, *, on_progress, fast: bool, run_pipeline: bool,
+                    care_world: bool, learning_loop: bool, seed, log) -> dict:
+    t0 = sim_time()
+    t1 = min(t0 + dt.timedelta(days=days), SIM_END)
+    if t1 <= t0:
+        return {"tick_id": None, "sim_time_from": _iso(t0), "sim_time_to": _iso(t0), "rows": {}, "care": {},
+                "pipeline_s": 0.0, "status": "horizon"}
+    ad = emr.get_adapter()
+    timings: dict[str, float] = {}
+    prog(0.02, "replay")
+    t = time.time()
+    raw = replay_raw(t0, t1, ad)
+    rows = finalize_replay(raw, ad.superseded())
+    timings["replay"] = round(time.time() - t, 2)
+    cw: dict = {}
+    if care_world:
+        prog(0.12, "care world")
         t = time.time()
-        rows = replay_rows(t0, t1, ad)
-        counts = ad.write(rows, tick=f"replay {_iso(t1)}")
-        timings["replay"] = round(time.time() - t, 2)
-        cw: dict = {}
-        if care_world:
-            prog(0.12, "care world")
-            t = time.time()
-            try:
-                from . import care_world as cwm
-                cw = cwm.step(t0, t1, adapter=ad, seed=seed, log=log, replayed=rows)
-            except Exception as e:  # noqa: BLE001 - the clock keeps going without the care world
-                log(f"  care world failed: {e.__class__.__name__}: {e}")
-                cw = {"error": f"{e.__class__.__name__}: {e}"}
-            timings["care_world"] = round(time.time() - t, 2)
-        for k, v in (cw.get("rows") or {}).items():
-            counts[k] = counts.get(k, 0) + v
-        n_enc, n_obs = int(counts.get("encounter", 0)), int(counts.get("obs", 0))
-        tick_id = ad.log_tick(t1, n_enc, n_obs)
-        state = _json(_dir() / "sim_state.json", {})
-        state.update({"sim_time": _iso(t1), "tick_id": tick_id, "updated_at": dt.datetime.now().isoformat()})
-        _write(_dir() / "sim_state.json", state)
-        care: dict = {}
-        learn: dict | None = None
-        pipe_s = 0.0
-        if run_pipeline:
-            from pipeline import run as prun
-            t = time.time()
-            prog(0.25, "pipeline: extract, staging, core")
-            r1 = prun.run(do_extract=True, extract_local=True, stop_after="core", log=log)
-            prog(0.45, "care reconcile")
-            tc = time.time()
-            care = _care_reconcile(t0, t1, log)
-            timings["reconcile"] = round(time.time() - tc, 2)
-            prog(0.55, "pipeline: marts, score, publish")
-            r2 = prun.run(start_at="marts", fast=fast, log=log)
-            pipe_s = round(time.time() - t, 2)
-            timings.update({f"pipeline.{k}": v for k, v in {**r1.get("steps", {}), **r2.get("steps", {})}.items()})
-            if learning_loop:  # L3: retrain + forecast refit every N sim days (no-op otherwise), republishes itself
-                prog(0.9, "learning loop")
-                tl = time.time()
-                learn = _learning_loop(t1, log)
-                timings["learning_loop"] = round(time.time() - tl, 2)
-        persons = int(counts.get("person", 0))
-        info = {"tick_id": tick_id, "sim_time": _iso(t1), "sim_time_from": _iso(t0), "sim_time_to": _iso(t1),
-                "encounters_added": n_enc, "obs_added": n_obs, "persons_added": persons,
-                "rows": {k: int(v) for k, v in counts.items() if v}, "care": care,
-                "care_world": {k: v for k, v in cw.items() if k != "outcomes"} | {"outcomes": len(cw.get("outcomes", []))},
-                "learning_loop": learn, "pipeline_s": pipe_s, "seconds": round(time.time() - wall0, 2), "timings": timings,
-                "status": "done", "wall_time": dt.datetime.now(dt.timezone.utc).isoformat()}
-        _write(_dir() / "last_tick.json", info)
-        _write(prog_file, {"pid": os.getpid(), "days": days, "progress": 1.0, "step": "done", "running": False,
-                           "finished": dt.datetime.now().isoformat(), "tick_id": tick_id})
-        if on_progress:
-            on_progress(1.0, "done")
-        log(f"tick {tick_id}: {_iso(t0)} -> {_iso(t1)}  +{n_enc} encounters +{n_obs} obs  "
-            f"care world {cw.get('summary', {})}  pipeline {pipe_s:.1f}s  total {info['seconds']:.1f}s")
-        return info
+        try:
+            from . import care_world as cwm
+            cw = cwm.step(t0, t1, adapter=ad, seed=seed, log=log, replayed=rows)
+        except Exception as e:  # noqa: BLE001 - the clock keeps going without the care world
+            log(f"  care world failed: {e.__class__.__name__}: {e}")
+            cw = {"error": f"{e.__class__.__name__}: {e}"}
+        timings["care_world"] = round(time.time() - t, 2)
+        # an intervention in this tick supersedes the patient's future from its endoscopy day: drop the original
+        # rows of this same tick too (they were collected before the supersede record existed)
+        rows = finalize_replay(raw, ad.superseded())
+    counts = ad.write(rows, tick=f"replay {_iso(t1)}")
+    for k, v in (cw.get("rows") or {}).items():
+        counts[k] = counts.get(k, 0) + v
+    n_enc, n_obs = int(counts.get("encounter", 0)), int(counts.get("obs", 0))
+    tick_id = ad.log_tick(t1, n_enc, n_obs)
+    state = _json(_dir() / "sim_state.json", {})
+    state.update({"sim_time": _iso(t1), "tick_id": tick_id, "updated_at": dt.datetime.now().isoformat()})
+    _write(_dir() / "sim_state.json", state)
+    care: dict = {}
+    learn: dict | None = None
+    pipe_s = 0.0
+    if run_pipeline:
+        from pipeline import run as prun
+        t = time.time()
+        prog(0.25, "pipeline: extract, staging, core")
+        r1 = prun.run(do_extract=True, extract_local=True, stop_after="core", log=log)
+        prog(0.45, "care reconcile")
+        tc = time.time()
+        care = _care_reconcile(t0, t1, log, outcomes=cw.get("outcomes"))
+        timings["reconcile"] = round(time.time() - tc, 2)
+        prog(0.55, "pipeline: marts, score, publish")
+        r2 = prun.run(start_at="marts", fast=fast, log=log)
+        pipe_s = round(time.time() - t, 2)
+        timings.update({f"pipeline.{k}": v for k, v in {**r1.get("steps", {}), **r2.get("steps", {})}.items()})
+        if learning_loop:  # L3: retrain + forecast refit every N sim days (no-op otherwise), republishes itself
+            prog(0.9, "learning loop")
+            tl = time.time()
+            learn = _learning_loop(t1, log)
+            timings["learning_loop"] = round(time.time() - tl, 2)
+    persons = int(counts.get("person", 0))
+    info = {"tick_id": tick_id, "sim_time": _iso(t1), "sim_time_from": _iso(t0), "sim_time_to": _iso(t1),
+            "encounters_added": n_enc, "obs_added": n_obs, "persons_added": persons,
+            "rows": {k: int(v) for k, v in counts.items() if v}, "care": care,
+            "care_world": {k: v for k, v in cw.items() if k != "outcomes"} | {"outcomes": len(cw.get("outcomes", []))},
+            "learning_loop": learn, "pipeline_s": pipe_s, "seconds": round(time.time() - wall0, 2), "timings": timings,
+            "status": "done", "wall_time": dt.datetime.now(dt.timezone.utc).isoformat()}
+    _write(_dir() / "last_tick.json", info)
+    _write(prog_file, {"pid": os.getpid(), "days": days, "progress": 1.0, "step": "done", "running": False,
+                       "finished": dt.datetime.now().isoformat(), "tick_id": tick_id})
+    if on_progress:
+        on_progress(1.0, "done")
+    log(f"tick {tick_id}: {_iso(t0)} -> {_iso(t1)}  +{n_enc} encounters +{n_obs} obs  "
+        f"care world {cw.get('summary', {})}  pipeline {pipe_s:.1f}s  total {info['seconds']:.1f}s")
+    return info
 
 
 def status() -> dict:
@@ -242,7 +328,7 @@ def status() -> dict:
     ctl = _json(_dir() / "control.json", {})
     prog = _json(_dir() / "advance_progress.json", {})
     running = None
-    if prog.get("running"):
+    if prog.get("running") and not lock_free():  # a stale running flag with a free lock is not a running advance
         try:
             os.kill(int(prog["pid"]), 0)
             running = {k: prog.get(k) for k in ("days", "progress", "step", "started", "pid")}

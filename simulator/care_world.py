@@ -5,7 +5,15 @@
 day in (t0, t1] it draws completion from a logistic adherence model (`config/care_world.yaml`): distance from the
 patient's home health centre to the task facility, age, sex, urban home, past attendance (serve DB visits in the last
 year), task urgency, overdue weeks, delivered notification channels (APP < SMS < CHW), reminders, and a deterministic
-per-person engagement draw. Random numbers are keyed by (seed, task, day): same seed + same sim time -> same outcomes.
+per-person engagement draw. Random numbers are keyed by (seed, stable task key, day), where the task key is
+(patient, plan approval time, pathway, seq) rather than a random id: same seed + same actions -> same outcomes.
+
+The world acts on a task from its opening *day* (evidence matching in care/evidence.py compares calendar dates, so a
+visit at 10:00 on the day a task opens at 23:59:59 counts) and never before the task existed. Every action is recorded
+in `writeback/care_world_actions.jsonl`; a task the world already acted on is never acted on again, so an open task
+never gets duplicate EMR rows. A patient may decline a task: the draw is made once per notification attempt (keyed by
+task + reminder count), so a later reminder can still convert, and the decline goes to the engine (`outcomes`) which
+closes the task as DECLINED.
 
 A completed task becomes real EMR rows through `care.emr_rows.EMRBuilder` (care id range), valued from the latent truth:
 
@@ -102,8 +110,18 @@ def read_care_state(t1: dt.datetime, path=None) -> tuple[list[dict], dict[str, d
         plans = {r["id"]: dict(r) for r in con.execute(
             f"SELECT * FROM care_plans WHERE status IN ({','.join('?' * len(PLAN_OPEN))})", PLAN_OPEN)}
         tasks = [dict(r) for r in con.execute(
-            f"SELECT * FROM care_tasks WHERE status IN ({','.join('?' * len(OPEN))}) ORDER BY id", OPEN)
+            f"SELECT * FROM care_tasks WHERE status IN ({','.join('?' * len(OPEN))}) ORDER BY patient_id, plan_id, seq", OPEN)
             if r["plan_id"] in plans and (_parse(r["opens_at"]) or EPOCH) <= t1]
+        chemo = [t for t in tasks if t["type"] == "CHEMO_CYCLE"]
+        if chemo:  # cycle number = earlier cycle tasks of the same plan + 1 (seq counts every task of the plan)
+            ph = ",".join("?" * len({t["plan_id"] for t in chemo}))
+            seqs: dict[str, list[int]] = {}
+            for r in con.execute(f"SELECT plan_id, seq FROM care_tasks WHERE type = 'CHEMO_CYCLE' AND plan_id IN ({ph})",
+                                 sorted({t["plan_id"] for t in chemo})):
+                seqs.setdefault(r["plan_id"], []).append(int(r["seq"]))
+            for t in chemo:
+                t["cycle"] = (int(t["occurrence"]) + 1 if t.get("occurrence") is not None
+                              else 1 + sum(1 for q in seqs.get(t["plan_id"], []) if q < int(t["seq"])))
         notes: dict[str, list[dict]] = {}
         if "notifications" in names and tasks:
             for r in con.execute("SELECT * FROM notifications WHERE task_id IS NOT NULL"):
@@ -162,6 +180,45 @@ def replay_facts(rows: dict[str, pl.DataFrame] | None) -> dict[int, list[tuple]]
     return out
 
 
+def earliest(task: dict) -> dt.datetime:
+    """Earliest time a fact may close the task (care.evidence.lower_bound): its opening day, never before creation."""
+    opens = _parse(task.get("opens_at")) or EPOCH
+    lo = dt.datetime.combine(opens.date(), dt.time())
+    created = _parse(task.get("created_sim"))
+    if created is not None:
+        lo = max(lo, created)
+    return min(lo, opens)
+
+
+LEDGER = "care_world_actions.jsonl"
+
+
+def read_ledger(adapter) -> dict[str, dict]:
+    """task id -> the care world's earlier action on it (writeback/care_world_actions.jsonl)."""
+    root = getattr(adapter, "root", None)
+    if root is None or not (root / LEDGER).exists():
+        return {}
+    out = {}
+    with open(root / LEDGER) as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            out[r["task_id"]] = r
+    return out
+
+
+def write_ledger(adapter, rows: list[dict]):
+    root = getattr(adapter, "root", None)
+    if root is None or not rows:
+        return
+    root.mkdir(parents=True, exist_ok=True)
+    with open(root / LEDGER, "a") as fh:
+        for r in rows:
+            fh.write(json.dumps(r, default=str) + "\n")
+
+
 # ----------------------------------------------------------------------------------------------- the world
 class World:
     def __init__(self, t0: dt.datetime, t1: dt.datetime, adapter, seed: int, log=print):
@@ -200,6 +257,12 @@ class World:
             if loc is None or not self.ctx.has_endoscopy(int(loc), day):
                 loc = self.ctx.endoscopy_site(p.district_at(day) if p else "KGL-NYR", day)[0]
         return int(loc)
+
+    # -- keys
+    @staticmethod
+    def task_key(task: dict, plan: dict) -> str:
+        """Stable identity of a task for random draws: patient, plan approval time, pathway, position in the plan."""
+        return f"{int(task['patient_id'])}|{plan.get('approved_at') or plan.get('created_sim')}|{plan.get('pathway')}|{task['seq']}"
 
     # -- adherence
     def p_day(self, task: dict, plan: dict, p, day: int, notes: list[dict], visits: int) -> float:
@@ -244,14 +307,18 @@ class World:
     def act(self, task: dict, plan: dict, p, case, day: int, done: list[dict]) -> dict:
         """Write the rows for a completed task; returns the outcome (result + evidence)."""
         b, tt, pid = self.b, task["type"], int(task["patient_id"])
-        r = _rng(self.seed, "act", task["id"], day)
+        key = self.task_key(task, plan)
+        r = _rng(self.seed, "act", key, day)
         loc = self.target(task, plan, p, day)
         when = EPOCH + dt.timedelta(days=day, minutes=450 + int(r.random() * 540))
+        lo = earliest(task)
+        if when <= lo:  # same day as the task's lower bound: act after it (still that day)
+            when = min(lo + dt.timedelta(minutes=30), EPOCH + dt.timedelta(days=day, minutes=1439))
         out = {"result": "DONE"}
         if tt == "ENDOSCOPY":
             anaemic = (plan.get("trigger") or "") == "HB_DROP"
             alarm = (plan.get("trigger") or "") == "ALARM_NO_SCOPE_90D"
-            rows, upd = self.iv.resimulate_from_endoscopy(pid, day, loc, seed=_rng(self.seed, "endo", task["id"]).getrandbits(31),
+            rows, upd = self.iv.resimulate_from_endoscopy(pid, day, loc, seed=_rng(self.seed, "endo", key).getrandbits(31),
                                                           sim_time=self.t0, adapter=self.adapter, anaemic=anaemic, alarm=alarm)
             res = self.iv.commit(rows, upd, self.t1, adapter=self.adapter, tick=f"care_world endoscopy {task['id']}")
             for t, n in res["written"].items():
@@ -303,7 +370,7 @@ class World:
             if p:
                 b.num(e, C.WEIGHT, p.weight(day) + r.gauss(0, 0.5))
         elif tt == "CHEMO_CYCLE":
-            k = int(task.get("occurrence") or task.get("seq") or 1)
+            k = int(task.get("cycle") or (int(task["occurrence"]) + 1 if task.get("occurrence") is not None else 1))
             b.num(e, C.CHEMO_CYCLE, float(k), 0)
             b.coded(e, C.CHEMO, int(case.get("regimen") or 7211) if case else 7211)
             b.drug(e, C.OXALIPLATIN, 1)
@@ -340,6 +407,8 @@ def step(t0: dt.datetime, t1: dt.datetime, *, adapter=None, seed: int | None = N
     w = World(t0, t1, adapter, seed, log)
     visits = past_visits(sorted({int(t["patient_id"]) for t in tasks}), t1)
     facts = replay_facts(replayed)
+    acted = read_ledger(adapter)
+    ledger: list[dict] = []
     outcomes: list[dict] = []
     summary = Counter(open_tasks=len(tasks))
     d0, d1 = _day(t0) + 1, _day(t1)
@@ -353,7 +422,10 @@ def step(t0: dt.datetime, t1: dt.datetime, *, adapter=None, seed: int | None = N
             continue
         if tt == "CHEMO_CYCLE" and w.course_has_chemo(pid, case):
             continue  # cycles come from the patient's own (re-)simulated course
-        opens = _day(_parse(task["opens_at"]) or t0)
+        if task["id"] in acted:
+            summary["already_acted"] += 1  # its rows are in the write-back; the engine closes it on that evidence
+            continue
+        opens = _day(earliest(task))
         kind, codes = EVIDENCE[tt]
         if any(k == kind and c in codes and d >= opens for k, c, d in facts.get(pid, [])):
             summary["evidenced_by_replay"] += 1
@@ -361,24 +433,31 @@ def step(t0: dt.datetime, t1: dt.datetime, *, adapter=None, seed: int | None = N
         if p.death <= d1 and p.death < 10**6 and p.death < max(d0, opens):
             continue  # died before the task could be done (the engine closes the plan on the death record)
         plan = plans[task["plan_id"]]
+        key = World.task_key(task, plan)
         tnotes = notes.get(task["id"], [])
         dec = float(w.cfg["decline_prob"].get(tt, w.cfg["decline_prob"]["default"]))
-        if tnotes and _rng(seed, "decline", task["id"]).random() < dec:
+        attempt = int(task.get("reminders") or 0)  # one decline draw per notification attempt
+        if tnotes and _rng(seed, "decline", key, attempt).random() < dec:
+            dday = max(d0, opens)
             outcomes.append({"task_id": task["id"], "plan_id": task["plan_id"], "patient_id": pid, "type": tt,
-                             "status": "declined", "day": d0, "date": (EPOCH + dt.timedelta(days=d0)).date().isoformat()})
+                             "status": "declined", "day": dday, "date": (EPOCH + dt.timedelta(days=dday)).date().isoformat(),
+                             "reason": "patient declined (synthetic care world)", "attempt": attempt})
             summary["declined"] += 1
             continue
         for day in range(max(d0, opens), d1 + 1):
             if p.death <= day:
                 break
-            if _rng(seed, task["id"], day).random() < w.p_day(task, plan, p, day, tnotes, visits.get(pid, 0)):
+            if _rng(seed, key, day).random() < w.p_day(task, plan, p, day, tnotes, visits.get(pid, 0)):
                 res = w.act(task, plan, p, case, day, done.get(pid, []))
                 outcomes.append({"task_id": task["id"], "plan_id": task["plan_id"], "patient_id": pid, "type": tt,
                                  "status": "completed", "day": day,
                                  "date": (EPOCH + dt.timedelta(days=day)).date().isoformat(), **res})
+                ledger.append({"task_id": task["id"], "key": key, "type": tt, "day": day, "status": "completed",
+                               "evidence": res.get("evidence"), "tick": t1.isoformat()})
                 summary[f"completed_{tt}"] += 1
                 break
     counts = adapter.write(w.b.frames(), tick=f"care_world {t1.isoformat()}") if len(w.b) else {}
+    write_ledger(adapter, ledger)
     for t, n in w.counts.items():
         counts[t] = counts.get(t, 0) + n
     log(f"  care world: {len(tasks)} open tasks -> {sum(1 for o in outcomes if o['status'] == 'completed')} completed, "
