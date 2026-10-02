@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import time
 import traceback
 
@@ -25,11 +26,29 @@ def sim_time_of(con) -> dt.datetime:
 
 
 ORDER = ["refs", "extract", "dq_raw", "stage", "core", "marts", "score", "dq_marts", "publish"]
+# v3 fast sim tick (simulator/local.py): the slow population-level marts are rebuilt once per sim month; between those
+# rebuilds the previous tables are reused (they only change with a month of new data). pt_*, kpis, care and every other
+# mart are rebuilt on each tick.
+HEAVY_MARTS = ("joinpoint", "spatial", "survival", "cox", "warning", "rate_surface")
+
+
+def _fast_skip(con, sim_time: dt.datetime, log) -> tuple:
+    con.execute("CREATE TABLE IF NOT EXISTS etl_marts_full (sim_month VARCHAR, built_at TIMESTAMP)")
+    month = sim_time.strftime("%Y-%m")
+    last = con.execute("SELECT max(sim_month) FROM etl_marts_full").fetchone()[0]
+    if last == month:
+        log(f"  fast tick: reusing {', '.join(HEAVY_MARTS)} (built for {month})")
+        return HEAVY_MARTS
+    return ()
 
 
 def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_extract: bool = True,
-        start_at: str | None = None) -> dict:
-    """start_at (dev): skip the steps before it and reuse the tables already in the work db."""
+        start_at: str | None = None, extract_local: bool | None = None, fast: bool = False) -> dict:
+    """start_at (dev): skip the steps before it and reuse the tables already in the work db.
+    extract_local (v3): ingest data/bulk/writeback parts instead of MySQL (default: env EMR_MODE=local).
+    fast (v3 sim tick): rebuild HEAVY_MARTS only when the sim month changed."""
+    if extract_local is None:
+        extract_local = os.environ.get("EMR_MODE", "").lower() == "local"
     if bootstrap and not start_at:
         # a full rebuild starts from an empty file: DuckDB does not return space freed by CREATE OR REPLACE
         from shared.config import ANALYTICS_DIR as _A
@@ -59,8 +78,10 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_ex
         step("refs", lambda: refs.load_refs(con))
         if bootstrap or not _has(con, "raw_obs"):
             step("bootstrap", lambda: extract.bootstrap_from_parquet(con, log))
+            if extract_local and extract_enabled:
+                deltas = step("extract", lambda: extract.local_extract(con, log))
         elif extract_enabled:
-            deltas = step("extract", lambda: extract.incremental_extract(con, log))
+            deltas = step("extract", lambda: (extract.local_extract if extract_local else extract.incremental_extract)(con, log))
         sim_time = sim_time_of(con)
         params = {"sim_time": sim_time.strftime("%Y-%m-%d %H:%M:%S"), "sim_date": sim_time.strftime("%Y-%m-%d")}
         from . import quality_checks
@@ -70,7 +91,11 @@ def run(bootstrap: bool = False, log=print, stop_after: str | None = None, do_ex
         if stop_after == "core":
             return {"run_id": run_id, "steps": steps}
         from . import marts
-        step("marts", lambda: marts.build_all(con, sim_time, log))
+        skip = _fast_skip(con, sim_time, log) if fast else ()
+        step("marts", lambda: marts.build_all(con, sim_time, log, skip=skip))
+        if not skip and _has(con, "mart_rates"):
+            con.execute("CREATE TABLE IF NOT EXISTS etl_marts_full (sim_month VARCHAR, built_at TIMESTAMP)")
+            con.execute("INSERT INTO etl_marts_full VALUES (?, now())", [sim_time.strftime("%Y-%m")])
         from . import score
         step("score", lambda: score.score_patients(con, sim_time, log))
         step("dq_marts", lambda: quality_checks.check_marts(con, sim_time))
@@ -107,6 +132,10 @@ if __name__ == "__main__":
     ap.add_argument("--stop-after")
     ap.add_argument("--no-extract", action="store_true", help="dev: rebuild from raw_* without contacting MySQL")
     ap.add_argument("--from", dest="start_at", choices=ORDER, help="dev: resume at this step")
+    ap.add_argument("--extract-local", action="store_true", default=None,
+                    help="v3: extract from data/bulk/writeback Parquet parts (also env EMR_MODE=local)")
+    ap.add_argument("--fast", action="store_true", help="v3 sim tick: rebuild the heavy marts once per sim month")
     a = ap.parse_args()
     ANALYTICS_DIR.mkdir(parents=True, exist_ok=True)
-    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after, do_extract=not a.no_extract, start_at=a.start_at))
+    print(run(bootstrap=a.bootstrap, stop_after=a.stop_after, do_extract=not a.no_extract, start_at=a.start_at,
+              extract_local=a.extract_local, fast=a.fast))
