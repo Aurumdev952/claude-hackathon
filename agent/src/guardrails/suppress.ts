@@ -36,10 +36,18 @@ const NOT_PERSON_COUNTS = new Set([
   "n_dyspepsia", "n_hp_tested", "n_pos", "n_neg",
 ]);
 
+/** People counts in the v3 care and forecast marts whose names are not count-like (mart_care_funnel, mart_care_adherence,
+ * mart_chw_workload, mart_forecast history rows). */
+const CARE_COUNT_KEYS = new Set([
+  "flagged", "approved", "notified", "attended", "endoscopy", "cancer_found", "early_stage", "adhered",
+  "open_visits", "overdue", "completed_30d", "cases_obs",
+]);
+
 /** Count-like columns in mart rows (cases, n, n_*, *_count, count*). */
 export function isCountKey(k: string): boolean {
   const l = k.toLowerCase();
   if (NOT_PERSON_COUNTS.has(l)) return false;
+  if (CARE_COUNT_KEYS.has(l)) return true;
   if (l.endsWith("_label") || l.endsWith("_days") || l.endsWith("_pct") || l.endsWith("_rate") || l.endsWith("_share") || l.includes("delta")) return false;
   return l === "cases" || l === "n" || l === "cases_annualised" || l.startsWith("n_") || l.startsWith("count") || l.endsWith("_count") ||
     l === "observed" || l === "deaths" || l === "events";
@@ -49,6 +57,8 @@ export function isCountKey(k: string): boolean {
 export function isDerivedKey(k: string): boolean {
   const l = k.toLowerCase();
   if (l.startsWith("hp_test") || l.startsWith("funnel_") || l.startsWith("target_")) return false; // other denominator
+  // forecast history rows: `mean` is the observed count itself when cases_obs < 5
+  if (["mean", "lo80", "hi80", "lo95", "hi95", "median_days"].includes(l)) return true;
   return RATE_FIELDS.includes(l) || l === "rate" || l === "pct" || l === "pct_known" || l === "lci" || l === "uci" ||
     l.endsWith("_rate") || l.endsWith("_pct") || l.startsWith("pct_") || l.endsWith("_lci") || l.endsWith("_uci");
 }

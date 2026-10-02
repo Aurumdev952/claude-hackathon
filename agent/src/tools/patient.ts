@@ -188,7 +188,7 @@ export const listAlerts = defineTool({
   inputSchema: z.object({
     status: z.enum(["open", ...STATUSES, "all"]).default("open"),
     severity: z.enum(["HIGH", "MEDIUM"]).optional(),
-    trigger: z.enum(["RISK_BAND_HIGH", "ALARM_NO_SCOPE_90D", "HB_DROP", "HP_POS_UNTREATED"]).optional(),
+    trigger: z.enum(["RISK_BAND_HIGH", "ALARM_NO_SCOPE_90D", "HB_DROP", "HP_POS_UNTREATED", "CARE_OVERDUE"]).optional(),
     limit: z.number().int().min(1).max(200).default(50),
   }),
   async execute(i, t) {

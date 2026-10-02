@@ -191,6 +191,44 @@
                 },
                 "yLabel": {
                   "type": "string"
+                },
+                "fan": {
+                  "description": "Forecast fan: 80% / 95% prediction bands (get_forecast rows)",
+                  "type": "object",
+                  "properties": {
+                    "lo95": {
+                      "type": "string",
+                      "description": "Column holding the lower 95% prediction bound"
+                    },
+                    "hi95": {
+                      "type": "string",
+                      "description": "Column holding the upper 95% prediction bound"
+                    },
+                    "lo80": {
+                      "description": "Column holding the lower 80% prediction bound",
+                      "type": "string"
+                    },
+                    "hi80": {
+                      "description": "Column holding the upper 80% prediction bound",
+                      "type": "string"
+                    },
+                    "start": {
+                      "description": "x value where the forecast starts (vertical marker)",
+                      "type": [
+                        "string",
+                        "number"
+                      ]
+                    },
+                    "label": {
+                      "description": "Band legend text, default 'Forecast interval (80% / 95%)'",
+                      "type": "string",
+                      "maxLength": 80
+                    }
+                  },
+                  "required": [
+                    "lo95",
+                    "hi95"
+                  ]
                 }
               },
               "required": [
@@ -377,6 +415,44 @@
                 },
                 "yLabel": {
                   "type": "string"
+                },
+                "fan": {
+                  "description": "Forecast fan: 80% / 95% prediction bands (get_forecast rows)",
+                  "type": "object",
+                  "properties": {
+                    "lo95": {
+                      "type": "string",
+                      "description": "Column holding the lower 95% prediction bound"
+                    },
+                    "hi95": {
+                      "type": "string",
+                      "description": "Column holding the upper 95% prediction bound"
+                    },
+                    "lo80": {
+                      "description": "Column holding the lower 80% prediction bound",
+                      "type": "string"
+                    },
+                    "hi80": {
+                      "description": "Column holding the upper 80% prediction bound",
+                      "type": "string"
+                    },
+                    "start": {
+                      "description": "x value where the forecast starts (vertical marker)",
+                      "type": [
+                        "string",
+                        "number"
+                      ]
+                    },
+                    "label": {
+                      "description": "Band legend text, default 'Forecast interval (80% / 95%)'",
+                      "type": "string",
+                      "maxLength": 80
+                    }
+                  },
+                  "required": [
+                    "lo95",
+                    "hi95"
+                  ]
                 },
                 "stacked": {
                   "type": "boolean"
@@ -1601,6 +1677,91 @@
         "duration_ms",
         "rows_in",
         "network_isolated"
+      ]
+    },
+    "VideoWidget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "video"
+        },
+        "id": {
+          "type": "string"
+        },
+        "job_id": {
+          "type": "string"
+        },
+        "video_kind": {
+          "type": "string",
+          "enum": [
+            "patient",
+            "ministry",
+            "ministry_vertical"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "rendering",
+            "done",
+            "error"
+          ]
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cached": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "poster_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "download_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status_url": {
+          "type": "string",
+          "description": "GET this for {status, progress, url, poster_url, download_url, error}"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "job_id",
+        "video_kind",
+        "title",
+        "status",
+        "url",
+        "poster_url",
+        "status_url"
       ]
     }
   }

@@ -58,6 +58,10 @@ export interface Config {
   maxSteps: number;
   queryTimeoutMs: number;
   fastApiUrl: string;
+  /** Video render server (video/, Remotion + Hono); create_video posts jobs here. */
+  videoUrl: string;
+  /** Timeout for calls to the FastAPI / video server (care preview, worklist, scenarios, video jobs). */
+  upstreamTimeoutMs: number;
 }
 
 export function loadConfig(): Config {
@@ -86,6 +90,8 @@ export function loadConfig(): Config {
     maxSteps: num(e.AGENT_MAX_STEPS, 8),
     queryTimeoutMs: num(e.AGENT_QUERY_TIMEOUT_MS, 5000),
     fastApiUrl: e.API_URL || "http://localhost:8000",
+    videoUrl: e.VIDEO_URL || "http://127.0.0.1:8790",
+    upstreamTimeoutMs: num(e.AGENT_UPSTREAM_TIMEOUT_MS, 8000),
   };
 }
 

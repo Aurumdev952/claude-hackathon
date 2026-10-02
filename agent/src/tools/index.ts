@@ -3,6 +3,7 @@ import { tool, type Tool, type ToolSet } from "ai";
 import type { Role } from "../context.js";
 import { pseudonymise, ministryView } from "../guardrails/suppress.js";
 import { DOCTOR_TOOLS, MINISTRY_TOOLS, type ToolName } from "../widgets/specs.js";
+import { draftCarePlan, getCarePlan, getPatientJourney, listFollowups } from "./care.js";
 import { getCareCascade } from "./cascade.js";
 import { makeChart } from "./charts.js";
 import { getFacilityQuality, getStageMix, getSurvival } from "./clinical.js";
@@ -10,6 +11,7 @@ import { describeTables } from "./describe_tables.js";
 import { getDistrictRanking } from "./districts.js";
 import { getKpis } from "./kpis.js";
 import { getModelMetrics } from "./models.js";
+import { getCareFunnel, getForecast, getModelMonitoring, runForecastScenario } from "./outlook.js";
 import { getPatient, listAlerts, listHighRiskPatients } from "./patient.js";
 import { makePatientWidget } from "./patient_widget.js";
 import { queryMarts } from "./query_marts.js";
@@ -17,6 +19,7 @@ import { getRatesTrend } from "./rates.js";
 import { getPatientRisk } from "./risk.js";
 import { runPythonTool } from "./run_python.js";
 import { getPatientTimeline } from "./timeline.js";
+import { createVideo } from "./video.js";
 import type { ToolCtx, ToolDef } from "./types.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,6 +29,9 @@ export const ALL_TOOLS: AnyToolDef[] = [
   describeTables, queryMarts, getKpis, getRatesTrend, getDistrictRanking, getCareCascade, getStageMix, getSurvival,
   getFacilityQuality, getModelMetrics, getPatient, getPatientTimeline, getPatientRisk, listHighRiskPatients, listAlerts,
   makeChart, makePatientWidget, runPythonTool,
+  // v3: care coordination, journey, forecasting, learning loop, data videos
+  getCarePlan, listFollowups, getPatientJourney, draftCarePlan, getCareFunnel, getForecast, runForecastScenario,
+  getModelMonitoring, createVideo,
 ];
 
 const BY_NAME = new Map(ALL_TOOLS.map((t) => [t.name, t]));

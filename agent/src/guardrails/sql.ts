@@ -19,7 +19,13 @@ export const FORBIDDEN_FUNCS = new Set([
 /** Patient-level tables a doctor may query; every one is shadowed by a facility-scoped CTE before execution. */
 export const DOCTOR_TABLES = [
   "pt_patient", "pt_patient_facility", "pt_risk", "pt_alerts", "pt_timeline", "pt_tumour", "pt_features", "ml_risk_history",
+  // v3 care coordination and recovery journey (snapshots of data/analytics/care.sqlite + journey marts)
+  "pt_care_plan", "pt_care_task", "pt_journey", "pt_recovery", "pt_treatment",
+  "care_plans", "care_tasks", "care_events", "care_notifications", "care_patient_reports", "care_recommendation_outcomes",
 ] as const;
+
+/** Synthetic external aggregates (registry, surveys, population projections; plan §5a): both roles may query them. */
+export const EXTERNAL_TABLES = ["ext_registry", "ext_surveys", "ext_population"] as const;
 
 /**
  * Point- or patient-level tables kept away from model-written SQL even though they are mart_/ml_ prefixed (case
@@ -41,8 +47,8 @@ export class UnsafeSQL extends Error {
 export type Role = "ministry" | "doctor";
 
 /**
- * Port of nl2sql.allowed_tables: mart_* + ml_* + ref_district + ref_province, plus the facility-scoped patient tables for
- * doctors. Patient-level marts are removed for both roles (the doctor reaches patients only through the scoped pt_* CTEs).
+ * Port of nl2sql.allowed_tables: mart_* + ml_* + ref_district + ref_province + ext_* (synthetic external aggregates), plus
+ * the facility-scoped patient and care tables for doctors (the ministry never gets care_* patient rows). Patient-level marts are removed for both roles (the doctor reaches patients only through the scoped pt_* CTEs).
  */
 export function allowedTables(role: Role, existing: Iterable<string>, columns?: (t: string) => string[]): Set<string> {
   const out = new Set<string>();
@@ -54,6 +60,7 @@ export function allowedTables(role: Role, existing: Iterable<string>, columns?: 
   }
   out.add("ref_district");
   out.add("ref_province");
+  for (const t of EXTERNAL_TABLES) if (ex.has(t)) out.add(t);
   if (role === "doctor") for (const t of DOCTOR_TABLES) if (ex.has(t)) out.add(t);
   return out;
 }

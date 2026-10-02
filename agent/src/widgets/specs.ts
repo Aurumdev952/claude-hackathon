@@ -8,6 +8,7 @@
  *   - tool-make_chart          -> ChartSpec          (render with ECharts)
  *   - tool-make_patient_widget -> PatientWidget      (doctor only)
  *   - tool-run_python          -> ArtifactSpec       (PNG <img> / plotly HTML in a sandboxed <iframe>)
+ *   - tool-create_video        -> VideoWidget        (poster + status polling + download; v3)
  * Every other tool returns plain data (rows, KPIs) that the UI may show in an inspector.
  */
 import { z } from "zod";
@@ -61,6 +62,20 @@ export const Annotation = z.object({
 });
 export const ReferenceLine = z.object({ y: z.number(), label: z.string().max(80).optional() });
 
+/**
+ * Forecast fan (v3): nested prediction bands drawn behind the line series, 95% lighter and 80% darker. Rows before the
+ * forecast start carry null band values, so the band only covers the projection years.
+ */
+export const FanBand = z.object({
+  lo95: z.string().describe("Column holding the lower 95% prediction bound"),
+  hi95: z.string().describe("Column holding the upper 95% prediction bound"),
+  lo80: z.string().optional().describe("Column holding the lower 80% prediction bound"),
+  hi80: z.string().optional().describe("Column holding the upper 80% prediction bound"),
+  start: z.union([z.string(), z.number()]).optional().describe("x value where the forecast starts (vertical marker)"),
+  label: z.string().max(80).optional().describe("Band legend text, default 'Forecast interval (80% / 95%)'"),
+});
+export type FanBand = z.infer<typeof FanBand>;
+
 // --------------------------------------------------------------------------------------------- chart specs
 export const LineChartSpec = z.object({
   type: z.literal("line"),
@@ -71,6 +86,7 @@ export const LineChartSpec = z.object({
   annotations: z.array(Annotation).max(10).optional().describe("Vertical markers, e.g. joinpoints or policy events"),
   referenceLines: z.array(ReferenceLine).max(4).optional(),
   yLabel: z.string().optional(),
+  fan: FanBand.optional().describe("Forecast fan: 80% / 95% prediction bands (get_forecast rows)"),
 });
 export const AreaChartSpec = LineChartSpec.extend({ type: z.literal("area"), stacked: z.boolean().optional() });
 export const BarChartSpec = z.object({
@@ -281,7 +297,36 @@ export const ArtifactSpec = z.object({
 });
 export type ArtifactSpec = z.infer<typeof ArtifactSpec>;
 
-export const Widget = z.discriminatedUnion("kind", [ChartWidget, PatientWidget, ArtifactSpec]);
+// --------------------------------------------------------------------------------------------- data videos (v3)
+export const VideoKind = z.enum(["patient", "ministry", "ministry_vertical"]);
+export type VideoKind = z.infer<typeof VideoKind>;
+export const VideoStatus = z.enum(["queued", "rendering", "done", "error"]);
+export type VideoStatus = z.infer<typeof VideoStatus>;
+
+/**
+ * Output of create_video: a render job on the video server (video/, Remotion). URLs are relative (`/video/...`, proxied
+ * by Vite); the UI polls `status_url` until `status` is done, then shows the poster, a player and a download link.
+ * Patient videos carry the display ID only (never a name).
+ */
+export const VideoWidget = z.object({
+  kind: z.literal("video"),
+  id: z.string(),
+  job_id: z.string(),
+  video_kind: VideoKind,
+  title: z.string(),
+  subtitle: z.string().optional(),
+  status: VideoStatus,
+  progress: z.number().min(0).max(1).optional(),
+  cached: z.boolean().optional(),
+  url: z.string().nullable(),
+  poster_url: z.string().nullable(),
+  download_url: z.string().nullable().optional(),
+  status_url: z.string().describe("GET this for {status, progress, url, poster_url, download_url, error}"),
+  error: z.string().nullable().optional(),
+});
+export type VideoWidget = z.infer<typeof VideoWidget>;
+
+export const Widget = z.discriminatedUnion("kind", [ChartWidget, PatientWidget, ArtifactSpec, VideoWidget]);
 export type Widget = z.infer<typeof Widget>;
 
 // --------------------------------------------------------------------------------------------- chat contract
@@ -324,7 +369,12 @@ export const MINISTRY_TOOLS = [
   "get_survival",
   "get_facility_quality",
   "get_model_metrics",
+  "get_care_funnel",
+  "get_forecast",
+  "run_forecast_scenario",
+  "get_model_monitoring",
   "make_chart",
+  "create_video",
   "run_python",
 ] as const;
 export const DOCTOR_TOOLS = [
@@ -336,8 +386,13 @@ export const DOCTOR_TOOLS = [
   "get_patient_risk",
   "list_high_risk_patients",
   "list_alerts",
+  "get_care_plan",
+  "list_followups",
+  "get_patient_journey",
+  "draft_care_plan",
   "make_chart",
   "make_patient_widget",
+  "create_video",
   "run_python",
 ] as const;
 export type MinistryToolName = (typeof MINISTRY_TOOLS)[number];
@@ -363,4 +418,17 @@ export const TOOL_LABELS: Record<ToolName, string> = {
   make_chart: "Drawing chart",
   make_patient_widget: "Preparing patient card",
   run_python: "Running analysis in the sandbox",
+  get_care_funnel: "Loading the care coordination funnel",
+  get_forecast: "Loading the incidence forecast",
+  run_forecast_scenario: "Running a forecast scenario",
+  get_model_monitoring: "Checking the learning loop",
+  get_care_plan: "Reading the care plan",
+  list_followups: "Loading follow-ups",
+  get_patient_journey: "Reading the patient journey",
+  draft_care_plan: "Drafting a care plan for approval",
+  create_video: "Starting the video render",
 };
+
+/** Tools that only read or draft. No agent tool creates care plans, changes tasks or sends patient notifications:
+ * the doctor approves plans in the UI (evals assert that these names never appear). */
+export const FORBIDDEN_ACTION_TOOLS = ["create_care_plan", "approve_care_plan", "send_notification", "notify_patient", "patch_task"] as const;
