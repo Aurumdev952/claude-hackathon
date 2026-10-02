@@ -69,6 +69,7 @@ async def _watch():
 async def lifespan(app: FastAPI):
     SERVE.refresh()
     task = asyncio.create_task(_watch())
+    admin.resume_auto_on_startup()   # v3 in-API auto clock (control.json api_auto), see api/routers/admin.py
     yield
     task.cancel()
 
