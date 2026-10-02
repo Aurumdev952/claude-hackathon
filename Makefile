@@ -196,3 +196,11 @@ forecast:                   ## fit incidence/risk-factor/scenario forecasts + ba
 retrain:                    ## train a Tier 2 challenger on feedback labels (IPW), gate it vs the champion, register inactive, publish
 	$(PY) -m ml.retrain
 	$(PY) -m pipeline.run --no-extract --from publish
+
+# ---- v3 L2: care coordination (docs/contracts/v3-loop.md §4, §5) ----
+.PHONY: care-seed care-test
+care-seed:                  ## seed ~8 demo care plans across all six pathways at two busy facilities (idempotent)
+	$(PY) -m care.seed_demo
+
+care-test:                  ## care engine, patient-app API, access guards and WS filter tests
+	$(PY) -m pytest tests/v3/test_care_pathways.py tests/v3/test_care_messages.py tests/v3/test_care_engine.py tests/v3/test_care_ws.py tests/v3/test_patient_api_access.py -q
