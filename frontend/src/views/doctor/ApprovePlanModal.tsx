@@ -24,6 +24,8 @@ export type ApproveTarget = {
   alertId?: string | null;
   trigger?: string | null;
   isCase?: boolean;
+  /** Pre-selected pathway (a next-plan suggestion); otherwise it follows the alert trigger or the diagnosis. */
+  pathway?: string | null;
 };
 
 const short = (n: string | null | undefined) => String(n ?? "").replace(" (Synthetic)", "");
@@ -36,7 +38,7 @@ export function ApprovePlanModal({ target, isOpen, onOpenChange }: { target: App
     <DetailModal isOpen={isOpen && !!target} onOpenChange={onOpenChange} size="4xl" icon={<ClipboardCheck size={18} />}
                  title={target?.alertId ? "Approve and plan care" : "Start a care plan"} subtitle={target?.label}
                  info="Approving creates a care plan in the EMR (a care-coordination encounter with the pathway, its steps and the referral order) and sends the first message on the channels you choose. Reminders follow a fixed ladder: an app reminder 3 days before the due date, app and SMS on the day, a community health worker visit 7 days late, and a doctor follow-up 14 days late. Messages never mention a diagnosis.">
-      {target && <ApproveBody key={`${target.patientId}-${target.alertId ?? ""}`} target={target} onDone={() => onOpenChange(false)} />}
+      {target && <ApproveBody key={`${target.patientId}-${target.alertId ?? ""}-${target.pathway ?? ""}`} target={target} onDone={() => onOpenChange(false)} />}
     </DetailModal>
   );
 }
@@ -48,11 +50,12 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
   const env = pw.data as unknown as PathwaysEnvelope | undefined;
   const all: Pathway[] = env?.data ?? [];
   const recommended = useMemo(() => {
+    if (target.pathway && all.some((p) => p.id === target.pathway)) return target.pathway;
     const byTrigger = target.trigger ? env?.trigger_pathway?.[target.trigger] : null;
     if (byTrigger) return byTrigger;
     if (target.trigger) { const hit = all.find((p) => p.triggers.includes(target.trigger!)); if (hit) return hit.id; }
     return target.isCase ? "ONCOLOGY_TREATMENT" : "ENDOSCOPY_REFERRAL";
-  }, [env, all, target.trigger, target.isCase]);
+  }, [env, all, target.trigger, target.isCase, target.pathway]);
   const ordered = useMemo(() => {
     const dx = target.isCase && !target.alertId;
     const rank = (p: Pathway) => (p.id === recommended ? 0 : dx === DX_PATHWAYS.includes(p.id) ? 1 : 2);
@@ -123,7 +126,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="text-[14px] leading-5 font-semibold text-ink">{p.name}</span>
-                      {p.id === recommended && <span className="text-micro text-muted">Recommended</span>}
+                      {p.id === recommended && <span className="text-micro text-muted">{target.pathway === p.id ? "Suggested" : "Recommended"}</span>}
                     </span>
                     <span className={`block text-micro font-normal text-muted mt-0.5 ${on ? "" : "line-clamp-1"}`}>{p.description}</span>
                   </span>

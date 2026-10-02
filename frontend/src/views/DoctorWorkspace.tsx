@@ -24,6 +24,7 @@ import { FollowUps } from "./doctor/FollowUps";
 import { InRecovery } from "./doctor/InRecovery";
 import { type WorkItem, isOpenPlan, nextTask, pathwayName, PLAN_STATUS, sortPlans, usePatientCare } from "./doctor/care";
 import { CarePlanView, StepGlyph } from "./case/CarePlanView";
+import { SuggestionLink } from "./doctor/SuggestedNext";
 import { PatientAvatar } from "./doctor/PatientAvatar";
 import { BandMark, Dot } from "./doctor/BandMark";
 
@@ -327,7 +328,7 @@ function PatientPanel({ patientId }: { patientId: number }) {
         </Card>
       </GridItem>
       <GridItem span={{ md: 6 }}>
-        <CarePlanCard patientId={patientId} subtitle={h.name} onStart={() => setPlanFor({ patientId, isCase: !!h.is_case, label: <>{h.name} <span className="tabular">{h.display_id}</span></> })} />
+        <CarePlanCard patientId={patientId} subtitle={h.name} onStart={(pathway) => setPlanFor({ patientId, isCase: !!h.is_case, pathway, label: <>{h.name} <span className="tabular">{h.display_id}</span></> })} />
       </GridItem>
       <GridItem span={12}>
         <Card title="Latest measurements" icon={<FlaskConical size={16} />} info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
@@ -371,8 +372,9 @@ function PatientPanel({ patientId }: { patientId: number }) {
 
 /** Compact care plan card for the patient panel: the active plan, its next step and a status chip; the arrow opens every
  * plan with its steps and messages. */
-function CarePlanCard({ patientId, subtitle, onStart }: { patientId: number; subtitle?: ReactNode; onStart: () => void }) {
+function CarePlanCard({ patientId, subtitle, onStart }: { patientId: number; subtitle?: ReactNode; onStart: (pathway?: string) => void }) {
   const care = usePatientCare(patientId);
+  const suggested = care.data?.data?.suggested_next;
   const plans = sortPlans(care.data?.data?.plans ?? []);
   const simNow = (care.data?.meta?.sim_time as string | undefined) ?? null;
   const plan = plans.find(isOpenPlan) ?? plans[0] ?? null;
@@ -388,7 +390,8 @@ function CarePlanCard({ patientId, subtitle, onStart }: { patientId: number; sub
       {care.isLoading ? <Skeleton variant="list" rows={2} /> : !plan ? (
         <div className="flex flex-col items-center justify-center gap-3 py-5 text-label text-muted text-center">
           No care plan yet
-          <Button size="sm" radius="full" className="h-9 px-4 bg-ink text-ink-on text-[13px] font-semibold" startContent={<ClipboardCheck size={14} aria-hidden />} onPress={onStart}>Start care plan</Button>
+          <Button size="sm" radius="full" className="h-9 px-4 bg-ink text-ink-on text-[13px] font-semibold" startContent={<ClipboardCheck size={14} aria-hidden />} onPress={() => onStart()}>Start care plan</Button>
+          <SuggestionLink suggestions={suggested} onStart={(sg) => onStart(sg.pathway)} />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -405,6 +408,7 @@ function CarePlanCard({ patientId, subtitle, onStart }: { patientId: number; sub
               </div>
             </div>
           ) : <div className="text-label text-muted">All steps closed {plan.closed_sim ? date(plan.closed_sim) : ""}</div>}
+          <SuggestionLink suggestions={suggested} onStart={(sg) => onStart(sg.pathway)} />
         </div>
       )}
     </Card>

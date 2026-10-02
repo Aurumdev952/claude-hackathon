@@ -12,6 +12,7 @@ import { PlanBlock } from "@/views/case/CarePlanView";
 import { Dot } from "./BandMark";
 import { ESCALATION, PATHWAY_NAME, usePatientCare, type WorkItem } from "./care";
 import { PatientAvatar } from "./PatientAvatar";
+import { SuggestionsCard } from "./SuggestedNext";
 import { useTaskActions } from "./TaskActions";
 
 export const ADHERENCE_NOTE = (
@@ -44,6 +45,7 @@ export function FollowUps({ onOpenPatient }: { onOpenPatient: (id: number) => vo
   const nLate = (q.data?.data ?? []).filter((w) => w.task.overdue_days > 0).length;
   return (
     <div className="grid grid-cols-12 gap-5 items-start">
+      <SuggestionsCard className="col-span-12" />
       <Card className="col-span-12 xl:col-span-7" padding="none" title="Follow-ups" icon={<ListTodo size={16} />}
             info={{ about: "Open care-plan steps at this facility (approved here or referred here). Overdue steps come first, then the patients least likely to attend.", method: ADHERENCE_NOTE }}
             actions={<Seg label="Follow-up filter" value={view} onChange={setView} variant="glass"

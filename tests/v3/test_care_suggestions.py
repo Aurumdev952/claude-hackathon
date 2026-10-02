@@ -159,9 +159,10 @@ def test_api_suggestions_scoping_and_guards(client):
                     json={"action": "complete", "result": "cancer_found", "reason": "histology in the record"}))
     (s,) = ok(client.get("/api/v1/care/suggestions", headers=doc))
     assert s["patient_id"] == pid and s["pathway"] == "ONCOLOGY_TREATMENT" and s["from_plan_id"] == plan["plan"]["id"]
-    assert "given_name" not in s and "family_name" not in s
+    assert {"given_name", "family_name", "age", "sex"} <= set(s)  # doctor UI names its own patients, as the worklist does
     care = ok(client.get(f"/api/v1/patients/{pid}/care", headers=doc))
-    assert care["suggested_next"] == [s] and care["plans"][0]["id"] == plan["plan"]["id"]
+    core = ("patient_id", "display_id", "pathway", "pathway_name", "reason", "since", "from_plan_id")
+    assert care["suggested_next"] == [{k: s[k] for k in core}] and care["plans"][0]["id"] == plan["plan"]["id"]
     # another facility's doctor: nothing listed, and the patient's care stays closed
     assert ok(client.get("/api/v1/care/suggestions", headers=other_doc)) == []
     assert client.get(f"/api/v1/patients/{pid}/care", headers=other_doc).status_code == 403

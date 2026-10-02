@@ -17,6 +17,7 @@ import { MEASURE_ORGANS } from "./measureOrgans";
 import { CarePlanView } from "./CarePlanView";
 import { JourneyView } from "./JourneyView";
 import { ApprovePlanModal, type ApproveTarget } from "@/views/doctor/ApprovePlanModal";
+import { SuggestionBanner, suggestionTarget } from "@/views/doctor/SuggestedNext";
 import { type CareTask, isOpenPlan, useJourney, usePatientCare } from "@/views/doctor/care";
 
 type TabKey = "alerts" | "reasons" | "vitals" | "meds" | "journey" | "care";
@@ -157,6 +158,7 @@ function CareTab({ data, journey: withJourney }: { data: CaseData; journey: bool
   const simNow = (care.data?.meta?.sim_time as string | undefined) ?? data.window.end;
   const jump = (d: string, _t: CareTask) => set({ replayT: Date.parse(d.length <= 10 ? `${d}T12:00:00` : d), playing: false });
   const plans = care.data?.data?.plans ?? [];
+  const suggested = care.data?.data?.suggested_next ?? [];
   const startBtn = (
     <Button size="sm" radius="full" className="h-9 px-4 bg-ink text-ink-on text-[13px] font-semibold" startContent={<ClipboardCheck size={14} aria-hidden />}
             onPress={() => setStart({ patientId: id, isCase: data.header.is_case, label: <>{data.header.name} <span className="tabular">{data.header.display_id}</span></> })}>Start care plan</Button>
@@ -167,10 +169,12 @@ function CareTab({ data, journey: withJourney }: { data: CaseData; journey: bool
         : j.data ? <JourneyView journey={j.data.data} simNow={simNow} sex={data.header.sex} /> : null)}
       <section aria-label="Care plans" className={withJourney ? "pt-5 border-t border-hairline" : ""}>
         {withJourney && <h3 className="text-label text-muted mb-3">Care plan</h3>}
+        <SuggestionBanner suggestions={suggested} className="mb-4"
+                          onStart={(sg) => setStart(suggestionTarget(sg, <>{data.header.name} <span className="tabular">{data.header.display_id}</span></>))} />
         {care.isLoading ? <Skeleton variant="list" rows={3} label="Loading care plans" /> : care.error ? <ErrorNote error={care.error} />
           : <CarePlanView plans={plans} simNow={simNow} onEvidence={jump}
                           empty={<div className="flex items-center gap-4 rounded-tile bg-tile px-5 py-4"><span className="flex-1 text-label font-normal text-muted">No care plan yet. Approve an alert, or start one here.</span>{startBtn}</div>} />}
-        {plans.length > 0 && !plans.some(isOpenPlan) && <div className="mt-3">{startBtn}</div>}
+        {plans.length > 0 && !plans.some(isOpenPlan) && !suggested.length && <div className="mt-3">{startBtn}</div>}
       </section>
       <ApprovePlanModal target={start} isOpen={!!start} onOpenChange={(o) => { if (!o) { setStart(null); qc.invalidateQueries({ queryKey: ["patients", "case", id] }); } }} />
     </div>

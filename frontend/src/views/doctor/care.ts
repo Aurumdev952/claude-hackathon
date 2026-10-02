@@ -31,6 +31,12 @@ export type WorkItem = {
   patient: { patient_id: number; display_id: string; given_name?: string; family_name?: string; age?: number; sex?: string };
   p_adhere: number; priority: number;
 };
+/** An open next-plan suggestion (GET /care/suggestions, `suggested_next` on /patients/{id}/care): the engine only
+ * suggests; the doctor starts the plan through the approval modal. Names come with the facility list only. */
+export type Suggestion = {
+  patient_id: number; display_id: string; pathway: string; pathway_name: string; reason: string; since: string; from_plan_id: string;
+  given_name?: string | null; family_name?: string | null; age?: number | null; sex?: string | null;
+};
 export type Point = { date: string; value: number };
 export type JourneyPhase = { phase: string; label?: string; start: string | null; end: string | null; status: "done" | "current" | "upcoming" | "missed"; milestones: { date: string; label: string; kind: string }[] };
 export type Journey = {
@@ -108,7 +114,10 @@ export function usePathways() {
   return useQuery({ queryKey: ["care", "pathways"], queryFn: () => get<Pathway[]>("/care/pathways") as Promise<PathwaysEnvelope & any>, staleTime: Infinity });
 }
 export function usePatientCare(patientId: number | null | undefined) {
-  return useQuery({ queryKey: ["care", "patient", patientId], queryFn: () => get<{ plans: CarePlan[] }>(`/patients/${patientId}/care`), enabled: !!patientId });
+  return useQuery({ queryKey: ["care", "patient", patientId], queryFn: () => get<{ plans: CarePlan[]; suggested_next?: Suggestion[] }>(`/patients/${patientId}/care`), enabled: !!patientId });
+}
+export function useSuggestions() {
+  return useQuery({ queryKey: ["care", "suggestions"], queryFn: () => get<Suggestion[]>("/care/suggestions") });
 }
 export function useJourney(patientId: number | null | undefined, enabled = true) {
   return useQuery({ queryKey: ["care", "journey", patientId], queryFn: () => get<Journey>(`/patients/${patientId}/journey`), enabled: !!patientId && enabled });

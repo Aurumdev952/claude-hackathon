@@ -100,7 +100,16 @@ def patient_care(patient_id: int, r: Role = Depends(d)):
 @router.get("/care/suggestions")
 def care_suggestions(r: Role = Depends(d)):
     """Open next-plan suggestions for the doctor's facility (a suggestion is never a plan: the doctor starts it)."""
-    return envelope(engine.suggestions(facility_id=r.facility_id))
+    rows = engine.suggestions(facility_id=r.facility_id)
+    if rows and SERVE.has_table("pt_patient"):
+        # the doctor UI names its own facility's patients (as the worklist does); never sent to other roles
+        ids = ",".join(str(int(x["patient_id"])) for x in rows)
+        pts = {int(p["patient_id"]): p for p in SERVE.rows(
+            f"SELECT patient_id, given_name, family_name, age, sex FROM pt_patient WHERE patient_id IN ({ids})")}
+        for x in rows:
+            p = pts.get(int(x["patient_id"]), {})
+            x.update({k: p.get(k) for k in ("given_name", "family_name", "age", "sex")})
+    return envelope(rows)
 
 
 @router.patch("/care/tasks/{task_id}")
