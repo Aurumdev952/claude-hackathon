@@ -87,7 +87,7 @@ function StepCopy({ type, facility, due, late }: { type: string; facility: strin
   const D = <span className="text-ink font-medium tabular">{due}</span>;
   if (type === "CHW_VISIT") return <>Your community health worker will visit you at home {late ? <>soon. It was planned for {D}</> : <>before {D}</>}.</>;
   const what = type === "HP_TREATMENT" || type === "IRON_COURSE" ? "to collect your medicine" : type === "B12_INJECTION" ? "for your vitamin B12 injection"
-    : type === "CHEMO_CYCLE" ? "for your next treatment" : "for a check-up";
+    : type === "CHEMO_CYCLE" || type === "TREATMENT_CYCLE" ? "for your next treatment" : "for a check-up";
   return late ? <>Please visit {F} {what} as soon as you can. It was due on {D}.</> : <>Please visit {F} {what} before {D}.</>;
 }
 

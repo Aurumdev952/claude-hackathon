@@ -72,7 +72,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
   const body = { patient_id: target.patientId, pathway: sel, alert_id: target.alertId ?? undefined, channels: ch,
                  due_override: due || undefined, target_facility_id: facility ? Number(facility) : undefined };
   const pv = useQuery({
-    queryKey: ["care", "preview", body],
+    queryKey: ["care-preview", body],
     queryFn: () => post<Preview>("/care/notifications/preview", body),
     enabled: !!pdef, placeholderData: keepPreviousData, staleTime: 30_000,
   });
@@ -195,7 +195,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
         </section>
       </div>
 
-      <aside className="flex flex-col gap-4 min-w-0" aria-label="Patient message preview">
+      <aside className="flex flex-col gap-4 min-w-0 md:sticky md:top-0 self-start" aria-label="Patient message preview">
         <div className="flex items-center gap-0.5">
           <h3 className="text-label text-muted">What the patient receives</h3>
           <InfoHint mode="tooltip" size={13} className="!w-6 !h-6 !min-w-6" label="About the message"
@@ -220,7 +220,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
         {ch.includes("CHW") && <p className="text-micro text-muted">The community health worker for the patient's village is told about the plan and visits if a step is late.</p>}
         {existing && <p className="text-label text-ink rounded-tile bg-tile px-4 py-3">This patient already has an open {pdef?.name.toLowerCase()} plan. Pick another pathway, or manage the open plan in the care plan card.</p>}
         {err && <ErrorNote error={err} />}
-        <div className="mt-auto flex gap-2">
+        <div className="flex gap-2">
           <Button radius="full" variant="flat" className="h-11 px-5 bg-tile text-ink text-[14px] font-medium" onPress={onDone}>Cancel</Button>
           <Button radius="full" className="flex-1 h-11 px-5 bg-signal-strong text-signal-on font-semibold text-[14px] data-[hover=true]:bg-signal-text"
                   isLoading={m.isPending} isDisabled={!pdef || !!existing} onPress={() => m.mutate()}>Approve and notify</Button>

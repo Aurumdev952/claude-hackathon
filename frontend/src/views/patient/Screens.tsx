@@ -29,7 +29,7 @@ export function PlanScreen({ plans, simNow }: { plans: MyPlan[]; simNow: string 
         const steps = [...p.tasks].filter((t) => t.status !== "CANCELLED" || t.patient_facing).sort((a, b) => a.seq - b.seq || (a.occurrence ?? 0) - (b.occurrence ?? 0));
         const done = steps.filter((t) => t.status === "COMPLETED").length;
         return (
-          <PCard key={p.id} label={p.pathway_name ?? p.pathway} className={open.includes(p) ? "" : "opacity-80"}>
+          <PCard key={p.id} as="section" label={p.pathway_name ?? p.pathway} className={open.includes(p) ? "" : "opacity-80"}>
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0">
                 <h2 className="text-[19px] leading-6 font-semibold text-ink">{p.pathway_name ?? "Care plan"}</h2>
