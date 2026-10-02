@@ -452,3 +452,17 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   Tier 3 ensemble when Tier 3 is active). Rolling back the champion restores the model it replaced when it was
   *promoted* (no ping-pong); without one the API returns 409 `NO_PREDECESSOR`. `GET /models/learning-loop`
   `running_job` is live. The adherence model drops rows whose target is still NULL.
+
+## 12. U1 implementation notes (additive, backward compatible)
+
+- **API fields for the UI:** `GET /me/doses` returns the caller's dose taps `[{id, course, taken, created_sim}]` (newest
+  first; patient role only). `/me/plan` plans add `target_facility_name` (the next-step card names the facility).
+  `GET /patients?status=diagnosed` rows add `journey: {phase, phase_status, phase_start, intent, gastrectomy,
+  missed_visits, next_visit, recurrence, chemo_done, chemo_planned, weight_change_pct}` (current `pt_journey` phase,
+  else the latest done one, plus `pt_recovery` scalars) for the doctor's "In recovery" tab. `/me/journey` `recovery`
+  now carries `next_visit`, `treatment_cycles` and `missed_visits` whichever shape the journey came from.
+- **Frontend:** `/patient` (phone simulator, event log, simulate strip) and `/patient/app` (full screen). The PWA
+  manifest is `/manifest.webmanifest` (scope and start_url `/patient/app`); the worker `/sw.js` is registered only by
+  the full-screen route in production builds with scope `/patient/app` and has no runtime caching. `useLiveSocket`
+  subscribes per role and re-subscribes on role, facility or patient change; `notification` events feed the phone
+  banner (`usePush`).
