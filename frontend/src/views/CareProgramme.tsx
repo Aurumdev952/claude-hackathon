@@ -75,7 +75,7 @@ function FunnelCard({ from, to, district, setDistrict }: { from: string | null; 
           actions={
             <Select aria-label="District" size="sm" radius="full" selectedKeys={new Set([district ?? "ALL"])} popoverProps={{ portalContainer: portal }}
                     onSelectionChange={(k) => { const v = [...(k as Set<string>)][0]; setDistrict(!v || v === "ALL" ? null : v); }}
-                    classNames={{ base: "w-[180px]", trigger: "bg-tile data-[hover=true]:bg-tile-hover shadow-none h-8 min-h-8", value: "text-[13px]" }}
+                    classNames={{ base: "w-[180px] max-sm:w-[132px]", trigger: "bg-tile data-[hover=true]:bg-tile-hover shadow-none h-8 min-h-8", value: "text-[13px]" }}
                     items={[{ code: "ALL", name: "All districts" }, ...Object.entries(names).sort((a, b) => a[1].localeCompare(b[1])).map(([code, name]) => ({ code, name }))]}>
               {(it) => <SelectItem key={it.code}>{it.name}</SelectItem>}
             </Select>}
