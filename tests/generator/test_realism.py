@@ -73,7 +73,8 @@ def test_undiagnosed_share(scale):
     c = pl.read_parquet(LATENT_DIR / "gastric_cases.parquet").filter(pl.col("symptom_start_day") <= d("2025-01-01"))
     died = c.filter(pl.col("dx_day").is_null() & pl.col("death_day").is_not_null() & (pl.col("death_day") >= pl.col("symptom_start_day")))
     share = died.height / c.height * 100
-    assert 3 <= share <= 10, share
+    t = widen(scale, 1.0)  # D-08: ~300 cases at scale 0.1 give a sampling SD of about 1.5 points; exact bounds at 1.0
+    assert 3 - t <= share <= 10 + t, share
 
 
 def test_visit_rates_ordering(bulk_con):
