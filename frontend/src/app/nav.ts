@@ -9,7 +9,7 @@ export type NavItem = {
   /** Longer name for the command palette. */
   title: string;
   icon: typeof Activity;
-  /** Insights view key (`/insights?view=`). */
+  /** Insights view key (`/insights?view=`); a view without its own insight facts reuses the closest one. */
   view: string;
   role: NavRole;
   /** Other paths that should highlight this entry. */
@@ -23,8 +23,8 @@ export const NAV: readonly NavItem[] = [
   { to: "/trends", label: "Trends", title: "Trends lab", icon: TrendingUp, view: "trends", role: "ministry" },
   { to: "/warning", label: "Early warning", title: "Early warning", icon: ShieldAlert, view: "warning", role: "ministry" },
   { to: "/quality", label: "Care", title: "H. pylori & care quality", icon: FlaskConical, view: "quality", role: "ministry" },
-  { to: "/programme", label: "Follow-up", title: "Care coordination programme", icon: ClipboardCheck, view: "programme", role: "ministry" },
-  { to: "/outlook", label: "Outlook", title: "Outlook and forecasts", icon: Telescope, view: "outlook", role: "ministry" },
+  { to: "/programme", label: "Follow-up", title: "Care coordination programme", icon: ClipboardCheck, view: "quality", role: "ministry" },
+  { to: "/outlook", label: "Outlook", title: "Outlook and forecasts", icon: Telescope, view: "trends", role: "ministry" },
   { to: "/doctor", label: "Patients", title: "Doctor workspace", icon: Stethoscope, view: "overview", role: "doctor" },
   { to: "/patient", label: "Patient app", title: "Patient app (simulated phone)", icon: Smartphone, view: "overview", role: "patient" },
   { to: "/models", label: "Models", title: "Model arena", icon: Brain, view: "models", role: "any" },
