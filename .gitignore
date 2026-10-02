@@ -16,7 +16,6 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 # env
-.env
 *.log
 frontend/public/models/body.glb
 data/analytics/tmp/
