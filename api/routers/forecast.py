@@ -86,6 +86,18 @@ def _bt_for(series_id: str) -> dict:
     return hit or {"mape": None, "cov80": None, "cov95": None, "crps": None, "n": 0}
 
 
+def _completeness() -> dict[int, float]:
+    """Registry completeness by year (case-weighted national share; the synthetic ramp 40% -> 85%), so the UI can mark
+    low-completeness history years. Additive field `completeness` on history rows (U2)."""
+    def load():
+        if not SERVE.has_table("ext_registry"):
+            return {}
+        return {int(r["year"]): float(r["c"]) for r in SERVE.rows(
+            """SELECT year, coalesce(sum(cases * completeness) / nullif(sum(cases), 0), avg(completeness)) AS c
+               FROM ext_registry GROUP BY 1""") if r["c"] is not None}
+    return SERVE.cached(("fc_completeness",), load)
+
+
 @router.get("/forecast/series")
 def series(geo: str = "NATIONAL", code: str | None = None, sex: str = "ALL", age: str = "ALL", freq: str = "Y",
            metric: str | None = None, case_def: str | None = None, r: Role = Depends(m)):
@@ -109,7 +121,9 @@ def series(geo: str = "NATIONAL", code: str | None = None, sex: str = "ALL", age
     if not rows:
         raise APIError(404, "UNKNOWN_SERIES", f"No forecast for {sid}", {"available_case_def": _run().get("case_def")})
     rows = [_suppress({**x, "year": int(str(x["period"])[:4])}) for x in rows]
-    hist = [{k: x.get(k) for k in ("year", "period", "mean", "lo95", "hi95", "cases_label") if k in x} for x in rows if x["kind"] == "history"]
+    comp = _completeness() if cd == "REGISTRY" else {}
+    hist = [{**{k: x.get(k) for k in ("year", "period", "mean", "lo95", "hi95", "cases_label") if k in x},
+             **({"completeness": comp[x["year"]]} if x["year"] in comp else {})} for x in rows if x["kind"] == "history"]
     fc = [{k: x[k] for k in ("year", "period", "mean", "lo80", "hi80", "lo95", "hi95")} for x in rows if x["kind"] == "forecast"]
     model = next((x["model"] for x in rows if x["kind"] == "forecast"), None)
     return envelope({"series_id": sid, "metric": metric, "unit": "cases per year" if metric == "cases" else "ASR per 100,000 (WHO 2000-2025)",
@@ -190,14 +204,17 @@ def backtest(r: Role = Depends(m)):
         raise APIError(404, "NO_FORECAST", "No backtests yet (run make forecast)")
     rows = SERVE.rows("SELECT * FROM ml_forecast_backtest ORDER BY series_id, origin_year, horizon")
     if not rows:
-        return envelope({"summary": {"n": 0}, "by_series": [], "by_horizon": [], "rows": []}, note=SYNTHETIC)
+        return envelope({"summary": {"n": 0}, "by_series": [], "by_horizon": [], "rows": [], "tracking": []}, note=SYNTHETIC)
     by_s = SERVE.rows("""SELECT series_id, avg(mape) AS mape, avg(cov80) AS cov80, avg(cov95) AS cov95, avg(crps) AS crps, count(*) AS n
                          FROM ml_forecast_backtest GROUP BY 1 ORDER BY 1""")
     by_h = SERVE.rows("""SELECT horizon, avg(mape) AS mape, avg(cov80) AS cov80, avg(cov95) AS cov95, avg(crps) AS crps, count(*) AS n
                          FROM ml_forecast_backtest GROUP BY 1 ORDER BY 1""")
     s = SERVE.one("""SELECT avg(mape) AS mape, avg(cov80) AS cov80, avg(cov95) AS cov95, avg(crps) AS crps, count(*) AS n,
                             list(DISTINCT origin_year ORDER BY origin_year) AS origins FROM ml_forecast_backtest""")
-    return envelope({"summary": s, "by_series": by_s, "by_horizon": by_h, "rows": rows,
+    # forecast vs new actuals as sim time advances (mart_forecast_tracking; additive field `tracking`, U2)
+    tracking = SERVE.rows("SELECT * FROM mart_forecast_tracking ORDER BY series_id, period, forecast_run_id") \
+        if SERVE.has_table("mart_forecast_tracking") else []
+    return envelope({"summary": s, "by_series": by_s, "by_horizon": by_h, "rows": rows, "tracking": tracking,
                      "method": "Rolling origin: refit on data up to each origin, forecast 5 years; MAPE (%), share of actuals inside "
                                "the 80%/95% bands, CRPS from the predictive draws scaled by the actual"}, note=SYNTHETIC)
 
