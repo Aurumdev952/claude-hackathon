@@ -180,21 +180,24 @@ sim-local:                  ## MySQL-free auto sim clock (paced by data/sim_stat
 advance:                    ## advance the MySQL-free sim clock by DAYS (default 7): replay, care world, pipeline, publish
 	EMR_MODE=local $(PY) -m simulator.local --days $(or $(DAYS),7)
 
-dev-data-next:              ## regenerate the dev dataset into data/next (generate -> bootstrap -> train -> external), data/ untouched
-	rm -rf data/next/bulk data/next/analytics data/next/models data/next/sim_state data/next/external
-	mkdir -p data/next && rm -rf data/next/reference && cp -r data/reference data/next/reference
-	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1) DATA_DIR=data/next
-	$(MAKE) external-data DATA_DIR=data/next
-	$(MAKE) bootstrap DATA_DIR=data/next
-	$(MAKE) train DATA_DIR=data/next
+NEXT ?= data/v3
+dev-data-next:              ## regenerate the dev dataset into $(NEXT) (default data/v3) (generate -> bootstrap -> train -> external), data/ untouched
+	rm -rf $(NEXT)/bulk $(NEXT)/analytics $(NEXT)/models $(NEXT)/sim_state $(NEXT)/external
+	mkdir -p $(NEXT) && rm -rf $(NEXT)/reference && cp -r data/reference $(NEXT)/reference
+	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1) DATA_DIR=$(NEXT)
+	$(MAKE) external-data DATA_DIR=$(NEXT)
+	$(MAKE) bootstrap DATA_DIR=$(NEXT)
+	$(MAKE) train DATA_DIR=$(NEXT)
+	$(MAKE) care-seed DATA_DIR=$(NEXT)
+	DATA_DIR=$(NEXT) $(PY) -m pipeline.run --no-extract --from marts   # publish the seeded care state (care_* snapshot, care marts)
 
-swap-next:                  ## put data/next in place of data/ (stop servers first); the old dataset is kept in data/next
-	test -f data/next/ground_truth.json && test -d data/next/analytics
+swap-next:                  ## put $(NEXT) in place of data/ (stop servers first); the old dataset is kept in $(NEXT)
+	test -f $(NEXT)/ground_truth.json && test -d $(NEXT)/analytics
 	rm -rf data/.swap && mkdir -p data/.swap
-	for p in bulk analytics models external ground_truth.json; do if [ -e data/next/$$p ]; then mv data/next/$$p data/.swap/; fi; done
-	for p in bulk analytics models external sim_state ground_truth.json; do if [ -e data/$$p ]; then mv data/$$p data/next/; fi; done
-	cp data/reference/district_population.csv data/next/district_population.csv.prev
-	cp data/next/reference/district_population.csv data/reference/district_population.csv
+	for p in bulk analytics models external ground_truth.json; do if [ -e $(NEXT)/$$p ]; then mv $(NEXT)/$$p data/.swap/; fi; done
+	for p in bulk analytics models external sim_state ground_truth.json; do if [ -e data/$$p ]; then mv data/$$p $(NEXT)/; fi; done
+	cp data/reference/district_population.csv $(NEXT)/district_population.csv.prev
+	cp $(NEXT)/reference/district_population.csv data/reference/district_population.csv
 	mv data/.swap/* data/ && rmdir data/.swap
 	$(PY) -c "import duckdb; c = duckdb.connect('data/analytics/work.duckdb'); c.execute(\"UPDATE ml_model_registry SET artefact_path = regexp_replace(artefact_path, '^.*/models/', '$(CURDIR)/data/models/')\"); print(c.execute('SELECT model_id, artefact_path FROM ml_model_registry WHERE is_active').fetchall())"
 	$(PY) -m pipeline.run --no-extract --from score

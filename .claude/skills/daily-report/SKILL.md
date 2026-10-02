@@ -2,7 +2,7 @@
 name: daily-report
 description: Build today's one-page PDF risk brief (reports/daily/YYYY-MM-DD.pdf) from the live serve DB or the committed snapshot, add 3-4 observations versus the previous report, then commit and push. Used by the daily Routine.
 argument-hint: "[YYYY-MM-DD, default today]"
-allowed-tools: Bash(uv sync:*), Bash(uv run python scripts/daily_report.py:*), Bash(PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/next uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/next PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(uv run python scripts/risk_validation.py summary:*), Bash(test -f:*), Bash(ls reports/:*), Bash(git status:*), Bash(git pull --rebase:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git branch --show-current), Bash(make dev-data), Read, Write
+allowed-tools: Bash(uv sync:*), Bash(uv run python scripts/daily_report.py:*), Bash(PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/v3 uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/v3 PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(uv run python scripts/risk_validation.py summary:*), Bash(test -f:*), Bash(ls reports/:*), Bash(git status:*), Bash(git pull --rebase:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git branch --show-current), Bash(make dev-data), Read, Write
 disable-model-invocation: true
 ---
 
@@ -21,12 +21,12 @@ uv sync --inexact --extra dev --extra report   # no-op when the SessionStart hoo
 ## 2. Pick the data source
 
 ```bash
-grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/next
-test -f data/next/analytics/current.json && echo next; test -f data/analytics/current.json && echo live || echo snapshot
+grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/v3
+test -f data/v3/analytics/current.json && echo next; test -f data/analytics/current.json && echo live || echo snapshot
 ```
 
-- **live**: a published serve DB exists. When `.env` sets `DATA_DIR=./data/next` and `data/next/analytics/current.json`
-  exists, prefix the script with `DATA_DIR=data/next` (the script does not read `.env`). The script reads it and refreshes `reports/snapshots/latest.json`.
+- **live**: a published serve DB exists. When `.env` sets `DATA_DIR=./data/v3` and `data/v3/analytics/current.json`
+  exists, prefix the script with `DATA_DIR=data/v3` (the script does not read `.env`). The script reads it and refreshes `reports/snapshots/latest.json`.
 - **snapshot**: a fresh cloud session with no generated data. Render from the committed
   `reports/snapshots/latest.json` plus `reports/risk_validation.jsonl` (add `--from-snapshot`).
 - Do **not** generate data, unless the environment variable `REPORT_LIVE=1` is set. Then run `make dev-data`

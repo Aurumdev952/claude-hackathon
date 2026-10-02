@@ -49,8 +49,8 @@ make test-fast         # pipeline + API tests
 make report            # today's 1-page PDF (scripts/daily_report.py --check)
 make validate-cases N=5  # next unvalidated HIGH cases as JSON
 make eval-agent        # DeepEval gate against a running agent
-# v3 (dataset in data/next: make exports DATA_DIR from .env; prefix hand-started processes with DATA_DIR=data/next)
-make dev-data-next     # regenerate the v3 dev dataset into data/next; make swap-next moves it into data/
+# v3 (dataset in data/v3: make exports DATA_DIR from .env; prefix hand-started processes with DATA_DIR=data/v3)
+make dev-data-next     # regenerate the v3 dev dataset into data/v3; make swap-next moves it into data/
 make advance DAYS=7    # MySQL-free sim clock: +7 sim days (care world, reconcile, pipeline, publish); make sim-local = auto clock
 make care-seed         # ~8 demo care plans (facilities 1207 Musanze, 1219 Kayonza)
 make forecast          # forecasts + backtests; make retrain = challenger + gates; make external-data = ext_* sources
