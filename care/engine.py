@@ -964,9 +964,11 @@ def notifications_for(patient_id: int, *, channels: tuple[str, ...] = ("APP", "S
 def mark_notification(patient_id: int, notification_id: str, field: str) -> dict:
     assert field in ("read_sim", "acted_sim")
     store = get_store()
-    n = store.one("SELECT * FROM notifications WHERE id = ? AND patient_id = ?", [notification_id, int(patient_id)])
+    n = store.one("SELECT * FROM notifications WHERE id = ?", [notification_id])
     if not n:
         raise CareError(404, "NOT_FOUND", "Notification not found")
+    if int(n["patient_id"]) != int(patient_id):
+        raise CareError(403, "FORBIDDEN", "This notification belongs to another patient")
     now = sim_now()
     ch = {field: n[field] or now}
     if field == "acted_sim" and not n["read_sim"]:
@@ -1054,9 +1056,11 @@ def record_dose(patient_id: int, course: str, taken: bool, con=None) -> dict:
 
 def confirm_task(patient_id: int, task_id: str, text: str, con=None) -> dict:
     store = get_store()
-    t = store.one("SELECT * FROM care_tasks WHERE id = ? AND patient_id = ?", [task_id, int(patient_id)])
+    t = store.one("SELECT * FROM care_tasks WHERE id = ?", [task_id])
     if not t:
         raise CareError(404, "NOT_FOUND", "Task not found")
+    if int(t["patient_id"]) != int(patient_id):
+        raise CareError(403, "FORBIDDEN", "This task belongs to another patient")
     text = (text or "").strip()
     if not text or len(text) > 500:
         raise CareError(400, "INVALID_TEXT", "text must be 1-500 characters")

@@ -1,7 +1,8 @@
 """The care engine's path into the EMR (docs/contracts/v3-loop.md §2).
 
 `care.emr` (track L1) owns the adapter. This module only builds OpenMRS-shaped rows (visit, encounter, obs, orders) with
-ids from `adapter.next_ids` and hands them to `adapter.write`. If `care.emr` is not importable (early in the parallel
+ids from `adapter.next_ids` and hands them to `adapter.write` (the contract interface; `care.emr_rows.EMRBuilder` is the
+heavier generator-style builder used by the care world). If `care.emr` is not importable (early in the parallel
 build, or in unit tests) a `MemoryEMR` keeps the rows in memory so the engine still works end to end.
 """
 from __future__ import annotations
@@ -104,14 +105,14 @@ class Rows:
 
     def obs(self, concept: int, *, coded: int | None = None, num: float | None = None, text: str | None = None,
             order_id: int | None = None) -> int:
-        oid = self.emr.next_ids("obs", 1)[0]
-        self.data["obs"].append({"obs_id": oid, "person_id": self.pid, "concept_id": int(concept),
+        """Adds one obs; ids are allocated in one block at commit (returns the row index)."""
+        self.data["obs"].append({"obs_id": None, "person_id": self.pid, "concept_id": int(concept),
                                  "encounter_id": self.encounter_id, "order_id": order_id, "obs_datetime": self.t,
                                  "location_id": self.loc, "obs_group_id": None, "value_coded": coded,
                                  "value_numeric": None if num is None else float(num), "value_text": text,
                                  "value_datetime": None, "comments": None, "status": "FINAL", "void_reason": None,
                                  **self._meta()})
-        return oid
+        return len(self.data["obs"]) - 1
 
     def order(self, concept: int, otype: int | None = None, urgency: str = "ROUTINE",
               stopped: dt.datetime | None = None) -> int:
@@ -133,4 +134,8 @@ class Rows:
         return out
 
     def commit(self, tick: str | None = None) -> dict:
+        todo = [o for o in self.data["obs"] if o["obs_id"] is None]
+        if todo:
+            for o, i in zip(todo, self.emr.next_ids("obs", len(todo))):
+                o["obs_id"] = i
         return self.emr.write(self.frames(), tick or self.sim.strftime("%Y-%m-%dT%H:%M:%S"))

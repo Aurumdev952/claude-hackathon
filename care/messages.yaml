@@ -17,7 +17,7 @@ default:
     approved:
       title: Your next health step
       body: "Your doctor would like you to have a {task}. Please visit {facility} by {date}. If you have questions, the care team is happy to help."
-      sms: "Your doctor asks you to have a {task} at {facility} by {date}. Questions? Ask your health centre or CHW."
+      sms: "Your doctor asks you to have a {task} at {facility} by {date}. Questions? Ask your CHW."
     reminder:
       title: A friendly reminder
       body: "Your {task} is due by {date}. Please plan your visit to {facility} if you have not booked yet."
@@ -25,7 +25,7 @@ default:
     due:
       title: Due today
       body: "Today is the date for your {task}. Please visit {facility}. If you cannot come today, tell your health centre so they can find another day."
-      sms: "Today is the date for your {task} at {facility}. If you cannot come, please tell your health centre."
+      sms: "Today is the date for your {task} at {facility}. Cannot come? Please tell your health centre."
     overdue:
       title: We have not seen you yet
       body: "Your {task} was due on {date}. It is not too late. Please visit {facility} as soon as you can, or ask your community health worker for help."
