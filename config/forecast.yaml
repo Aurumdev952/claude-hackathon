@@ -1,0 +1,70 @@
+# Forecasting and learning-loop settings (v3, track L3). All outputs are SYNTHETIC and associational.
+# Contracts: docs/contracts/v3-loop.md §5 (tables) and §7 (API).
+seed: 20260630
+horizon_year: 2031          # yearly forecasts run to this year
+draws: 1000                 # parametric bootstrap draws (80/95% bands)
+min_history_years: 6        # a series needs this many full years to be fitted
+
+incidence:
+  age_min_index: 4          # model ages 20+ (WHO groups 4..17); younger groups have ~no cases and are held at 0
+  age_df: 5                 # natural-spline knots on age
+  cohort_df: 4              # natural-spline knots on birth cohort (curvature only; the linear part is the drift)
+  # Nordpred-style damping of the period drift: factor applied to the drift in projection years 1..n
+  # (h=1-2: 25% attenuation, h=3-4: 50%, h>=5: 75%)
+  drift_damping: [0.75, 0.75, 0.5, 0.5, 0.25]
+  ets_weight: 0.5           # ensemble weight of ETS (log ASR, damped trend) where it applies; APC gets 1 - w
+  ets_min_years: 10
+  completeness_hold_years: 3  # registry completeness used for the forecast = mean of the last n years
+  emr_pop_growth_cap: [-0.03, 0.05]   # EMR fallback: yearly growth bounds when extrapolating covered population
+
+backtest:
+  origins: [2015, 2018, 2021]
+  horizon: 5
+  draws: 400
+
+drivers:
+  from_year: 2025
+  to_year: 2031
+
+risk_factors:
+  horizon_year: 2031
+  nowcast_months: 24        # EMR monthly nowcasts kept in the mart
+
+scenario:
+  lag_years: 5              # covariates enter the incidence model lagged by this many years
+  ramp_years: 5             # scenario effects build up linearly over this many years
+  hp_eradication_efficacy: 0.85    # share of treated H. pylori infections eradicated
+  hp_excess_removed: 0.7           # share of the H. pylori excess risk removed by eradication (RR 3.0 -> 1.6 floor)
+  # priors (generator relative risks, docs: config/generator.yaml gastric_cancer.rr) for the covariate model;
+  # the fitted coefficients are blended with these by precision weighting
+  priors:
+    hp:      {rr: 3.0, sd: 0.4}
+    smoking: {rr: 1.6, sd: 0.3}
+    salt:    {rr: 1.5, sd: 0.3}
+  access_early_logodds: {prior: 0.45, sd: 0.25}   # endoscopy access -> odds of stage I/II at diagnosis
+
+operational:
+  history_months: 36
+  horizon_months: 12
+  endoscopy_uptake_prior: 0.6     # share of HIGH flags that complete an endoscopy (fallback when care data is absent)
+  approval_prior: 0.7             # share of HIGH flags approved into a care plan
+  tasks_per_plan_prior: 3
+  capacity_multiplier: 1.25       # capacity proxy = multiplier x p90 of monthly endoscopies in the last 24 months
+
+learning_loop:
+  retrain_every_days: 30
+  backfill_landmarks: {freq: quarterly, followup_days: 180}   # champion "virtual flags" for feedback before care plans
+  ipw_clip: [1.0, 20.0]
+  gates:
+    tolerance: 0.01             # no metric worse than champion - 0.01
+    subgroup_auroc_drop_max: 0.05
+    high_volume_change_max: 0.25
+  monitoring:
+    window_days: 90
+    top_features: 20
+    psi_bins: 10
+
+adherence:
+  min_outcomes: 50
+  min_per_class: 10
+  prior_rate: 0.6               # used when config/care_world.yaml has no adherence prior
