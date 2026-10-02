@@ -93,7 +93,9 @@ def compute(patient: dict, events: list[dict], *, treatment: list[dict] | None =
         add("Approved", plan_t, notif_t or plan_t, "done", ms)
         add("Notified", notif_t, notif_t, "done" if notif_t else "upcoming",
             [{"date": _iso(notif_t), "label": "Patient notified", "kind": "notification"}] if notif_t else [])
-        seen = next((v for v in visits if v["concept_id"] in VISIT_TYPES_SEEN and _d(v["ts"]) >= plan_t), None)
+        # first contact with care after the plan: a clinic visit, or the endoscopy itself when the patient went straight
+        # to the referral (otherwise "Seen" could be dated after the endoscopy it led to)
+        seen = next((v for v in visits if v["concept_id"] in (*VISIT_TYPES_SEEN, 5) and _d(v["ts"]) >= plan_t), None)
         add("Seen", _d(seen["ts"]) if seen else None, _d(seen["ts"]) if seen else None,
             "done" if seen else ("missed" if _escalated(tasks, ("FOLLOWUP_VISIT", "RESULT_DISCUSSED", "ONCOLOGY_INTAKE"))
                                  else "upcoming"),

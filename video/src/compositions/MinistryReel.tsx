@@ -248,10 +248,11 @@ function ForecastScene({ p, scenes, index }: SP) {
   const f = p.forecast!;
   const end = f.forecast[f.forecast.length - 1];
   return (
-    <SceneFrame title={`Outlook to ${end.year}`} subtitle="Age-standardised rate per 100,000; shaded fans are the 80% and 95% prediction intervals"
+    <SceneFrame title={`Outlook to ${end.year}`}
+                subtitle={`${f.metric === "cases" ? "New cases per year" : "Age-standardised rate per 100,000"}${f.source ? `, ${f.source.replace(/\s*\(ext_\w+\)/, "")}` : ""}; shaded fans are the 80% and 95% prediction intervals`}
                 context={ctx(p)} index={index} scenes={scenes}>
       <Card style={{ height: L.contentH }} pad={48}>
-        <FanChart history={f.history} forecast={f.forecast} width={L.contentW - 96} height={L.contentH - 96} delay={10} />
+        <FanChart history={f.history} forecast={f.forecast} width={L.contentW - 96} height={L.contentH - 96} delay={10} decimals={f.metric === "cases" ? 0 : 1} />
       </Card>
     </SceneFrame>
   );

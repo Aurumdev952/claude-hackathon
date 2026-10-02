@@ -152,6 +152,9 @@ export const MinistryReelPropsSchema = z.object({
   forecast: z.object({
     history: z.array(ForecastPointSchema),
     forecast: z.array(ForecastPointSchema),
+    /** What the values are: "cases" (cases per year) or an age-standardised rate per 100,000 (from /forecast/series `metric`). */
+    metric: z.enum(["cases", "asr"]).optional(),
+    source: z.string().optional(),
     label: z.string().optional(),
   }).nullable(),
   models: z.object({

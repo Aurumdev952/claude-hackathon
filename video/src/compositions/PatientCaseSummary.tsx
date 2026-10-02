@@ -421,31 +421,38 @@ function JourneyScene({ p, scenes, index }: SP) {
   const L = useLayout();
   const j = p.journey!;
   const phases = j.phases.filter((ph) => ph.start);
-  const days = phases.flatMap((ph) => [dayNum(ph.start!), dayNum(ph.end ?? p.sim_date)]);
-  const d0 = Math.min(...days, dayNum(p.sim_date) - 30), d1 = Math.max(...days, dayNum(p.sim_date));
-  const W = L.contentW - 96, left = 300, pw = W - left - 20;
-  const x = (d: number) => left + ((d - d0) / Math.max(1, d1 - d0)) * pw;
+  // the phases as a stepper (the app's journey track): done in ink, the current phase in signal orange, upcoming as
+  // hollow dots. Up to 12 phases fit one row at 1920 px; a Gantt of 9+ rows does not fit beside the recovery cards.
+  const shown = phases.slice(-12);
+  const W = L.contentW - 96;
+  const step = shown.length > 1 ? W / (shown.length - 1) : 0;
   const series = Object.entries(j.recovery?.series ?? {}).filter(([, v]) => v.length >= 2).slice(0, 3);
-  const NAMES: Record<string, string> = { weight: "Weight, kg", hb: "Haemoglobin, g/dL", b12: "Vitamin B12, pg/mL", albumin: "Albumin, g/dL", ecog: "ECOG performance" };
+  const NAMES: Record<string, string> = { weight: "Weight (kg)", hb: "Haemoglobin (g/dL)", b12: "Vitamin B12 (pg/mL)", albumin: "Albumin (g/dL)", ecog: "ECOG performance" };
   const chemo = j.recovery?.chemo;
   const units = series.length + (chemo && finite(chemo.planned) ? 0.8 : 0);
   const cardW = (L.contentW - 28 * (Math.ceil(units) - 1)) / Math.max(1, units);
+  const state = (s: string) => { const u = s.toUpperCase(); return u === "DONE" ? "done" : u === "CURRENT" || u === "ACTIVE" ? "current" : u === "MISSED" ? "missed" : "upcoming"; };
+  const line = progressAt(frame, 6, 40);
   return (
     <SceneFrame title="Recovery journey" subtitle="Treatment phases since diagnosis and how recovery is tracking" context={ctx(p)} index={index} scenes={scenes}>
       <Card style={{ height: series.length ? 330 : L.contentH }} pad={48}>
-        <svg width={W} height={Math.max(60, phases.length * 52) + 30} style={{ fontFamily: FONT, overflow: "visible" }}>
-          {phases.map((ph, i) => {
-            const a = x(dayNum(ph.start!)), b = x(dayNum(ph.end ?? p.sim_date));
-            const cur = !ph.end || ph.status.toUpperCase() === "ACTIVE" || ph.status.toUpperCase() === "CURRENT";
-            const pp = progressAt(frame, 10 + i * 10, 30);
+        <svg width={W} height={220} style={{ fontFamily: FONT, overflow: "visible" }}>
+          <line x1={0} y1={70} x2={W} y2={70} stroke={C.tile} strokeWidth={6} strokeLinecap="round" />
+          <line x1={0} y1={70} x2={W * line} y2={70} stroke={C.hairline} strokeWidth={6} strokeLinecap="round" />
+          {shown.map((ph, i) => {
+            const st = state(ph.status);
+            const cx = shown.length > 1 ? i * step : W / 2;
+            const pp = progressAt(frame, 10 + i * 6, 18);
+            const anchor = i === 0 ? "start" : i === shown.length - 1 ? "end" : "middle";
             return (
-              <g key={i} transform={`translate(0 ${i * 52})`}>
-                <text x={0} y={30} fontSize={24} fontWeight={500} fill={C.ink2}>{sentence(ph.phase)}</text>
-                <rect x={left} y={10} width={pw} height={28} rx={8} fill={C.tile} />
-                <rect x={a} y={10} width={Math.max(8, (b - a) * pp)} height={28} rx={8} fill={cur ? C.signal : C.sky} />
-                {ph.milestones.slice(0, 4).map((m, k) => (
-                  <circle key={k} cx={x(dayNum(m.date))} cy={24} r={6} fill={C.surface} opacity={pp} />
-                ))}
+              <g key={i} opacity={pp}>
+                {st === "current" && <circle cx={cx} cy={70} r={22} fill={C.signalSoft} />}
+                <circle cx={cx} cy={70} r={st === "current" ? 13 : 10} fill={st === "done" ? C.ink : st === "current" ? C.signal : C.surface}
+                        stroke={st === "done" ? C.ink : st === "current" ? C.signal : C.faint} strokeWidth={3} strokeDasharray={st === "missed" ? "4 4" : undefined} />
+                <text x={cx} y={124} textAnchor={anchor} fontSize={22} fontWeight={st === "current" ? 600 : 500}
+                      fill={st === "upcoming" ? C.muted : C.ink}>{sentence(ph.phase)}</text>
+                <text x={cx} y={156} textAnchor={anchor} fontSize={18} fill={C.muted}>{fmtDate(ph.start!)}</text>
+                {st === "missed" && <text x={cx} y={184} textAnchor={anchor} fontSize={18} fill={C.signalText}>Missed</text>}
               </g>
             );
           })}
