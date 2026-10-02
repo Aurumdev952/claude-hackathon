@@ -313,6 +313,21 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
 - **Adherence.** `ml.adherence.predict_p_adhere(rows)` returns P(on time) for worklist rows (pathway, channels,
   distance_km, sex, age_band, risk_at_approval); the config prior is used until 50 outcomes exist.
 
+### 7.2 Additive details (U2, backward compatible)
+
+- `GET /forecast/series` history rows add `completeness` (registry completeness for that year, case-weighted national
+  share) when the source is the registry; the Outlook dashes years below 0.85. `GET /forecast/backtest` adds
+  `tracking` (rows of `mart_forecast_tracking`; empty until sim time passes a forecast year).
+- Learning-loop gate `high_volume_change` passes when the relative change is within +/-25% **or** the absolute change
+  is at most max(10, 0.5% of scored patients) (`config/forecast.yaml` gates `high_volume_abs_min`, `high_volume_abs_pct`).
+- `POST /admin/sim {action:"auto_start", seconds_per_day}` (5-3600) and `{action:"auto_stop"}`: an in-API loop submits
+  `advance(1)` jobs at that pace (control.json `api_auto` {enabled, seconds_per_day, owner, beat, stopped_reason}); it
+  skips while any advance runs or while `simulator.local --auto` is alive, and stops at the sim end (409 `SIM_END` on
+  start). `auto_start` also sets control.json `paused=false, seconds_per_day`; `auto_stop` sets `paused=true`.
+  `GET /admin/sim/status` adds `auto.api` {enabled, requested, seconds_per_day, running, owner, next_tick_at, ticks,
+  last_job_id, last_error, stopped_reason} and `auto.source` (`process` | `api` | null); `auto.enabled` is true when
+  either clock runs.
+
 ## 8. Video (L4)
 
 - **Package:** `video/` (pnpm, ESM). Exports compositions `PatientCaseSummary` and `MinistryReel` (plus `MinistryReelVertical`).

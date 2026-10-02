@@ -214,6 +214,8 @@ def test_api_series_drivers_map_backtest(api):
     d = r.json()["data"]
     assert d["series_id"] == "NATIONAL|ALL|ALL|REGISTRY" and len(d["forecast"]) == 6 and d["history"]
     assert d["backtest"]["cov95"] is not None
+    comp = [h["completeness"] for h in d["history"]]          # registry completeness per history year (U2, additive)
+    assert len(comp) == len(d["history"]) and all(0 < c <= 1 for c in comp)
     r = api.get("/api/v1/forecast/series?geo=DISTRICT&code=NOR-MUS&metric=asr")
     assert r.status_code == 200
     r = api.get("/api/v1/forecast/drivers?geo=NATIONAL").json()["data"]
@@ -222,6 +224,7 @@ def test_api_series_drivers_map_backtest(api):
     assert len(m) == 30
     b = api.get("/api/v1/forecast/backtest").json()["data"]
     assert b["summary"]["n"] > 0 and set(b["summary"]["origins"]) == {2015, 2018, 2021}
+    assert isinstance(b["tracking"], list)
     rf = api.get("/api/v1/forecast/risk-factors?indicator=hp_seroprev").json()["data"]
     assert rf and rf[0]["survey"] and rf[0]["forecast"]
 
