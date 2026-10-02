@@ -4,6 +4,8 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
   plugins: [react()],
+  // several dev servers on one checkout (parallel tracks) need separate dep-optimiser caches
+  cacheDir: process.env.VITE_CACHE_DIR || "node_modules/.vite",
   resolve: {
     alias: [
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
