@@ -2,6 +2,7 @@
 import { MockLanguageModelV4 } from "ai/test";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { prepareStepFor } from "../src/agents/run.js";
 import { setModelOverride } from "../src/llm/model.js";
 
 const app = createApp();
@@ -229,6 +230,12 @@ describe("chart nudge vs python requests (mock model)", () => {
     setModelOverride(model);
     await (await ask("How has the under-50 rate changed by year?")).json();
     expect(calls[1].toolChoice).toMatchObject({ type: "tool", toolName: "make_chart" });
+  });
+
+  it("without forced tool choice (Claude 5.5) the chart nudge narrows activeTools to make_chart", () => {
+    const step = prepareStepFor({ role: "ministry" } as never, "How has the under-50 rate changed by year?", { pythonRuns: 0 } as never, false);
+    const out = step({ steps: [{ toolCalls: [{ toolName: "get_rates_trend" }], toolResults: [{ toolName: "get_rates_trend", output: { ok: true } }] }] } as never);
+    expect(out).toEqual({ activeTools: ["make_chart"] });
   });
 
   it("a python / matplotlib / plotly request is not forced to make_chart and keeps run_python", async () => {

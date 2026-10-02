@@ -16,7 +16,7 @@ import { config } from "../config.js";
 import type { AgentContext } from "../context.js";
 import { SERVE } from "../db/duck.js";
 import { collectNumbers, unsupportedNumbers } from "../guardrails/numbers.js";
-import { describeModel, languageModel } from "../llm/model.js";
+import { describeModel, languageModel, providerOptions, supportsForcedToolChoice } from "../llm/model.js";
 import { buildTools, modelSafe, toolDefsFor } from "../tools/index.js";
 import { MAX_PYTHON_RUNS_PER_TURN } from "../tools/run_python.js";
 import { newToolCtx, type ToolCtx } from "../tools/types.js";
@@ -68,7 +68,10 @@ function calledTools(steps: AnyStep[]): string[] {
  * Python / matplotlib / plotly are never forced to make_chart (run_python stays available). run_python is removed from
  * the active tools after the per-turn limit.
  */
-export function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCtx) {
+export function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCtx, canForce = supportsForcedToolChoice()) {
+  // Claude Sonnet 5.5 / Opus 5.5 reject a forced tool_choice: offer only the wanted tool (choice stays auto) instead
+  const want = (toolName: string) =>
+    canForce ? { toolChoice: { type: "tool" as const, toolName } } : { activeTools: [toolName] };
   const wantsChart = CHART_INTENT.test(question) && !PYTHON_INTENT.test(question);
   const wantsPatient = ctx.role === "doctor" && PATIENT_INTENT.test(question);
   const names = toolDefsFor(ctx.role).map((d) => d.name);
@@ -80,10 +83,10 @@ export function prepareStepFor(ctx: AgentContext, question: string, tctx: ToolCt
     if (wantsPatient && !called.includes("make_patient_widget")) {
       const found = (last?.toolResults ?? []).some((r) =>
         ["list_high_risk_patients", "get_patient", "get_patient_risk", "list_alerts"].includes(r.toolName) && (r.output as { ok?: boolean })?.ok !== false);
-      if (found) return { toolChoice: { type: "tool" as const, toolName: "make_patient_widget" }, ...(activeTools ? { activeTools } : {}) };
+      if (found) return { ...(activeTools ? { activeTools } : {}), ...want("make_patient_widget") };
     }
     if (wantsChart && lastData && !called.includes("make_chart") && !(wantsPatient && !called.includes("make_patient_widget"))) {
-      return { toolChoice: { type: "tool" as const, toolName: "make_chart" }, ...(activeTools ? { activeTools } : {}) };
+      return { ...(activeTools ? { activeTools } : {}), ...want("make_chart") };
     }
     return activeTools ? { activeTools } : {};
   };
@@ -157,7 +160,7 @@ export async function startTurn(o: TurnOptions): Promise<Turn> {
     maxRetries: 2,
     abortSignal: o.abortSignal,
     timeout: 180_000,
-    providerOptions: { openrouter: { usage: { include: true } } },
+    providerOptions: providerOptions(cfg),
   } as never) as ReturnType<typeof streamText>;
 
   let resolveDone!: (m: AgentUIMessage) => void;
@@ -191,7 +194,7 @@ export async function startTurn(o: TurnOptions): Promise<Turn> {
     onError: (e) => {
       console.error("[agent] stream error:", e);
       const msg = String((e as Error)?.message ?? e);
-      return /api key|401|unauthor/i.test(msg) ? "The language model rejected the request (check OPENROUTER_API_KEY / AGENT_MODEL)." : `Agent error: ${msg.slice(0, 300)}`;
+      return /api key|401|unauthor/i.test(msg) ? "The language model rejected the request (check the API key for AGENT_PROVIDER and AGENT_MODEL)." : `Agent error: ${msg.slice(0, 300)}`;
     },
     onEnd: async ({ responseMessage, messages: all }) => {
       try {
