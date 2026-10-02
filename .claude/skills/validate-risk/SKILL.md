@@ -2,7 +2,7 @@
 name: validate-risk
 description: Review the newest HIGH-risk gastric cancer flags against each patient's record, judge whether the flag is clinically justified, and append verdicts to reports/risk_validation.jsonl. Built to run under /loop (e.g. /loop 30m /validate-risk 5).
 argument-hint: "[N cases per run, default 5]"
-allowed-tools: Bash(uv run python scripts/risk_validation.py:*), Bash(PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/next uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/next PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(test -f:*), Bash(git status:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git pull --rebase:*), Bash(git branch --show-current), Read, Write
+allowed-tools: Bash(uv run python scripts/risk_validation.py:*), Bash(PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/v3 uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/v3 PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(test -f:*), Bash(git status:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git pull --rebase:*), Bash(git branch --show-current), Read, Write
 disable-model-invocation: true
 ---
 
@@ -17,12 +17,12 @@ N = `$ARGUMENTS` (use 5 if it is empty or not a number).
 ## 1. Preflight
 
 ```bash
-grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/next
-test -f data/next/analytics/current.json && echo next; test -f data/analytics/current.json && echo data
+grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/v3
+test -f data/v3/analytics/current.json && echo next; test -f data/analytics/current.json && echo data
 ```
 
-If `.env` sets `DATA_DIR=./data/next` and `data/next/analytics/current.json` exists, prefix every
-`scripts/risk_validation.py` command below with `DATA_DIR=data/next` (the scripts do not read `.env`). If neither file
+If `.env` sets `DATA_DIR=./data/v3` and `data/v3/analytics/current.json` exists, prefix every
+`scripts/risk_validation.py` command below with `DATA_DIR=data/v3` (the scripts do not read `.env`). If neither file
 exists, there is no published data in this session. Say so in one line (`make dev-data` builds a small
 dataset) and **stop**. Do not commit anything. Do not run generate/bootstrap/train from this skill: it runs in a loop.
 

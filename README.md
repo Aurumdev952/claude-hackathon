@@ -145,7 +145,7 @@ videos. Contracts: [`docs/contracts/v3-loop.md`](docs/contracts/v3-loop.md); dec
 | Patient app | `frontend/src/views/patient` | Phone-frame simulator at `/patient` (PWA screens) |
 | Videos | `video/` | Remotion case summary (doctor) and national reel (ministry), MP4 with poster |
 
-**Demo the full loop in 10 steps** (dataset in `data/next`; `make` exports `DATA_DIR` from `.env`):
+**Demo the full loop in 10 steps** (dataset in `data/v3`; `make` exports `DATA_DIR` from `.env`):
 
 1. **Data and servers.** `make dev-data-next` once (about 15 min), then `make care-seed` (8 demo plans at Musanze 1207 and
    Kayonza 1219) and `make serve` (API :8000, dashboard :5173, agent :8787, video :8790).

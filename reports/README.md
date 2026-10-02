@@ -56,7 +56,7 @@ sky blue for data.
 the daily Routine keeps working in a fresh session. Regenerate it only through the scripts, against the live dataset:
 
 ```bash
-DATA_DIR=data/next PYTHONPATH=. uv run python scripts/daily_report.py --snapshot-only
+DATA_DIR=data/v3 PYTHONPATH=. uv run python scripts/daily_report.py --snapshot-only
 ```
 
 ## Verified care outcomes in /validate-risk
@@ -68,7 +68,7 @@ endoscopy or H. pylori result as the strongest evidence about the flag.
 
 ```bash
 uv run python scripts/daily_report.py --check                  # live serve DB when present, else snapshot
-DATA_DIR=data/next uv run python scripts/daily_report.py --check   # v3 dataset (make report exports DATA_DIR from .env)
+DATA_DIR=data/v3 uv run python scripts/daily_report.py --check   # v3 dataset (make report exports DATA_DIR from .env)
 uv run python scripts/daily_report.py --from-snapshot --check  # committed snapshot only (fresh cloud session)
 uv run python scripts/daily_report.py --snapshot-only          # refresh snapshots/latest.json, no PDF
 uv run python scripts/daily_report.py --date 2026-10-01 --observations obs.md --check
