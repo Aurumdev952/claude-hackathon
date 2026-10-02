@@ -54,7 +54,7 @@ export function TumourCard({ data, className = "" }: { data: CaseData; className
   return (
     <Card title="Tumour" icon={<Microscope size={16} />} className={className}
           info={{ about: <>Site <b className="capitalize">{t.lesion_location ?? "not recorded"}</b>{t.lesion_size_mm ? `, ${t.lesion_size_mm} mm` : ""}. Histology {histology}. Intent {t.treatment_intent?.toLowerCase() ?? "not recorded"}.</>,
-                  notes: `Diagnosed ${date((t.endo_date as string) ?? (data.header.dx_date as string))}` }}
+                  notes: `Diagnosed ${date((t.dx_date as string) ?? (data.header.dx_date as string) ?? (t.endo_date as string))}` }}
           actions={t.stage_group
             ? <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-signal-strong text-signal-on text-micro font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-signal-on" aria-hidden />Stage {t.stage_group}</span>
             : <span className="inline-flex items-center h-7 px-3 rounded-full bg-tile text-micro text-muted">Not staged</span>}>

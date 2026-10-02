@@ -177,7 +177,7 @@ function SummaryCard({ data }: { data: CaseData }) {
   const open = data.alerts.filter((a) => a.status === "NEW").length;
   const notes = data.notes.length;
   const [label, value, line] = data.tumour
-    ? ["Diagnosed", date((data.tumour.endo_date as string) ?? (data.header.dx_date as string)), data.tumour.treatment_intent ? `${data.tumour.treatment_intent.charAt(0)}${data.tumour.treatment_intent.slice(1).toLowerCase()} intent` : "Intent not recorded"]
+    ? ["Diagnosed", date((data.tumour.dx_date as string) ?? (data.header.dx_date as string) ?? (data.tumour.endo_date as string)), data.tumour.treatment_intent ? `${data.tumour.treatment_intent.charAt(0)}${data.tumour.treatment_intent.slice(1).toLowerCase()} intent` : "Intent not recorded"]
     : data.suspected
       ? ["Search zone", data.suspected.region.charAt(0).toUpperCase() + data.suspected.region.slice(1), `Stomach involvement ${Math.round(100 * data.suspected.score)} of 100`]
       : ["Open alerts", String(open), open ? "Waiting for review" : "Nothing waiting"];
