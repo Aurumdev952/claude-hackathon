@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import type { EChartsOption, SeriesOption } from "echarts";
 import { Button } from "@heroui/react";
 import { LineChart, Plus, X } from "lucide-react";
@@ -7,6 +8,8 @@ import { Card, chartDetailTabs, DataTable, InfoHint, Loading, Seg } from "@/comp
 import { ErrorNote } from "@/components/ui/ErrorNote";
 import type { RateRow } from "@/api/types";
 import { fmt, int } from "@/lib/format";
+import { get, qs as toQs } from "@/api/client";
+import type { FcSeries } from "../outlook/api";
 import { useFilters } from "@/state/filters";
 import { bandSeries, Key, tipHead, tipNote, tipRow, usePalette, yearFrac, chartBase } from "./kit";
 import {
@@ -45,6 +48,22 @@ export function AsrPanel() {
   const loading = qs.some((q) => q.isLoading);
   const err = qs.find((q) => q.error)?.error;
 
+  // v3: optional forecast overlay (registry-based ASR projection, series ids end in |REGISTRY, contract §7.1)
+  const [showFc, setShowFc] = useState(false);
+  const fcOn = showFc && metric === "asr";
+  const fcQs = useQueries({
+    queries: series.map((s) => {
+      const params = fcParams(s);
+      return { queryKey: ["trends", "forecast", "series", { ...params, metric: "asr" }], enabled: fcOn && !!params, retry: false, staleTime: 5 * 60_000,
+               queryFn: () => get<FcSeries>(`/forecast/series${toQs({ ...params!, metric: "asr" })}`) };
+    }),
+  });
+  const fc = useMemo(() => (fcOn ? series.map((s, i) => ({ key: specKey(s), color: pal.series[s.slot], d: fcQs[i]?.data?.data ?? null })).filter((x) => x.d) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fcOn, series, fcQs.map((q) => q.dataUpdatedAt).join(), pal]);
+  const fcMissing = fcOn ? series.filter((s) => !fcParams(s)).length : 0;
+  const xMax = fc.length ? Math.max(y1, ...fc.map((x) => x.d!.forecast[x.d!.forecast.length - 1]?.year ?? y1)) : y1;
+
   const geoEvents = useMemo(() => {
     const evs = (ev.data?.data ?? []).filter((e) => e.event_type === "ENDOSCOPY_OPENED");
     return evs.filter((e) => series.some((s) => s.level !== "NATIONAL" && (s.geo === e.geo_code || s.geo === e.province_code || e.geo_code.startsWith(s.geo + "-"))));
@@ -54,7 +73,8 @@ export function AsrPanel() {
     const b = chartBase();
     const k = pal.ink;
     const log = logScale;
-    const vals = data.flatMap((d) => d.pts.flatMap((p) => [p.v, p.lo, p.hi])).filter((v): v is number => v !== null && v > 0);
+    const vals = [...data.flatMap((d) => d.pts.flatMap((p) => [p.v, p.lo, p.hi])), ...fc.flatMap((x) => x.d!.forecast.flatMap((p) => [p.lo95, p.hi95]))]
+      .filter((v): v is number => v !== null && v > 0);
     const minV = vals.length ? Math.min(...vals) : 1, maxV = vals.length ? Math.max(...vals) : 100;
     const logMin = Math.pow(10, Math.floor(Math.log10(minV)));
     const lowYears = (data.find((d) => d.spec.level === "NATIONAL") ?? data[0])?.pts.filter((p) => p.low).map((p) => p.year) ?? [];
@@ -83,6 +103,15 @@ export function AsrPanel() {
           labelLayout: { hideOverlap: false, moveOverlap: "shiftY" } } as any);
       }
     });
+    fc.forEach((x) => {
+      const f = x.d!.forecast;
+      const last = [...x.d!.history].reverse().find((p) => p.mean !== null);
+      const anchor = last ? [{ x: last.year, lo: last.mean, hi: last.mean }] : [];
+      out.push(bandSeries(`${x.key}::fc95`, [...anchor, ...f.map((p) => ({ x: p.year, lo: p.lo95, hi: p.hi95 }))], x.color, { floor: log ? logMin : 0, opacity: pal.mode === "dark" ? 0.12 : 0.1 }));
+      out.push(bandSeries(`${x.key}::fc80`, [...anchor, ...f.map((p) => ({ x: p.year, lo: p.lo80, hi: p.hi80 }))], x.color, { floor: log ? logMin : 0, opacity: pal.mode === "dark" ? 0.22 : 0.18 }));
+      out.push({ type: "line", name: `${x.key}::fc`, data: [...(last ? [[last.year, last.mean]] : []), ...f.map((p) => [p.year, p.mean])], showSymbol: false, z: 4,
+        lineStyle: { width: 2, color: x.color, type: [6, 4] }, itemStyle: { color: x.color }, emphasis: { disabled: true } } as any);
+    });
     if (lowYears.length && out[0]) {
       const first = out.find((s: any) => s.type === "line") as any;
       first.markArea = { silent: true, itemStyle: { color: pal.mode === "dark" ? "rgba(230,236,238,0.035)" : "rgba(27,36,48,0.04)" },
@@ -97,7 +126,7 @@ export function AsrPanel() {
     return {
       ...b,
       grid: GRID,
-      xAxis: { ...b.xAxis, type: "value", min: y0, max: y1, interval: 1, axisLabel: { ...b.xAxis.axisLabel, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } },
+      xAxis: { ...b.xAxis, type: "value", min: y0, max: xMax, interval: xMax - y0 > 14 ? 2 : 1, axisLabel: { ...b.xAxis.axisLabel, formatter: (v: number) => (Number.isInteger(v) ? String(v) : "") } },
       yAxis: log
         ? { ...b.yAxis, type: "log", logBase: 10, min: logMin, max: Math.pow(10, Math.ceil(Math.log10(maxV * 1.05))), name: `per 100,000, log scale`,
             minorTick: { show: false }, minorSplitLine: { show: true, lineStyle: { color: k.grid, opacity: 0.5 } },
@@ -115,15 +144,20 @@ export function AsrPanel() {
             const cases = p.cases !== null ? `${int(p.cases)} cases` : p.casesLabel ? `${p.casesLabel} cases` : "";
             return tipRow(d.color, seriesLabel(d.spec, names), val, [ci && `(${ci})`, cases].filter(Boolean).join(", "));
           }).join("");
+          const fcRows = fc.map((x) => {
+            const p = x.d!.forecast.find((q) => q.year === yr);
+            const sp = series.find((q) => specKey(q) === x.key);
+            return p && sp ? tipRow(x.color, `${seriesLabel(sp, names)}, forecast`, fmt(p.mean, 1), `(80% ${fmt(p.lo80, 1)}–${fmt(p.hi80, 1)})`) : "";
+          }).join("");
           const any = data.flatMap((d) => d.pts.filter((x) => x.year === yr));
           const notes = [any.some((p) => p.low) && "Dashed: under 50% of facilities on the EMR this year.", any.some((p) => p.partial) && "Year to date, annualised.", any.some((p) => p.suppressed) && "Cells under 5 cases are suppressed."].filter(Boolean).join(" ");
-          return tipHead(String(yr)) + rows + (notes ? tipNote(notes) : "");
+          return tipHead(String(yr)) + rows + fcRows + (notes ? tipNote(notes) : "") + (fcRows ? tipNote("Forecasts project the synthetic registry rate, not the EMR rate.") : "");
         },
       },
       series: out,
     } as EChartsOption;
     function first(o: SeriesOption[]) { return o.find((s: any) => s.type === "line") as any; }
-  }, [data, logScale, metric, focus, names, pal, y0, y1, geoEvents]);
+  }, [data, logScale, metric, focus, names, pal, y0, y1, geoEvents, fc, xMax, series]);
 
   const table = (
     <DataTable
@@ -141,25 +175,39 @@ export function AsrPanel() {
       title={metric === "asr" ? "Age-standardised incidence" : "Crude incidence"} icon={<LineChart size={16} />}
       detail={{ tabs: chartDetailTabs({ table, method: <><p>{subtitle}</p><p className="mt-2">{method}</p></>, notes: "Event rug: dots are EMR go-lives, diamonds are endoscopy units opening; hover or focus one to see it on the chart." }), defaultTab: "table" }}
       detailLabel="Incidence: view as table"
-      actions={<Seg label="Y scale" value={logScale ? "log" : "lin"} onChange={(v) => setLog(v === "log")} options={[{ value: "log", label: "Log" }, { value: "lin", label: "Linear" }]} />}
+      actions={<>
+        {metric === "asr" && (
+          <button type="button" aria-pressed={showFc} onClick={() => setShowFc((v) => !v)}
+                  className={`h-9 px-3.5 rounded-full text-[13px] font-medium inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${showFc ? "bg-ink text-ink-on" : "bg-tile text-muted hover:text-ink"}`}>
+            <span className={`w-3.5 h-3.5 rounded-full border-2 grid place-items-center ${showFc ? "border-ink-on" : "border-faint"}`} aria-hidden>{showFc && <span className="w-1.5 h-1.5 rounded-full bg-ink-on" />}</span>
+            Show forecast
+          </button>
+        )}
+        <Seg label="Y scale" value={logScale ? "log" : "lin"} onChange={(v) => setLog(v === "log")} options={[{ value: "log", label: "Log" }, { value: "lin", label: "Linear" }]} />
+      </>}
     >
       <SeriesChips focus={focus} setFocus={setFocus} />
       {err ? <ErrorNote error={err} /> : loading && !data.some((d) => d.pts.length) ? <Loading h={340} /> : (
         <div className="relative">
           <EChart option={option} height={340} ariaLabel="Multi-series age-standardised incidence with 95% confidence bands" />
-          {hoverEv && <EventGuide e={hoverEv} y0={y0} y1={y1} />}
+          {hoverEv && <EventGuide e={hoverEv} y0={y0} y1={xMax} />}
         </div>
       )}
       <div className="flex items-center gap-5 flex-wrap mt-2 mb-1">
         <Key color={pal.ink.secondary} label="Observed" />
         <Key color={pal.ink.secondary} dashed label="Low EMR coverage" />
         <span className="inline-flex items-center gap-1.5 text-micro text-muted"><span className="w-2 h-2 rounded-full border-2" style={{ borderColor: pal.ink.secondary }} />Year to date</span>
+        {fcOn && <span className="inline-flex items-center gap-1">
+          <Key color={pal.ink.secondary} dashed label={`Forecast to ${xMax}, 80% and 95% bands`} />
+          <InfoHint mode="tooltip" size={13} label="About the forecast overlay" className="!w-5 !h-5 !min-w-5"
+                    content={<>Projection of the synthetic national registry rate (series ending in REGISTRY), which counts every diagnosis, not only those in EMR facilities. It starts from the last registry year, so it may not join the EMR line exactly.{fcMissing ? ` ${fcMissing} selected series ha${fcMissing > 1 ? "ve" : "s"} no forecast (only national by sex or age band, provinces and districts are projected).` : ""}</>} />
+        </span>}
         <button type="button" onClick={() => setShowEvents((v) => !v)} aria-pressed={showEvents}
                 className="ml-auto text-micro text-muted hover:text-ink rounded-full px-2 py-1 -my-1 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
           {showEvents ? "Hide events" : "Show events"}
         </button>
       </div>
-      {showEvents && <EventRug events={ev.data?.data ?? []} y0={y0} y1={y1} names={names} onHover={setHoverEv} />}
+      {showEvents && <EventRug events={ev.data?.data ?? []} y0={y0} y1={xMax} names={names} onHover={setHoverEv} />}
     </Card>
   );
 }
@@ -296,4 +344,12 @@ function SeriesBuilder({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+/** Forecast API parameters for a series, or null when no forecast exists for it (national by sex or by age band,
+ * provinces and districts for both sexes and all ages). */
+function fcParams(s: SeriesSpec): { geo: string; code?: string; sex: string; age: string } | null {
+  if (s.level === "NATIONAL") return s.sex !== "ALL" && s.age !== "ALL" ? null : { geo: "NATIONAL", sex: s.sex, age: s.age };
+  if (s.sex !== "ALL" || s.age !== "ALL") return null;
+  return { geo: s.level, code: s.geo, sex: "ALL", age: "ALL" };
 }
