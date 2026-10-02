@@ -317,6 +317,13 @@ def main(log=print) -> dict:
     from pipeline.run import sim_time_of
     con = work_connection()
     try:
+        try:   # external synthetic sources (L1, data/external) are normally loaded by the pipeline refs step
+            from pipeline.refs import load_external
+            loaded = load_external(con)
+            if loaded:
+                log(f"  loaded {', '.join(loaded)}")
+        except Exception as e:  # noqa: BLE001
+            log(f"  external sources not loaded: {e.__class__.__name__}: {e}")
         st = sim_time_of(con)
         out = run(con, st, log)
         build_forecast(con, st, log)
