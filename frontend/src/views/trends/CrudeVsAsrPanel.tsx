@@ -113,7 +113,7 @@ export function CrudeVsAsrPanel() {
       actions={<>
         {view === "index" && years.length > 1 && (
           <label className="flex items-center gap-2 text-label text-muted">Base year
-            <select className="bg-tile rounded-full pl-3 pr-1.5 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal cursor-pointer" value={by} onChange={(e) => setBaseYear(+e.target.value)} aria-label="Base year">
+            <select className="bg-tile rounded-full pl-3 pr-1.5 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand cursor-pointer" value={by} onChange={(e) => setBaseYear(+e.target.value)} aria-label="Base year">
               {years.slice(0, -1).map((y) => <option key={y}>{y}</option>)}
             </select>
           </label>

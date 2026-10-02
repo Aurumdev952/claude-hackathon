@@ -4,6 +4,7 @@ import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, D
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Building2, Check, ChevronDown, Database, Landmark, Menu, Moon, Search, Smartphone, Stethoscope, Sun } from "lucide-react";
 import { useStatus } from "@/api/hooks";
+import { Logo } from "@/components/brand/BrandMark";
 import { InfoHint } from "@/components/ui/InfoHint";
 import { PillTabs } from "@/components/ui/PillTabs";
 import { ago, date } from "@/lib/format";
@@ -15,18 +16,7 @@ import { activeNav, navFor } from "./nav";
 import { SimControl } from "./SimControl";
 
 /** Round 40px icon button: white, hairline edge, ink icon (design v3 header). */
-const iconBtn = "min-w-10 w-10 h-10 bg-surface border border-hairline text-ink data-[hover=true]:bg-tile data-[focus-visible=true]:outline-signal";
-
-export function Logo() {
-  return (
-    <div className="flex items-center gap-2.5 shrink-0">
-      <span className="w-9 h-9 rounded-full bg-signal grid place-items-center" aria-hidden>
-        <svg viewBox="0 0 32 32" className="w-[22px] h-[22px]"><path d="M5 21 L11.5 12.5 L15.5 17.5 L20.5 9.5 L27 21" fill="none" stroke="white" strokeWidth="2.8" strokeLinejoin="round" strokeLinecap="round" /></svg>
-      </span>
-      <span className="hidden sm:block font-semibold tracking-[-0.01em] text-[18px] leading-6 text-ink whitespace-nowrap">Early Signals</span>
-    </div>
-  );
-}
+const iconBtn = "min-w-10 w-10 h-10 bg-surface border border-hairline text-ink data-[hover=true]:bg-tile data-[focus-visible=true]:outline-brand";
 
 function SyntheticNote() {
   return (
@@ -109,11 +99,11 @@ function RoleMenu() {
       }}>
         <DropdownSection title="View as" classNames={{ heading: "text-micro text-muted px-2" }}>
           <DropdownItem key="ministry" description="Aggregates only, small cells suppressed" startContent={<Landmark size={16} className="text-ink" aria-hidden />}
-                        endContent={role === "ministry" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Ministry</DropdownItem>
+                        endContent={role === "ministry" ? <Check size={15} className="text-brand" aria-hidden /> : null}>Ministry</DropdownItem>
           <DropdownItem key="doctor" description={fac ? `Patient-level data for ${fac}` : "Patient-level data for one facility"} startContent={<Building2 size={16} className="text-ink" aria-hidden />}
-                        endContent={role === "doctor" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Doctor</DropdownItem>
+                        endContent={role === "doctor" ? <Check size={15} className="text-brand" aria-hidden /> : null}>Doctor</DropdownItem>
           <DropdownItem key="patient" description={patientDisplayId ? `Simulated phone of ${patientDisplayId}` : "Simulated phone: notifications, care plan, journey"} startContent={<Smartphone size={16} className="text-ink" aria-hidden />}
-                        endContent={role === "patient" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Patient app</DropdownItem>
+                        endContent={role === "patient" ? <Check size={15} className="text-brand" aria-hidden /> : null}>Patient app</DropdownItem>
         </DropdownSection>
       </DropdownMenu>
     </Dropdown>

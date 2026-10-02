@@ -33,7 +33,7 @@ export function PatientWidget({ widget: p }: { widget: PatientWidgetT }) {
           <h3 className="text-h1 text-ink truncate mt-0.5">{name}</h3>
         </div>
         <Link to={p.links.case}
-              className="max-sm:order-last shrink-0 inline-flex items-center gap-1.5 h-10 rounded-full bg-ink text-ink-on text-[14px] font-semibold pl-4 pr-3.5 hover:bg-ink/85 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+              className="max-sm:order-last shrink-0 inline-flex items-center gap-1.5 h-10 rounded-full bg-ink text-ink-on text-[14px] font-semibold pl-4 pr-3.5 hover:bg-ink/85 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
           Open case <ArrowUpRight size={16} aria-hidden />
         </Link>
         <ul className="basis-full flex flex-wrap gap-2 sm:pl-[72px]" aria-label="Demographics">

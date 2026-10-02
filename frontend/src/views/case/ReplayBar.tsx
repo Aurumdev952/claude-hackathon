@@ -61,13 +61,13 @@ export function ReplayBar({ data }: { data: CaseData }) {
     <div className="overlay-surface rounded-[20px] px-4 pt-3 pb-2.5 flex flex-col gap-2 pointer-events-auto" aria-label="Timeline replay">
       <div className="flex items-center gap-2 flex-wrap">
         <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={play} aria-label={playing ? "Pause replay" : "Play replay"}
-                       className="h-8 pl-3 pr-3.5 rounded-full bg-ink text-ink-on text-[13px] font-semibold inline-flex items-center gap-1.5 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                       className="h-8 pl-3 pr-3.5 rounded-full bg-ink text-ink-on text-[13px] font-semibold inline-flex items-center gap-1.5 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
           {playing ? <Pause size={13} aria-hidden /> : <Play size={13} aria-hidden />}
           {playing ? "Pause" : replayT === null ? `Replay ${data.window.months} months` : "Play"}
         </motion.button>
         <Seg label="Replay speed" value={String(speed)} onChange={(v) => set({ speed: Number(v) })} variant="glass"
              options={[0.75, 1.5, 4].map((s) => ({ value: String(s), label: `${s}×`, title: `${s} months per second` }))} />
-        <button type="button" className="h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-ink hover:bg-tile disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
+        <button type="button" className="h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-ink hover:bg-tile disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                 onClick={() => set({ replayT: null, playing: false })} disabled={replayT === null} aria-label="Back to current state">
           <RotateCcw size={13} aria-hidden /> Now
         </button>

@@ -99,7 +99,7 @@ export function HelixPanel() {
                 const off = hidden.has(k.id);
                 return (
                   <button key={k.id} onClick={() => toggle(k.id)} aria-pressed={!off}
-                          className="flex items-center gap-3 rounded-tile h-11 px-3 text-left text-[14px] hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                          className="flex items-center gap-3 rounded-tile h-11 px-3 text-left text-[14px] hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: off ? "transparent" : themeColor[k.id], boxShadow: `inset 0 0 0 1.5px ${themeColor[k.id]}` }} aria-hidden />
                     <span className={`flex-1 ${off ? "text-faint line-through" : "text-ink"}`}>{k.label}</span>
                     <span className="tabular text-micro text-muted">{int(counts[k.id] ?? 0)}</span>

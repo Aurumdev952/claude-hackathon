@@ -45,7 +45,7 @@ export function FloatingGlassCard({ open = true, count, title, body, icon, cta, 
             </div>
             {onDismiss && (
               <button type="button" onClick={onDismiss} aria-label={ariaLabel ? `Close ${ariaLabel}` : "Close"}
-                      className="w-8 h-8 -mt-1 -mr-1 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                      className="w-8 h-8 -mt-1 -mr-1 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                 <X size={15} aria-hidden />
               </button>
             )}
@@ -55,13 +55,13 @@ export function FloatingGlassCard({ open = true, count, title, body, icon, cta, 
             <div className="flex items-center gap-2 mt-4">
               {cta && (
                 <motion.button type="button" onClick={cta.onPress} {...gesture}
-                               className="flex-1 h-10 rounded-full bg-signal-strong text-signal-on text-[14px] font-semibold inline-flex items-center justify-center gap-2 px-4 hover:bg-signal-text dark:hover:bg-signal-text focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                               className="flex-1 h-10 rounded-full bg-signal-strong text-signal-on text-[14px] font-semibold inline-flex items-center justify-center gap-2 px-4 hover:bg-signal-text dark:hover:bg-signal-text focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
                   <span>{cta.label}</span>{cta.icon}
                 </motion.button>
               )}
               {onDismiss && (
                 <button type="button" onClick={onDismiss}
-                        className="h-10 rounded-full bg-tile hover:bg-tile-hover text-ink text-[14px] font-medium inline-flex items-center justify-center px-4 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                        className="h-10 rounded-full bg-tile hover:bg-tile-hover text-ink text-[14px] font-medium inline-flex items-center justify-center px-4 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
                   {dismissLabel}
                 </button>
               )}

@@ -97,7 +97,7 @@ export function SimControl() {
              classNames={{ content: "p-0 bg-surface shadow-float rounded-card dark:border dark:border-hairline" }}>
       <PopoverTrigger>
         <button type="button" aria-label={`Simulation, ${simTime ? day(simTime) : "date unknown"}${running ? ", advancing" : auto ? ", auto clock on" : ""}`}
-                className="h-10 shrink-0 inline-flex items-center gap-2 rounded-full bg-surface border border-hairline text-ink pl-1 pr-1 min-[2000px]:pr-3.5 hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                className="h-10 shrink-0 inline-flex items-center gap-2 rounded-full bg-surface border border-hairline text-ink pl-1 pr-1 min-[2000px]:pr-3.5 hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
           <span className="relative w-8 h-8 rounded-full bg-tile grid place-items-center" aria-hidden>
             <CalendarClock size={15} />
             {(running || auto) && <span className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full border-2 border-surface ${running ? "bg-sky animate-pulseDot" : "bg-success"}`} />}

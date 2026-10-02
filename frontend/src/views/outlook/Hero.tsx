@@ -109,7 +109,7 @@ function Stat({ icon, value, unit, label, info, onPress, pressLabel }: { icon: R
     <div role="listitem" aria-label={`${label}: ${value}${unit ? ` ${unit}` : ""}`} className="min-w-0 relative flex items-center">
       {onPress ? (
         <button type="button" onClick={onPress} aria-label={pressLabel}
-                className="w-full flex items-center gap-3 rounded-tile px-2.5 py-2 text-left hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="w-full flex items-center gap-3 rounded-tile px-2.5 py-2 text-left hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           {body}
         </button>
       ) : <div className="w-full flex items-center gap-3 px-2.5 py-2">{body}</div>}

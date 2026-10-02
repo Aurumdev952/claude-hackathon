@@ -152,7 +152,7 @@ function SurvivalPanel({ summary }: { summary: SurvSummary[] }) {
   return (
     <Card title="Survival after diagnosis" icon={<HeartPulse size={16} />}
       actions={<label className="flex items-center gap-2 text-label text-muted">Group by
-        <select className="bg-tile rounded-full pl-4 pr-2 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal cursor-pointer" value={gv} onChange={(e) => setGv(e.target.value as GroupVar)} aria-label="Group by">
+        <select className="bg-tile rounded-full pl-4 pr-2 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand cursor-pointer" value={gv} onChange={(e) => setGv(e.target.value as GroupVar)} aria-label="Group by">
           {(Object.keys(GROUPS) as GroupVar[]).map((g) => <option key={g} value={g}>{GROUPS[g].label}</option>)}
         </select></label>}
       detail={rows.length ? { tabs: chartDetailTabs({ table: <KmTable rows={rows} gv={gv} summary={sum} />, method: <><p>Kaplan-Meier curves; shaded bands are 95% CIs.</p><p className="mt-2">{method}</p></> }), defaultTab: "table" } : undefined} detailLabel="Survival: view as table">

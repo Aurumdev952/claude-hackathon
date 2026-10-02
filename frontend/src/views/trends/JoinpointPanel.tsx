@@ -67,7 +67,7 @@ export function JoinpointPanel() {
       detail={jp ? { tabs: chartDetailTabs({ table: <SegTable jp={jp} />, method: <><p>Log-linear segments fitted to the annual ASR; the current partial year is excluded. Pick any fitted national, province or district series.</p><p className="mt-2">{method}</p></>,
         notes: `${jp.n_joinpoints ?? 0} joinpoint${jp.n_joinpoints === 1 ? "" : "s"} selected by weighted BIC. * means the 95% CI excludes 0.` }), defaultTab: "table" } : undefined} detailLabel="Joinpoint: view as table"
       actions={
-        <select className="bg-tile rounded-full pl-4 pr-2 h-9 text-ink text-[13px] max-w-[220px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal cursor-pointer" value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Joinpoint series">
+        <select className="bg-tile rounded-full pl-4 pr-2 h-9 text-ink text-[13px] max-w-[220px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand cursor-pointer" value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Joinpoint series">
           {!fitted && <option value={sel}>{jpLabel(sel, names)} (not fitted)</option>}
           {groups.map((g) => <optgroup key={g.label} label={g.label}>{g.ids.map((id) => <option key={id} value={id}>{jpLabel(id, names)}</option>)}</optgroup>)}
         </select>

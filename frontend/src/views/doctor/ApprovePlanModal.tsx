@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { Button, Input, Select, SelectItem } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ClipboardCheck, MessageSquare, Smartphone, UsersRound } from "lucide-react";
+import { AppIcon } from "@/components/brand/BrandMark";
 import { type ApiError, post } from "@/api/client";
 import { useFiltersMeta } from "@/api/hooks";
 import { DetailModal, ErrorNote, InfoHint, Skeleton } from "@/components/ui";
@@ -118,7 +119,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
               const on = p.id === sel;
               return (
                 <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => setPathway(p.id)}
-                        className={`text-left rounded-tile px-4 py-3 flex items-start gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal
+                        className={`text-left rounded-tile px-4 py-3 flex items-start gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand
                                     ${on ? "bg-tile ring-1 ring-ink" : "bg-tile/60 hover:bg-tile"}`}>
                   <span className={`mt-0.5 w-[18px] h-[18px] rounded-full shrink-0 grid place-items-center border ${on ? "bg-ink border-ink" : "border-faint"}`} aria-hidden>
                     {on && <span className="w-1.5 h-1.5 rounded-full bg-ink-on" />}
@@ -142,7 +143,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
             <span className="text-label text-muted">First step due</span>
             <input type="date" aria-label="Due date" value={due || ymd(firstDue)} min={simNow ? ymd(new Date(Date.parse(simNow) + 86400_000).toISOString()) : undefined}
                    onChange={(e) => setDue(e.target.value)}
-                   className="h-10 rounded-full bg-tile px-4 text-[14px] text-ink tabular outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal [color-scheme:inherit]" />
+                   className="h-10 rounded-full bg-tile px-4 text-[14px] text-ink tabular outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand [color-scheme:inherit]" />
           </label>
           <div className="flex flex-col gap-1.5 min-w-0">
             <span className="text-label text-muted" id="fac-label">Facility</span>
@@ -166,7 +167,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
               const Icon = c.key === "APP" ? Smartphone : c.key === "SMS" ? MessageSquare : UsersRound;
               return (
                 <button key={c.key} type="button" aria-pressed={on} onClick={() => toggle(c.key)}
-                        className={`h-10 pl-3 pr-4 rounded-full inline-flex items-center gap-2 text-[14px] font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal
+                        className={`h-10 pl-3 pr-4 rounded-full inline-flex items-center gap-2 text-[14px] font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand
                                     ${on ? "bg-ink text-ink-on" : "bg-tile text-muted hover:text-ink"}`}>
                   <span className={`w-5 h-5 rounded-full grid place-items-center ${on ? "bg-ink-on/15" : ""}`} aria-hidden>{on ? <Check size={13} /> : <Icon size={14} />}</span>
                   {c.long}
@@ -225,7 +226,7 @@ function ApproveBody({ target, onDone }: { target: ApproveTarget; onDone: () => 
         {err && <ErrorNote error={err} />}
         <div className="flex gap-2">
           <Button radius="full" variant="flat" className="h-11 px-5 bg-tile text-ink text-[14px] font-medium" onPress={onDone}>Cancel</Button>
-          <Button radius="full" className="flex-1 h-11 px-5 bg-signal-strong text-signal-on font-semibold text-[14px] data-[hover=true]:bg-signal-text"
+          <Button radius="full" className="flex-1 h-11 px-5 bg-brand-strong text-brand-on font-semibold text-[14px] data-[hover=true]:bg-brand-text"
                   isLoading={m.isPending} isDisabled={!pdef || !!existing} onPress={() => m.mutate()}>Approve and notify</Button>
         </div>
       </aside>
@@ -246,13 +247,6 @@ function LockScreen({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppIcon({ size = 20 }: { size?: number }) {
-  return (
-    <span className="rounded-[6px] bg-signal grid place-items-center shrink-0" style={{ width: size, height: size }} aria-hidden>
-      <svg viewBox="0 0 32 32" style={{ width: size * 0.72, height: size * 0.72 }}><path d="M5 21 L11.5 12.5 L15.5 17.5 L20.5 9.5 L27 21" fill="none" stroke="white" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" /></svg>
-    </span>
-  );
-}
 
 export function NotificationMock({ title, body, when = "now" }: { title: string; body: string; when?: string }) {
   return (
@@ -278,3 +272,5 @@ function SmsMock({ body }: { body: string }) {
     </div>
   );
 }
+
+export { AppIcon };

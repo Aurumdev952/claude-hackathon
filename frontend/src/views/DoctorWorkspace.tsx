@@ -114,7 +114,7 @@ function Row({ on, onPress, title, avatar, name, sub, right }: {
 }) {
   return (
     <button onClick={onPress} aria-current={on ? "true" : undefined} title={title}
-            className={`w-full min-h-[60px] text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-signal
+            className={`w-full min-h-[60px] text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand
                         ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
       {avatar}
       <span className="flex-1 min-w-0">
@@ -216,7 +216,7 @@ function MeasureTile({ label, value, unit, decimals = 1, note, alert, spark, onP
   if (!onPress) return <motion.div variants={itemEnter} className={cls}>{body}</motion.div>;
   return (
     <motion.button type="button" onClick={onPress} variants={itemEnter} aria-label={`${label}: open chart`}
-                   className={`${cls} cursor-pointer transition-colors hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal`}>{body}</motion.button>
+                   className={`${cls} cursor-pointer transition-colors hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}>{body}</motion.button>
   );
 }
 
@@ -284,7 +284,7 @@ function PatientPanel({ patientId }: { patientId: number }) {
                         startContent={<ClipboardCheck size={16} aria-hidden />}
                         onPress={() => setPlanFor({ patientId, isCase: !!h.is_case, label: <>{h.name} <span className="tabular">{h.display_id}</span></> })}>Start care plan</Button>
               )}
-              <Button radius="full" className="bg-signal-strong text-signal-on font-semibold h-11 px-5 text-[14px] data-[hover=true]:bg-signal-text max-sm:flex-[2]"
+              <Button radius="full" className="bg-brand-strong text-brand-on font-semibold h-11 px-5 text-[14px] data-[hover=true]:bg-brand-text max-sm:flex-[2]"
                       startContent={<Box size={16} aria-hidden />} onPress={() => nav(`/doctor/case/${patientId}`)}>Analyse case in 3D</Button>
             </div>
           </div>

@@ -85,7 +85,7 @@ function WorkRow({ w, on, onSelect, simNow }: { w: WorkItem; on: boolean; onSele
     <motion.li variants={itemEnter} className={`rounded-tile px-4 py-2.5 transition-colors ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_128px_112px_32px] gap-x-3 gap-y-1 items-center">
         <button type="button" onClick={onSelect} aria-current={on ? "true" : undefined}
-                className="min-w-0 flex items-center gap-3 text-left focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal rounded-tile">
+                className="min-w-0 flex items-center gap-3 text-left focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded-tile">
           <PatientAvatar name={fullName(w.patient)} size="sm" className={on ? "!bg-surface" : ""} />
           <span className="min-w-0">
             <span className="block text-[14px] leading-5 font-semibold text-ink truncate">{fullName(w.patient)}</span>

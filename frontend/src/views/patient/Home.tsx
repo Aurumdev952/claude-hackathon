@@ -29,7 +29,7 @@ export function Home({ me, plans, notes, simNow, onInbox, onTab }: {
     <Screen label="Home" sub={weekday(simNow)} title={first ? `Hi ${first}` : "Hello"}
             trailing={
               <button type="button" onClick={onInbox} aria-label={unread ? `Messages, ${unread} unread` : "Messages"}
-                      className="relative w-12 h-12 rounded-full bg-surface grid place-items-center text-ink dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                      className="relative w-12 h-12 rounded-full bg-surface grid place-items-center text-ink dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                 <Bell size={20} aria-hidden />
                 {unread > 0 && <span className="absolute top-2.5 right-3 w-2.5 h-2.5 rounded-full bg-signal ring-2 ring-surface" aria-hidden />}
               </button>
@@ -57,7 +57,7 @@ export function Home({ me, plans, notes, simNow, onInbox, onTab }: {
       {course && <Medicines course={course} simNow={simNow} />}
 
       <button type="button" onClick={() => onTab("checkin")}
-              className="text-left rounded-[24px] bg-surface p-5 flex items-center gap-4 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+              className="text-left rounded-[24px] bg-surface p-5 flex items-center gap-4 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
         <span className="w-11 h-11 rounded-full bg-tile grid place-items-center text-ink shrink-0" aria-hidden><Check size={20} /></span>
         <span className="flex-1 min-w-0">
           <span className="block text-[16px] font-semibold text-ink">Weekly check-in</span>
@@ -68,7 +68,7 @@ export function Home({ me, plans, notes, simNow, onInbox, onTab }: {
 
       {latest && (
         <button type="button" onClick={onInbox}
-                className="text-left rounded-[24px] bg-surface p-5 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="text-left rounded-[24px] bg-surface p-5 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           <span className="flex items-center gap-2 text-[13px] text-muted">
             {!latest.read_sim && <span className="w-2 h-2 rounded-full bg-signal" aria-hidden />}
             <span className="flex-1">Latest from your care team</span><span className="tabular">{day(latest.created_sim)}</span>
@@ -190,7 +190,7 @@ function StaticMap({ name }: { name: string }) {
       </svg>
       <div className="absolute left-1/2 top-[44%] -translate-x-1/2 -translate-y-full flex flex-col items-center">
         <span className="rounded-full bg-surface px-3 py-1 text-[12.5px] font-semibold text-ink mb-1 whitespace-nowrap shadow-float">{name}</span>
-        <MapPin size={34} className="text-signal fill-signal/20" aria-hidden />
+        <MapPin size={34} className="text-brand fill-brand/20" aria-hidden />
       </div>
     </div>
   );

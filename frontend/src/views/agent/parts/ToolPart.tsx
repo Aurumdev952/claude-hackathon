@@ -46,7 +46,7 @@ export function Steps({ items, live }: { items: StepItem[]; live: boolean }) {
     <div>
       {!live && (
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-                className="group inline-flex items-center gap-2.5 max-w-full h-7 -ml-2 pl-2 pr-2.5 rounded-full text-[14px] text-muted hover:text-ink hover:bg-ink/[0.04] dark:hover:bg-surface transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="group inline-flex items-center gap-2.5 max-w-full h-7 -ml-2 pl-2 pr-2.5 rounded-full text-[14px] text-muted hover:text-ink hover:bg-ink/[0.04] dark:hover:bg-surface transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           <StateDot state={errors ? "err" : tools.length ? "ok" : "think"} />
           <span className="truncate">{labels.length ? labels.join(", ") : "Thought"}</span>
           {count && <span className="shrink-0 text-faint group-hover:text-muted">{count}</span>}
@@ -97,7 +97,7 @@ export function ToolRow({ part }: { part: ToolPartLike }) {
       <span className="flex-1" />
       {part.state !== "input-streaming" && (
         <button type="button" onClick={d.open} aria-label={`Inspect ${toolLabel(name)}`}
-                className="shrink-0 h-7 rounded-full px-3 text-[13px] font-medium text-muted hover:text-ink hover:bg-ink/[0.05] dark:hover:bg-surface transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="shrink-0 h-7 rounded-full px-3 text-[13px] font-medium text-muted hover:text-ink hover:bg-ink/[0.05] dark:hover:bg-surface transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           Inspect
         </button>
       )}
@@ -112,7 +112,7 @@ function ReasoningRow({ text, streaming }: { text: string; streaming: boolean })
   return (
     <div>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} disabled={!clean}
-              className="flex items-center gap-2.5 h-8 text-left rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+              className="flex items-center gap-2.5 h-8 text-left rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
         <StateDot state={streaming ? "run" : "think"} />
         <span className={`text-[14px] ${streaming ? "text-ink" : "text-muted"}`}>{streaming ? "Thinking…" : "Thought"}</span>
         {clean && <ChevronDown size={14} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />}

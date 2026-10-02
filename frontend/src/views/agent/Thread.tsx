@@ -239,7 +239,7 @@ function Welcome({ onPick }: { onPick: (q: string) => void }) {
         {qs.slice(0, 4).map((q) => (
           <li key={q} className="max-w-full">
             <button type="button" onClick={() => onPick(q)} data-testid="suggestion"
-                    className="max-w-full min-h-10 rounded-[20px] bg-ink/[0.05] dark:bg-tile px-4 py-2 text-[14px] leading-5 text-ink text-left transition-colors hover:bg-ink/[0.09] dark:hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+                    className="max-w-full min-h-10 rounded-[20px] bg-ink/[0.05] dark:bg-tile px-4 py-2 text-[14px] leading-5 text-ink text-left transition-colors hover:bg-ink/[0.09] dark:hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
               {q}
             </button>
           </li>

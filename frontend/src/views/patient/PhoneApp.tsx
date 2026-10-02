@@ -55,7 +55,7 @@ export function PhoneApp({ framed, onSwitch, onPushed }: { framed: boolean; onSw
               return (
                 <li key={t.key} className="contents">
                   <button type="button" onClick={() => go(t.key)} aria-current={on ? "page" : undefined}
-                          className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-signal ${on ? "text-ink" : "text-muted"}`}>
+                          className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-brand ${on ? "text-ink" : "text-muted"}`}>
                     <t.icon size={22} strokeWidth={on ? 2.3 : 1.8} aria-hidden />
                     {t.label}
                   </button>
@@ -83,7 +83,7 @@ function Banner({ framed, onOpen, onPushed }: { framed: boolean; onOpen: (channe
           <motion.button key={cur.id} type="button" onClick={() => { onOpen(cur.channel); shift(); }}
                          initial={reduce ? { opacity: 0 } : { y: -130, opacity: 0.6 }} animate={{ y: 0, opacity: 1 }} exit={reduce ? { opacity: 0 } : { y: -130, opacity: 0 }}
                          transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.9 }}
-                         className="pointer-events-auto w-full text-left rounded-[24px] bg-surface/95 shadow-float px-4 py-3 border border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
+                         className="pointer-events-auto w-full text-left rounded-[24px] bg-surface/95 shadow-float px-4 py-3 border border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                          aria-label={`New message: ${cur.title}`} data-testid="push-banner">
             <span className="flex items-center gap-2 text-[12px] text-muted">
               <AppIcon size={20} /><span className="font-semibold text-ink/80">My care</span>{cur.channel === "SMS" && <span>SMS</span>}<span className="flex-1" /><span>now</span>

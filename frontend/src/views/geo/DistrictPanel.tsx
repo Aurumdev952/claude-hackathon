@@ -117,7 +117,7 @@ function InsightCard({ source, title, body }: { source: string; title: string; b
   const d = useDetailModal();
   return (
     <>
-      <button onClick={d.open} className="text-left rounded-tile bg-tile px-4 py-3.5 hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal group">
+      <button onClick={d.open} className="text-left rounded-tile bg-tile px-4 py-3.5 hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group">
         <div className="flex items-center gap-1.5 text-micro text-muted"><Sparkles size={12} aria-hidden />{source}<ChevronRight size={14} className="ml-auto opacity-60 group-hover:opacity-100" aria-hidden /></div>
         <div className="text-[14px] font-medium leading-snug mt-1 text-ink">{title}</div>
       </button>

@@ -1,20 +1,25 @@
-/* Patient-app PWA icons (v3 §6): renders the Early Signals mark (white signal line on the signal orange) to PNG with
- * Playwright's Chromium, so no image tooling is needed. Run from frontend/: node scripts/pwa-icons.cjs */
+/* Patient-app PWA icons (v3 §6) and the favicon: renders the Early Signals mark (two rising signal lines, #98D59B ->
+ * #4F6F51 gradient, src/components/brand/BrandMark.tsx) to PNG with Playwright's Chromium, so no image tooling is needed.
+ * Run from frontend/: node scripts/pwa-icons.cjs (also rewrites public/pwa/icon.svg and public/favicon.svg) */
 const { chromium } = require("@playwright/test");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const OUT = path.join(__dirname, "..", "public", "pwa");
-const ORANGE = "#F05A28";
-// the logo stroke from TopNav's <Logo/> (32x32 view box)
-const MARK = '<path d="M5 21 L11.5 12.5 L15.5 17.5 L20.5 9.5 L27 21" fill="none" stroke="white" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>';
+// BrandMark geometry (100 x 82 view box)
+const GRAD = '<linearGradient id="g" gradientUnits="userSpaceOnUse" x1="4" y1="78" x2="96" y2="4"><stop offset="0" stop-color="#98D59B"/><stop offset="1" stop-color="#4F6F51"/></linearGradient>';
+const MARK = (w) => `<g fill="none" stroke="url(#g)" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"><path d="M6 45 L37 15 L50 28 L71 6 L94 29"/><path d="M6 76 L37 46 L50 58 L71 37 L94 60"/></g>`;
 
-/** any: rounded square with the mark at 62%; maskable: full bleed with the mark inside the 80% safe zone. */
-const svg = (kind) => kind === "maskable"
-  ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="${ORANGE}"/><g transform="translate(16 16) scale(.58) translate(-16 -15)">${MARK}</g></svg>`
-  : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7.2" fill="${ORANGE}"/><g transform="translate(16 16) scale(.8) translate(-16 -15)">${MARK}</g></svg>`;
+/** any: white rounded square with the mark at 64%; maskable: full bleed with the mark inside the 80% safe zone;
+ *  favicon: the bare mark with heavier strokes so it still reads at 16px. */
+const svg = (kind) => kind === "favicon"
+  ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -13 108 108"><defs>${GRAD}</defs>${MARK(12)}</svg>`
+  : kind === "maskable"
+    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>${GRAD}</defs><rect width="100" height="100" fill="#FFFFFF"/><g transform="translate(50 50) scale(.52) translate(-50 -41)">${MARK(9.5)}</g></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>${GRAD}</defs><rect width="100" height="100" rx="22.5" fill="#FFFFFF"/><g transform="translate(50 50) scale(.64) translate(-50 -41)">${MARK(9.5)}</g></svg>`;
 
 (async () => {
-  require("node:fs").mkdirSync(OUT, { recursive: true });
+  fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch();
   const jobs = [["icon-192.png", 192, "any"], ["icon-512.png", 512, "any"], ["maskable-512.png", 512, "maskable"], ["maskable-192.png", 192, "maskable"], ["apple-touch-icon.png", 180, "maskable"]];
   for (const [name, size, kind] of jobs) {
@@ -23,7 +28,8 @@ const svg = (kind) => kind === "maskable"
     await page.screenshot({ path: path.join(OUT, name), omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } });
     await page.close();
   }
-  require("node:fs").writeFileSync(path.join(OUT, "icon.svg"), svg("any"));
+  fs.writeFileSync(path.join(OUT, "icon.svg"), svg("any"));
+  fs.writeFileSync(path.join(OUT, "..", "favicon.svg"), svg("favicon"));
   await browser.close();
-  console.log("wrote", jobs.map((j) => j[0]).join(", "), "to", OUT);
+  console.log("wrote", jobs.map((j) => j[0]).join(", "), "+ icon.svg, favicon.svg");
 })();

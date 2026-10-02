@@ -28,7 +28,7 @@ function RoundBtn({ label, onPress, children, active }: { label: string; onPress
   return (
     <Tooltip content={label} placement="left" portalContainer={portal} delay={250} closeDelay={0} classNames={{ content: "bg-ink text-ink-on text-[12px] font-medium px-2.5 py-1 rounded-full" }}>
       <motion.button type="button" onClick={onPress} aria-label={label} {...gesture}
-                     className={`w-10 h-10 rounded-full grid place-items-center border transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
+                     className={`w-10 h-10 rounded-full grid place-items-center border transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand
                                  ${active ? "bg-ink border-ink text-ink-on" : "bg-surface border-hairline text-ink hover:bg-tile"}`}>
         {children}
       </motion.button>

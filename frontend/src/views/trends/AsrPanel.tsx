@@ -178,7 +178,7 @@ export function AsrPanel() {
       actions={<>
         {metric === "asr" && (
           <button type="button" aria-pressed={showFc} onClick={() => setShowFc((v) => !v)}
-                  className={`h-9 px-3.5 rounded-full text-[13px] font-medium inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${showFc ? "bg-ink text-ink-on" : "bg-tile text-muted hover:text-ink"}`}>
+                  className={`h-9 px-3.5 rounded-full text-[13px] font-medium inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${showFc ? "bg-ink text-ink-on" : "bg-tile text-muted hover:text-ink"}`}>
             <span className={`w-3.5 h-3.5 rounded-full border-2 grid place-items-center ${showFc ? "border-ink-on" : "border-faint"}`} aria-hidden>{showFc && <span className="w-1.5 h-1.5 rounded-full bg-ink-on" />}</span>
             Show forecast
           </button>
@@ -203,7 +203,7 @@ export function AsrPanel() {
                     content={<>Projection of the synthetic national registry rate (series ending in REGISTRY), which counts every diagnosis, not only those in EMR facilities. It starts from the last registry year, so it may not join the EMR line exactly.{fcMissing ? ` ${fcMissing} selected series ha${fcMissing > 1 ? "ve" : "s"} no forecast (only national by sex or age band, provinces and districts are projected).` : ""}</>} />
         </span>}
         <button type="button" onClick={() => setShowEvents((v) => !v)} aria-pressed={showEvents}
-                className="ml-auto text-micro text-muted hover:text-ink rounded-full px-2 py-1 -my-1 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="ml-auto text-micro text-muted hover:text-ink rounded-full px-2 py-1 -my-1 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           {showEvents ? "Hide events" : "Show events"}
         </button>
       </div>
@@ -284,18 +284,18 @@ function SeriesChips({ focus, setFocus }: { focus: string; setFocus: (k: string)
         const on = k === focus;
         return (
           <div key={k} role="listitem" className={`group inline-flex items-center rounded-full text-[13px] transition-colors ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
-            <button className="inline-flex items-center gap-2 pl-3 pr-1.5 h-8 rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" onClick={() => setFocus(k)} aria-pressed={on}
+            <button className="inline-flex items-center gap-2 pl-3 pr-1.5 h-8 rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand" onClick={() => setFocus(k)} aria-pressed={on}
                     title={on ? "Joinpoint below follows this series" : "Fit the joinpoint below for this series"}>
               <span className="inline-block w-2 h-2 rounded-full" style={{ background: pal.series[s.slot] }} aria-hidden />
               <span className={on ? "text-ink font-medium" : "text-muted"}>{seriesLabel(s, names)}</span>
             </button>
-            <button className="w-7 h-8 grid place-items-center text-faint hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal rounded-full disabled:opacity-0" onClick={() => remove(k)} aria-label={`Remove ${seriesLabel(s, names)}`} disabled={series.length <= 1}>
+            <button className="w-7 h-8 grid place-items-center text-faint hover:text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded-full disabled:opacity-0" onClick={() => remove(k)} aria-label={`Remove ${seriesLabel(s, names)}`} disabled={series.length <= 1}>
               <X size={12} />
             </button>
           </div>
         );
       })}
-      <button className="inline-flex items-center gap-1.5 rounded-full h-8 px-3 text-[13px] text-muted hover:text-ink hover:bg-tile/70 disabled:opacity-40 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
+      <button className="inline-flex items-center gap-1.5 rounded-full h-8 px-3 text-[13px] text-muted hover:text-ink hover:bg-tile/70 disabled:opacity-40 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
               onClick={() => setOpen((v) => !v)} disabled={series.length >= MAX_SERIES} aria-expanded={open}>
         <Plus size={13} /> Add series
       </button>
@@ -319,7 +319,7 @@ function SeriesBuilder({ onClose }: { onClose: () => void }) {
       <div className="flex items-center gap-2 flex-wrap">
         <Seg label="Level" value={level} onChange={(v) => { setLevel(v); setGeo(""); }} options={[{ value: "NATIONAL", label: "National" }, { value: "PROVINCE", label: "Province" }, { value: "DISTRICT", label: "District" }]} />
         {level !== "NATIONAL" && (
-          <select className="bg-tile rounded-full px-3 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" value={g} onChange={(e) => setGeo(e.target.value)} aria-label={level === "PROVINCE" ? "Province" : "District"}>
+          <select className="bg-tile rounded-full px-3 h-9 text-ink text-[13px] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand" value={g} onChange={(e) => setGeo(e.target.value)} aria-label={level === "PROVINCE" ? "Province" : "District"}>
             {level === "PROVINCE"
               ? provinces.map((p) => <option key={p.code} value={p.code}>{p.name}</option>)
               : provinces.map((p) => (

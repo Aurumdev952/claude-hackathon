@@ -109,7 +109,7 @@ export function DemoPicker({ compact = false }: { compact?: boolean }) {
         {items.map((d) => (
           <li key={d.patient_id}>
             <button type="button" onClick={() => setPatient(d.patient_id, d.display_id)}
-                    className="w-full text-left rounded-tile bg-surface px-4 py-3.5 flex items-center gap-3 hover:bg-tile transition-colors dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                    className="w-full text-left rounded-tile bg-surface px-4 py-3.5 flex items-center gap-3 hover:bg-tile transition-colors dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
               <span className="w-9 h-9 rounded-full bg-tile grid place-items-center text-ink" aria-hidden><Smartphone size={16} /></span>
               <span className="flex-1 min-w-0">
                 <span className="block text-[14px] font-semibold text-ink tabular">{d.display_id}</span>

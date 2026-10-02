@@ -96,13 +96,13 @@ export function JourneyScreen({ simNow }: { simNow: string | null }) {
             return (
               <li key={`${p.phase}-${i}`} className="relative flex gap-4 pb-1" aria-current={cur ? "step" : undefined}>
                 <div className="flex flex-col items-center w-5 shrink-0 pt-[18px]">
-                  <span className={`rounded-full shrink-0 ${cur ? "w-4 h-4 bg-signal ring-4 ring-signal/20" : done ? "w-3 h-3 bg-ink" : "w-3 h-3 border-[1.5px] border-dashed border-faint"}`} aria-hidden />
+                  <span className={`rounded-full shrink-0 ${cur ? "w-4 h-4 bg-brand ring-4 ring-brand/20" : done ? "w-3 h-3 bg-ink" : "w-3 h-3 border-[1.5px] border-dashed border-faint"}`} aria-hidden />
                   {i < phases.length - 1 && <span className={`flex-1 w-[2px] mt-1 ${done ? "bg-ink" : "bg-hairline"}`} aria-hidden />}
                 </div>
                 <div className="flex-1 min-w-0 py-3">
                   <div className="flex items-baseline gap-2">
                     <span className={`text-[17px] leading-6 ${cur ? "font-semibold text-ink" : done ? "text-ink" : "text-muted"}`}>{p.label}</span>
-                    {cur && <span className="text-[12.5px] font-medium text-signal-text">You are here</span>}
+                    {cur && <span className="text-[12.5px] font-medium text-brand-text">You are here</span>}
                   </div>
                   <div className="text-[13px] text-muted tabular">{p.start ? day(p.start, { day: "numeric", month: "long", year: "numeric" }) : "Coming up"}</div>
                   {p.milestones.some((m) => m.label !== p.label) && (cur || p.milestones.length <= 2) && (
@@ -229,7 +229,7 @@ export function CheckinScreen({ onDone }: { onDone: () => void }) {
         <div className="grid grid-cols-2 gap-2.5 mt-3" role="radiogroup" aria-labelledby="pa-dumping">
           {[{ v: true, l: "Yes" }, { v: false, l: "No" }].map((o) => (
             <button key={o.l} type="button" role="radio" aria-checked={dumping === o.v} onClick={() => setDumping(o.v)}
-                    className={`h-12 rounded-full text-[16px] font-semibold transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${dumping === o.v ? "bg-ink text-ink-on" : "bg-tile text-ink"}`}>{o.l}</button>
+                    className={`h-12 rounded-full text-[16px] font-semibold transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${dumping === o.v ? "bg-ink text-ink-on" : "bg-tile text-ink"}`}>{o.l}</button>
           ))}
         </div>
       </PCard>
@@ -315,7 +315,7 @@ export function Inbox({ notes, onBack, initial = "app" }: { notes: Note[]; onBac
       <div className="grid grid-cols-2 p-1 rounded-full bg-tile" role="tablist" aria-label="Message type">
         {(["app", "sms"] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}
-                  className={`relative h-10 rounded-full text-[15px] font-semibold focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${view === k ? "text-ink" : "text-muted"}`}>
+                  className={`relative h-10 rounded-full text-[15px] font-semibold focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${view === k ? "text-ink" : "text-muted"}`}>
             {view === k && <motion.span layoutId="pa-inbox-tab" className="absolute inset-0 rounded-full bg-surface dark:bg-hairline" transition={SPRING} aria-hidden />}
             <span className="relative">{k === "app" ? `In the app${unread ? ` (${unread})` : ""}` : "SMS"}</span>
           </button>
@@ -328,7 +328,7 @@ export function Inbox({ notes, onBack, initial = "app" }: { notes: Note[]; onBac
             return (
               <li key={n.id}>
                 <button type="button" aria-expanded={isOpen} onClick={() => { setOpenId(isOpen ? null : n.id); if (!n.read_sim) read.mutate(n.id); }}
-                        className="w-full text-left rounded-[22px] bg-surface p-4 flex gap-3 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                        className="w-full text-left rounded-[22px] bg-surface p-4 flex gap-3 dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                   <span className="w-2.5 pt-2 shrink-0" aria-hidden>{!n.read_sim && <span className="block w-2.5 h-2.5 rounded-full bg-signal" />}</span>
                   <span className="flex-1 min-w-0">
                     <span className="flex items-baseline gap-2">

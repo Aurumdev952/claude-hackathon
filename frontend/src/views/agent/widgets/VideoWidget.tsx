@@ -71,7 +71,7 @@ export function VideoWidget({ widget: w }: { widget: VideoWidgetT }) {
               ? <video src={job.url} poster={job.poster_url ?? undefined} controls autoPlay playsInline className="absolute inset-0 w-full h-full bg-black object-contain" />
               : (
                 <button type="button" onClick={() => setPlaying(true)} aria-label={`Play ${w.title}`}
-                        className="group absolute inset-0 w-full h-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-signal">
+                        className="group absolute inset-0 w-full h-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand">
                   {job.poster_url && <img src={job.poster_url} alt="" className="absolute inset-0 w-full h-full object-contain" />}
                   <span className="absolute inset-0 grid place-items-center">
                     <span className="w-14 h-14 rounded-full bg-ink/85 grid place-items-center text-ink-on transition-transform group-hover:scale-105"><Play size={22} className="ml-0.5" aria-hidden /></span>
@@ -102,11 +102,11 @@ export function VideoWidget({ widget: w }: { widget: VideoWidgetT }) {
           {job.status === "done" && job.url && !failed && (
             <>
               <a href={job.download_url ?? `${job.url}?download=1`} download
-                 className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-4 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                 className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-4 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                 <Download size={14} aria-hidden />Download MP4
               </a>
               <button type="button" onClick={copy}
-                      className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-4 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                      className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-4 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                 {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}{copied ? "Link copied" : "Copy link"}
               </button>
             </>

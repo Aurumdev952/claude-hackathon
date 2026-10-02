@@ -31,7 +31,7 @@ function Item({ icon, title, sub, right, children, onHover }: {
   return (
     <motion.li variants={itemEnter} tabIndex={onHover ? 0 : undefined}
                onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)} onFocus={() => onHover?.(true)} onBlur={() => onHover?.(false)}
-               className={`rounded-tile bg-tile p-4 flex gap-3.5 min-w-0 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${onHover ? "hover:bg-tile-hover transition-colors" : ""}`}>
+               className={`rounded-tile bg-tile p-4 flex gap-3.5 min-w-0 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${onHover ? "hover:bg-tile-hover transition-colors" : ""}`}>
       <span className="w-9 h-9 shrink-0 rounded-full bg-surface text-ink grid place-items-center [&_svg]:w-4 [&_svg]:h-4" aria-hidden>{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
