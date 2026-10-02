@@ -5,9 +5,9 @@ import time
 
 from shared.config import BULK_DIR
 
-CARE_ID_BASE = 1_900_000_000  # care.emr.CARE_ID_BASE: write-back rows created by the care engine / care world
-
 from .db import attach_mysql
+
+CARE_ID_BASE = 1_900_000_000  # care.emr.CARE_ID_BASE: write-back rows created by the care engine / care world
 
 # table -> watermark key (insert-only source, so id watermarks are sufficient; D-07 keeps future ids above bulk ids)
 WATERMARKED = {
