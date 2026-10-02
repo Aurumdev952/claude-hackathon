@@ -6,7 +6,7 @@
 import { parseArgs } from "node:util";
 import { buildMinistryProps, buildPatientProps, API_URL } from "../src/build-props";
 import { COMPOSITION_FOR, type VideoKind } from "../src/props";
-import { propsHash, renderVideo } from "../src/render";
+import { closeBrowsers, propsHash, renderVideo } from "../src/render";
 
 const { values: a } = parseArgs({ options: {
   kind: { type: "string", default: "patient" }, id: { type: "string" }, facility: { type: "string" }, from: { type: "string" }, to: { type: "string" },
@@ -33,6 +33,8 @@ const r = await renderVideo(comp, props, {
   onProgress: (p, stage) => { const k = Math.floor(p * 10); if (k !== last) { last = k; process.stderr.write(`[video] ${stage} ${Math.round(p * 100)}%\n`); } },
 });
 console.log(JSON.stringify({ composition: comp, mp4: r.mp4, poster: r.png, frames: r.frames, props_seconds: tProps, render_seconds: r.seconds }, null, 1));
+await closeBrowsers();
+process.exit(0);
 
 /** The patient's facility, via the serve DB's link table exposed by the API: try each facility from /meta/filters. */
 async function findFacility(id: string): Promise<string> {

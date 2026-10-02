@@ -7,7 +7,7 @@
  *   GET  /video/props/:kind?...          -> built props (for the frontend Player preview)
  *   GET  /video/health
  *
- * Renders run one at a time (each uses `concurrency` Chromium tabs). Output is cached by sha256(composition + props) in
+ * Renders run one at a time (each uses `concurrency` Chromium tabs; GL backend and 3D/2D choice in render.ts). Output is cached by sha256(composition + props) in
  * data/videos/ for 14 days. A file URL is a capability link: its hash is unguessable without the underlying data, and
  * the props behind it could only be built by a caller the API allowed. */
 import { createReadStream, existsSync, readdirSync, readFileSync, statSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";

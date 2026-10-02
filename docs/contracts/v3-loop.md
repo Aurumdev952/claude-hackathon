@@ -343,6 +343,20 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   - `GET /video/props/:kind?...` returns the built props, for the frontend Player preview.
 - **Frontend:** Vite proxies `/video` to `:8790`. The alias is `@video` → `../video/src`.
 
+**L4 implementation notes (additive, backward compatible):**
+- Props: `geo`, `models`, `joinpoint` may be `null`; scenes whose data is null or fully suppressed are skipped.
+  Optional extras: patient `risk.t1_band`, `risk.thresholds{medium,high}`, `timeline[].abnormal`, `alerts[]`
+  (`{trigger,severity,summary}`), `next_step`; ministry `kpis[].{delta_label,higher_is_better,spark,decimals}`,
+  `joinpoint.{fitted,aapc}`, `map_label`, `smoothed{label,values}` (pooled EB map), `young_onset_label`,
+  `stage_mix_label`, `care.adherence_label`, `forecast.label`, `models.{sens_at_spec90,lead_time_days,name}`, `sim_date`.
+  Patient organ ids pair `kidney_l/kidney_r` and `lung_l/lung_r` into `kidneys` and `lungs`.
+- `values_by_year` holds 3-year pooled ASR keyed by the window's end year (single-year district rates are mostly
+  suppressed). `stage_mix` falls back to 3-year blocks when fewer than 3 years pass the small-cell rule.
+- Server: `GET /video/jobs/:id/events` (SSE, same fields as the job); the job view adds `download_url`
+  (`?download=1` sets `Content-Disposition: attachment`) and `render_seconds`. `/video/files` supports Range.
+  `GET /video/props/:kind` returns the props object with an `X-Composition` header. The cache key includes a hash of
+  the composition sources. The API base is `VIDEO_API_URL` (or `API_URL` + `/api/v1`).
+
 ## 9. Frontend roles (U1)
 
 - **Role store:** `role: "ministry"|"doctor"|"patient"` plus `patientId`. `client.ts` sends `X-Patient-Id`.
