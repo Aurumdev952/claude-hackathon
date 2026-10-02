@@ -45,8 +45,8 @@ def _design(df: pd.DataFrame, t0: pd.Timestamp, districts: list[str]) -> np.ndar
 
 
 def glm_forecast(hist: pd.DataFrame, future_months: pd.DatetimeIndex) -> pd.DataFrame:
-    """Poisson GLM with district effects; returns district_code, month, mean, phi."""
-    import statsmodels.api as sm
+    """Poisson GLM with district effects (IRLS, tiny ridge for empty cells); returns district_code, month, mean, phi."""
+    from .apc import _penalised_poisson
     active = [d for d in DISTRICT_CODES if hist.loc[hist["district_code"] == d, "n"].sum() > 0]
     fut = pd.MultiIndex.from_product([DISTRICT_CODES, future_months], names=["district_code", "month"]).to_frame(index=False)
     if not active or hist["n"].sum() < 10:
@@ -56,11 +56,11 @@ def glm_forecast(hist: pd.DataFrame, future_months: pd.DatetimeIndex) -> pd.Data
     t0 = h["month"].min()
     X = _design(h, t0, active)
     try:
-        r = sm.GLM(h["n"].values.astype(float), X, family=sm.families.Poisson()).fit(maxiter=100)
-        mu = r.fittedvalues
-        phi = max(1.0, float(np.sum((h["n"].values - mu) ** 2 / np.maximum(mu, 1e-9)) / max(1, len(h) - X.shape[1])))
+        y = h["n"].values.astype(float)
+        beta, _, mu = _penalised_poisson(X, y, np.zeros(len(y)), np.full(X.shape[1], 1e-4))
+        phi = max(1.0, float(np.sum((y - mu) ** 2 / np.maximum(mu, 1e-9)) / max(1, len(h) - X.shape[1])))
         f = fut[fut["district_code"].isin(active)]
-        pred = np.exp(np.clip(_design(f, t0, active) @ r.params, -30, 30))
+        pred = np.exp(np.clip(_design(f, t0, active) @ beta, -30, 30))
         # guard against runaway trends on short series: cap at 2x the last-12-month district mean
         last = h[h["month"] > h["month"].max() - pd.DateOffset(months=12)].groupby("district_code")["n"].mean()
         cap = 2.0 * f["district_code"].map(last).fillna(0).values + 1.0
