@@ -25,7 +25,8 @@ DAILY_DIR = REPORTS_DIR / "daily"
 VERDICTS = ("agree", "disagree", "uncertain")
 TRIGGERS = ("RISK_BAND_HIGH", "ALARM_NO_SCOPE_90D", "HB_DROP", "HP_POS_UNTREATED")
 TRIGGER_LABEL = {"RISK_BAND_HIGH": "High risk band", "ALARM_NO_SCOPE_90D": "Alarm, no scope 90 d",
-                 "HB_DROP": "Haemoglobin drop", "HP_POS_UNTREATED": "H. pylori untreated"}
+                 "HB_DROP": "Haemoglobin drop", "HP_POS_UNTREATED": "H. pylori untreated",
+                 "CARE_OVERDUE": "Care task overdue"}  # v3: raised by the care engine's escalation ladder
 NEW_ALERT_DAYS = 7  # an alert is "new" when created within this many sim days of the published sim time
 
 
@@ -235,7 +236,8 @@ def build_snapshot(con, cur: dict, top_n: int = 10) -> dict:
     new_high_alerts = 0
     for a in alerts:
         t = a["trigger"]
-        b = by_trig.setdefault(t, {"trigger": t, "label": t.replace("_", " ").title(), "new": 0, "earlier": 0, "open": 0, "total": 0})
+        b = by_trig.setdefault(t, {"trigger": t, "label": TRIGGER_LABEL.get(t, t.replace("_", " ").title()), "new": 0, "earlier": 0,
+                                   "open": 0, "total": 0})
         status = st.get(a["alert_id"], a["status"])
         b["total"] += 1
         if status not in ("NEW", "ACKNOWLEDGED"):
@@ -253,7 +255,76 @@ def build_snapshot(con, cur: dict, top_n: int = 10) -> dict:
     snap["top_cases"] = top_cases(con, top_n) if has_risk else []
     # ---- data quality
     snap["data_quality"] = data_quality(con)
+    # ---- v3: care coordination and the 2031 outlook (absent tables -> None, the page shows a placeholder)
+    snap["schema"] = 2
+    snap["care"] = care_summary(con, sim_time)
+    snap["forecast"] = forecast_summary(con)
     return snap
+
+
+CARE_OPEN = ("SCHEDULED", "DUE", "NOTIFIED", "OVERDUE", "ESCALATED")
+CARE_LATE = ("OVERDUE", "ESCALATED")
+
+
+def care_summary(con, sim_time: dt.datetime, days: int = NEW_ALERT_DAYS) -> dict | None:
+    """Care coordination KPIs from the published care snapshot (pt_care_plan / pt_care_task): plans approved in the last
+    `days` sim days, open and overdue tasks, the task completion rate (completed / tasks that are completed or past due,
+    cancelled excluded) and the median days from plan approval to a completed endoscopy. Counts only, no patient ids."""
+    plan_t = "pt_care_plan" if has_table(con, "pt_care_plan") else "care_plans" if has_table(con, "care_plans") else None
+    task_t = "pt_care_task" if has_table(con, "pt_care_task") else "care_tasks" if has_table(con, "care_tasks") else None
+    if not plan_t or not task_t:
+        return None
+    st = sim_time.isoformat()
+    p = one(con, f"""SELECT count(*) AS plans_total, count(*) FILTER (WHERE status IN ('ACTIVE', 'ESCALATED')) AS plans_active,
+                             count(*) FILTER (WHERE approved_at > CAST(? AS TIMESTAMP) - INTERVAL {int(days)} DAY) AS new_plans_7d,
+                             count(DISTINCT facility_id) AS facilities
+                      FROM {plan_t}""", [st]) or {}
+    ph = ",".join(f"'{x}'" for x in CARE_OPEN)
+    late = ",".join(f"'{x}'" for x in CARE_LATE)
+    t = one(con, f"""SELECT count(*) FILTER (WHERE status IN ({ph})) AS open_tasks,
+                             count(*) FILTER (WHERE status IN ({late})) AS overdue_tasks,
+                             count(*) FILTER (WHERE status IN ({late}) AND coalesce(escalation_level, 0) >= 2) AS chw_escalations,
+                             count(*) FILTER (WHERE status = 'COMPLETED') AS completed,
+                             count(*) FILTER (WHERE status <> 'CANCELLED' AND (status = 'COMPLETED' OR due_at <= CAST(? AS TIMESTAMP))) AS due_or_done
+                      FROM {task_t}""", [st]) or {}
+    endo = one(con, f"""SELECT count(*) AS n, median(date_diff('day', p.approved_at, t.completed_at)) AS median_days
+                         FROM {task_t} t JOIN {plan_t} p ON p.id = t.plan_id
+                         WHERE t.type = 'ENDOSCOPY' AND t.status = 'COMPLETED' AND t.completed_at IS NOT NULL""") or {}
+    by_pw = rows(con, f"SELECT pathway, count(*) AS plans FROM {plan_t} GROUP BY 1 ORDER BY 2 DESC, 1")
+    due = t.get("due_or_done") or 0
+    return {"plans_total": p.get("plans_total") or 0, "plans_active": p.get("plans_active") or 0,
+            "new_plans_7d": p.get("new_plans_7d") or 0, "facilities": p.get("facilities") or 0,
+            "open_tasks": t.get("open_tasks") or 0, "overdue_tasks": t.get("overdue_tasks") or 0,
+            "chw_escalations": t.get("chw_escalations") or 0, "completed_tasks": t.get("completed") or 0,
+            "due_or_done_tasks": due,
+            "completion_rate_pct": round(100 * (t.get("completed") or 0) / due, 1) if due else None,
+            "endoscopies_completed": endo.get("n") or 0,
+            "median_days_to_endoscopy": round(endo["median_days"], 1) if endo.get("median_days") is not None else None,
+            "by_pathway": by_pw, "window_days": days}
+
+
+def forecast_summary(con) -> dict | None:
+    """National incidence outlook from mart_forecast (synthetic registry series): the horizon year's mean with its 80 / 95%
+    prediction interval, the last observed year and a short history + forecast series for the sparkline."""
+    if not has_table(con, "mart_forecast"):
+        return None
+    cd = (one(con, "SELECT case_def FROM ml_forecast_runs ORDER BY created_at DESC LIMIT 1") or {}).get("case_def") \
+        if has_table(con, "ml_forecast_runs") else None
+    sid = f"NATIONAL|ALL|ALL|{cd or 'REGISTRY'}"
+    pts = rows(con, """SELECT year(period)::INT AS year, kind, mean, lo80, hi80, lo95, hi95, model, run_id FROM mart_forecast
+                       WHERE series_id = ? AND metric = 'cases' AND freq = 'Y' ORDER BY period""", [sid])
+    fc = [x for x in pts if x["kind"] == "forecast"]
+    hist = [x for x in pts if x["kind"] == "history"]
+    if not fc:
+        return None
+    last, base = fc[-1], (hist[-1] if hist else None)
+    r1 = lambda v: round(v, 1) if v is not None else None  # noqa: E731
+    return {"series_id": sid, "horizon_year": last["year"], "mean": r1(last["mean"]), "lo80": r1(last["lo80"]),
+            "hi80": r1(last["hi80"]), "lo95": r1(last["lo95"]), "hi95": r1(last["hi95"]), "model": last["model"],
+            "run_id": last["run_id"], "base_year": base["year"] if base else None, "base_cases": r1(base["mean"]) if base else None,
+            "change_pct": round(100 * (last["mean"] - base["mean"]) / base["mean"], 1) if base and base["mean"] else None,
+            "series": [{"year": x["year"], "kind": x["kind"], "mean": r1(x["mean"]), "lo80": r1(x["lo80"]), "hi80": r1(x["hi80"]),
+                        "lo95": r1(x["lo95"]), "hi95": r1(x["hi95"])} for x in pts if x["year"] >= last["year"] - 16]}
 
 
 def top_cases(con, n: int = 10) -> list[dict]:

@@ -4,8 +4,9 @@
     PYTHONPATH=. uv run python scripts/risk_validation.py append verdicts.json  # validate, enrich, de-dupe, append to the JSONL
     PYTHONPATH=. uv run python scripts/risk_validation.py summary [--json]      # agree/disagree/uncertain, disputed reasons
 
-Reads the published serve DuckDB read-only (data/analytics/current.json, same as api/deps.py), so a loop never stalls
-on a stopped API server. Output: reports/risk_validation.jsonl, one object per (patient display_id, risk model).
+Reads the published serve DuckDB read-only (<DATA_DIR>/analytics/current.json, same as api/deps.py), so a loop never
+stalls on a stopped API server. v3: a case with a doctor-approved care plan also carries `care_outcomes` (verified
+endoscopy, H. pylori and Hb results from completed care tasks, plan outcomes, open tasks). Output: reports/risk_validation.jsonl, one object per (patient display_id, risk model).
 Patients are identified by display_id only; names are never read.
 """
 from __future__ import annotations
@@ -157,6 +158,47 @@ def _open_alerts(con, pid: int) -> list[dict]:
     return out
 
 
+CARE_EVIDENCE_TASKS = ("ENDOSCOPY", "PATHOLOGY_REVIEW", "HP_TEST", "HP_TEST_OF_CURE", "HP_TREATMENT", "HB_RECHECK", "IRON_COURSE")
+
+
+def _care_outcomes(con, pid: int) -> dict | None:
+    """Verified care outcomes (v3 care coordination): what happened after a doctor approved a care plan for this patient.
+    Tasks close only on EMR evidence (an endoscopy encounter, a lab result, a drug order), so a completed task with a
+    result is a verified outcome: endoscopy findings, H. pylori test and test-of-cure results, Hb rechecks. Returns None
+    when the patient has no care plan (the key is then left out of the bundle)."""
+    plan_t = "pt_care_plan" if RD.has_table(con, "pt_care_plan") else "care_plans" if RD.has_table(con, "care_plans") else None
+    task_t = "pt_care_task" if RD.has_table(con, "pt_care_task") else "care_tasks" if RD.has_table(con, "care_tasks") else None
+    if not plan_t or not task_t:
+        return None
+    plans = RD.rows(con, f"""SELECT id, pathway, status, "trigger", CAST(approved_at AS DATE) AS approved, band_at_approval
+                              FROM {plan_t} WHERE patient_id = ? ORDER BY approved_at""", [pid])
+    if not plans:
+        return None
+    ph = ",".join(f"'{t}'" for t in CARE_EVIDENCE_TASKS)
+    tasks = RD.rows(con, f"""SELECT plan_id, type, title, status, CAST(due_at AS DATE) AS due, CAST(completed_at AS DATE) AS completed,
+                                    result, evidence, coalesce(escalation_level, 0) AS escalation_level
+                             FROM {task_t} WHERE patient_id = ? ORDER BY coalesce(completed_at, due_at)""", [pid])
+    verified = []
+    for t in tasks:
+        if t["status"] != "COMPLETED" or t["type"] not in CARE_EVIDENCE_TASKS:
+            continue
+        ev = RD.parse_json(t["evidence"]) if t.get("evidence") else None
+        verified.append({"task": t["type"], "completed": t["completed"], "result": t["result"],
+                         "evidence": {k: ev.get(k) for k in ("table", "concept_id", "value", "date") if k in ev} if isinstance(ev, dict) else None})
+    outcomes = []
+    if RD.has_table(con, "care_recommendation_outcomes"):
+        cols = {r["column_name"] for r in RD.rows(
+            con, "SELECT column_name FROM information_schema.columns WHERE table_name = 'care_recommendation_outcomes'")}
+        want = [c for c in ("pathway", "adhered", "on_time", "days_to_completion", "finding", "cancer_found", "stage_at_dx") if c in cols]
+        if want:
+            outcomes = RD.rows(con, f"SELECT {', '.join(want)} FROM care_recommendation_outcomes WHERE patient_id = ?", [pid])
+    open_tasks = [{"task": t["type"], "status": t["status"], "due": t["due"], "escalation_level": t["escalation_level"]}
+                  for t in tasks if t["status"] in ("SCHEDULED", "DUE", "NOTIFIED", "OVERDUE", "ESCALATED")]
+    return {"plans": [{"pathway": p_["pathway"], "status": p_["status"], "trigger": p_["trigger"], "approved": p_["approved"],
+                       "band_at_approval": p_["band_at_approval"]} for p_ in plans],
+            "verified_results": verified, "plan_outcomes": outcomes, "open_tasks": open_tasks[:6]}
+
+
 def candidates(con, cur, limit: int, band: str = "HIGH", include_validated: bool = False) -> dict:
     model_id = RD.risk_model_id(con)
     done = set() if include_validated else RD.validated_keys()
@@ -186,6 +228,9 @@ def candidates(con, cur, limit: int, band: str = "HIGH", include_validated: bool
         c["facts"] = fact_bundle(con, pid, asof)
         c["features"] = _features(con, pid)
         c["open_alerts"] = _open_alerts(con, pid)
+        care = _care_outcomes(con, pid)
+        if care:
+            c["care_outcomes"] = care
         out.append(c)
     thr = RD.one(con, "SELECT high_cut, medium_cut FROM ml_thresholds") if RD.has_table(con, "ml_thresholds") else None
     return {"run_id": cur.get("run_id"), "sim_time": cur.get("sim_time"), "model_id": model_id, "thresholds": thr,
