@@ -404,3 +404,51 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   cycles), surgical ADMISSION/DISCHARGE with 5064, recurrence 5070, surveillance CT 5071.
 - **§6 column names:** registry `stage_I_pct, stage_II_pct, stage_III_pct, stage_IV_pct` plus `expected_true_cases`,
   `population` (registry denominators) and `provisional` (2026); surveys add `design_effect`.
+
+## 11. Review fixes (F1, additive, backward compatible unless noted)
+
+- **§2 MySQL extract:** the care id range (`>= CARE_ID_BASE`) is extracted by an anti-join on the id, not a watermark:
+  deferred re-simulated rows get their ids when the intervention runs but reach MySQL later. `<t>#care` in
+  `etl_watermark` is kept as the largest care id seen (informational).
+- **§3 clock:** after `care_world.step` the supersede filter is applied again to the rows collected for replay (an
+  intervention inside the tick drops that tick's original rows too). `advance_progress.json` is written with
+  `running: false, step: "failed", error` when an advance fails; `status().running_job` also requires the lock to be
+  held. `simulator.local.acquire(label)` / `exclusive(label)` / `lock_free()` expose the advance lock: model jobs
+  (promote / rollback / retrain, API and `python -m ml.retrain`) hold it, so they never run next to an advance (409
+  `MODEL_JOB_BUSY` / `SIM_BUSY`). `reconcile(t0, t1, con, outcomes=...)` receives the care world's outcomes.
+- **§3 API control:** `POST /admin/sim` is a demo control open to every role, but needs a recognised `X-Role` (400
+  `ROLE_REQUIRED` without one). Jobs carry `requested_by` (`role[:facility|patient id]`), control-file actions write
+  `updated_by`.
+- **§4.1 evidence:** a fact counts from the start of the task's opening *day* (not before `created_sim`), so a visit
+  earlier on the day a task opens at 23:59:59 closes it. Serve-DB facts carry a unique `key` (stored in the task
+  evidence json). The care world acts at most once per task (`writeback/care_world_actions.jsonl`), draws declines
+  once per notification attempt (task + `reminders`), and the engine closes a declined task as `DECLINED` (event actor
+  `patient`, detail `source: care_world`, TASK_OUTCOME 7256); a plan whose tasks were declined and none completed
+  closes as `CANCELLED`. CHEMO_CYCLE obs 5063 = the cycle number within the plan.
+- **§4.1 ids:** plan / task / notification / report ids are deterministic hashes of their content (`CP-`/`CT-`/`NT-`/
+  `PR-` + 8 hex, re-salted on a collision); EMR rows written by the engine get uuid5(table:id) like `care.emr`. One open
+  (ACTIVE/ESCALATED) plan per patient + pathway is enforced inside the create transaction and by the partial unique
+  index `ux_plans_open`. `reconcile` and `patch_task` run their read-modify-write in one `BEGIN IMMEDIATE`.
+- **§4.1 outcomes:** `care_plans.propensity` is NULL at approval (the risk score is not a propensity).
+  `recommendation_outcomes.cancer_found` is 1/0 only for ENDOSCOPY_REFERRAL / ANAEMIA_WORKUP plans with a completed
+  ENDOSCOPY (1 = diagnosis or CANCER_FOUND between approval and endoscopy + 60 days; 0 = 60 days after the endoscopy
+  without one); NULL otherwise (other pathways, no endoscopy, pending, or diagnosed before approval). Outcomes of
+  screening plans closed in the last 180 days are refreshed each reconcile.
+- **§4.2 ministry:** all care aggregates use `api/suppress.py`: primary (1-4), complementary across the rows of a
+  breakdown against its totals (funnel by district and by pathway, adherence levels, impact routes, CHW districts),
+  in-row complements (n - adhered, cancers found - early stage, open - overdue) and derived values (rate, median_days,
+  early_stage_pct, surv_1y) hidden when a count behind them is. A hidden cell's `<field>_label` is `"<5"` when the value
+  is small and `"suppressed"` when it is 5+ and hidden only to protect a small one. `mart_care_impact` adds `n_staged`,
+  `n_early`, `n_dead_1y` (used for suppression, not returned).
+- **§4.2 patient:** `/me/plan` drops the `pathway` code (`pathway_name` stays) and maps diagnosis-revealing task types
+  to neutral codes (ONCOLOGY_INTAKE -> SPECIALIST_VISIT, STAGING_CT / SURVEILLANCE_IMAGING -> SCAN, MDT_PLAN -> TEAM_PLAN,
+  SURGERY -> OPERATION, CHEMO_CYCLE -> TREATMENT_CYCLE, PATHOLOGY_REVIEW -> LAB_REVIEW, RESULT_DISCUSSED -> RESULTS_VISIT,
+  PAIN_REVIEW -> COMFORT_REVIEW; others unchanged, field name `type` kept). `/me/notifications` `template_key` becomes
+  `care.<neutral task>.<stage>`. (Not backward compatible for a client reading `pathway` from `/me/plan`.)
+- **§7.1 learning loop:** `ml_feedback_labels` adds `ipw_weight` = P(verified) / P(verified | x), clipped to [0.1, 10];
+  care-plan propensities come from a logistic model of "verified label exists" on logit risk + band + facility tier.
+  Care plans give cancer labels only as in §4.1 outcomes above and `hp` labels from the first H. pylori test. The
+  challenger's `high_cut` / `medium_cut`, `ppv_at_high` and the HIGH-volume gate use the production quantity (Tier 2 +
+  Tier 3 ensemble when Tier 3 is active). Rolling back the champion restores the model it replaced when it was
+  *promoted* (no ping-pong); without one the API returns 409 `NO_PREDECESSOR`. `GET /models/learning-loop`
+  `running_job` is live. The adherence model drops rows whose target is still NULL.
