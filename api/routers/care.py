@@ -125,9 +125,11 @@ def build_journey(patient_id: int) -> dict:
     """pt_journey + pt_recovery from the serve DB; computed live when the tables are absent or older than the patient's
     latest care-plan change."""
     store = get_store()
-    last_change = store.one("SELECT max(created_sim) AS t FROM care_events WHERE patient_id = ?", [patient_id])
-    serve_sim = SERVE.meta().get("sim_time") or ""
-    stale = bool(last_change and last_change["t"] and str(last_change["t"]) > str(serve_sim))
+    # stale when a care event was written after the serve DB was published (e.g. a plan approved a minute ago): the
+    # published pt_journey cannot contain it yet. Both stamps are UTC ISO strings ending in Z, so they compare as text.
+    last_change = store.one("SELECT max(wall_time) AS t FROM care_events WHERE patient_id = ?", [patient_id])
+    published = SERVE.meta().get("published_at") or ""
+    stale = bool(last_change and last_change["t"] and str(last_change["t"]) > str(published))
     if SERVE.has_table("pt_journey") and SERVE.has_table("pt_recovery") and not stale:
         ph = SERVE.rows("SELECT phase, start_date, end_date, status, milestones FROM pt_journey WHERE patient_id = ? ORDER BY seq",
                         [patient_id])

@@ -38,7 +38,9 @@ def ctx(client):
     a = SERVE.one("""SELECT a.alert_id, a.patient_id, f.facility_id FROM pt_alerts a JOIN pt_patient_facility f USING (patient_id)
                      JOIN pt_patient p USING (patient_id) WHERE NOT p.dead AND a."trigger" IN ('RISK_BAND_HIGH', 'ALARM_NO_SCOPE_90D')
                      ORDER BY a.alert_id LIMIT 1""")
-    other = SERVE.one("""SELECT location_id FROM core_dim_location WHERE location_id NOT IN
+    # a health centre the patient is not linked to: never a plan's referral target (endoscopy sites are hospitals), so
+    # its doctor has no route to this patient
+    other = SERVE.one("""SELECT location_id FROM core_dim_location WHERE facility_type = 'HEALTH_CENTRE' AND location_id NOT IN
                          (SELECT facility_id FROM pt_patient_facility WHERE patient_id = ?) ORDER BY location_id LIMIT 1""",
                       [a["patient_id"]])["location_id"]
     b = SERVE.one("""SELECT a.alert_id, a.patient_id FROM pt_alerts a JOIN pt_patient_facility f USING (patient_id)
