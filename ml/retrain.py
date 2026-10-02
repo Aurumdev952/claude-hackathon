@@ -137,7 +137,7 @@ def backfill(con, sim_time: dt.datetime, champion: dict, lc: dict, log=print) ->
 # ----------------------------------------------------------------------------------------------- training + gates
 def train_weighted(Xtr: pd.DataFrame, ytr, wtr, Xva: pd.DataFrame, yva, seed: int = 42):
     import xgboost as xgb
-    from sklearn.isotonic import IsotonicRegression
+    from .calibration import fit_calibrator
     p = models_cfg()["tier2"]["params"]
     spw = float((len(ytr) - ytr.sum()) / max(1, ytr.sum()))
     clf = xgb.XGBClassifier(objective="binary:logistic", n_estimators=p["n_estimators"], max_depth=p["max_depth"],
@@ -146,7 +146,7 @@ def train_weighted(Xtr: pd.DataFrame, ytr, wtr, Xva: pd.DataFrame, yva, seed: in
                             early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed,
                             n_jobs=os.cpu_count())
     clf.fit(Xtr, ytr, sample_weight=wtr, eval_set=[(Xva, yva)], verbose=False)
-    iso = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0).fit(clf.predict_proba(Xva)[:, 1], yva)
+    iso = fit_calibrator(clf.predict_proba(Xva)[:, 1], yva)  # same calibrator as the champion (D-58)
     return clf, iso
 
 
