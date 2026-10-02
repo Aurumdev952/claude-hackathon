@@ -37,6 +37,13 @@ export const PATIENT_LEVEL_TABLES = new Set([
 ]);
 export const PATIENT_KEY_COLUMNS = ["patient_id", "case_id", "case_index", "person_id", "display_id"];
 
+/**
+ * Care-coordination aggregates are small counts (a few plans per district): free SQL over them could rebuild a hidden cell
+ * by differencing (a total minus the visible cells). They are read only through the API (get_care_funnel), which applies
+ * complementary suppression (api/suppress.py).
+ */
+export const CARE_AGGREGATE_TABLES = new Set(["mart_care_funnel", "mart_care_adherence", "mart_care_impact", "mart_chw_workload"]);
+
 /** Identifying columns that never leave the doctor's scoped CTEs (the model works with display_id only). */
 export const DOCTOR_HIDDEN_COLUMNS = ["given_name", "family_name", "birthdate", "phone", "national_id", "name"];
 
@@ -54,7 +61,7 @@ export function allowedTables(role: Role, existing: Iterable<string>, columns?: 
   const out = new Set<string>();
   const ex = new Set(existing);
   for (const t of ex) {
-    if (!(t.startsWith("mart_") || t.startsWith("ml_")) || PATIENT_LEVEL_TABLES.has(t)) continue;
+    if (!(t.startsWith("mart_") || t.startsWith("ml_")) || PATIENT_LEVEL_TABLES.has(t) || CARE_AGGREGATE_TABLES.has(t)) continue;
     if (columns && columns(t).some((c) => PATIENT_KEY_COLUMNS.includes(c))) continue;
     out.add(t);
   }
