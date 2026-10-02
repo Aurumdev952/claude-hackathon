@@ -421,7 +421,7 @@ function JourneyScene({ p, scenes, index }: SP) {
   const L = useLayout();
   const j = p.journey!;
   const phases = j.phases.filter((ph) => ph.start);
-  // the phases as a stepper (the app's journey track): done in ink, the current phase in signal orange, upcoming as
+  // the phases as a stepper (the app's journey track): done in ink, the current phase in brand green, upcoming as
   // hollow dots. Up to 12 phases fit one row at 1920 px; a Gantt of 9+ rows does not fit beside the recovery cards.
   const shown = phases.slice(-12);
   const W = L.contentW - 96;
@@ -446,9 +446,9 @@ function JourneyScene({ p, scenes, index }: SP) {
             const anchor = i === 0 ? "start" : i === shown.length - 1 ? "end" : "middle";
             return (
               <g key={i} opacity={pp}>
-                {st === "current" && <circle cx={cx} cy={70} r={22} fill={C.signalSoft} />}
-                <circle cx={cx} cy={70} r={st === "current" ? 13 : 10} fill={st === "done" ? C.ink : st === "current" ? C.signal : C.surface}
-                        stroke={st === "done" ? C.ink : st === "current" ? C.signal : C.faint} strokeWidth={3} strokeDasharray={st === "missed" ? "4 4" : undefined} />
+                {st === "current" && <circle cx={cx} cy={70} r={22} fill={C.brandSoft} />}
+                <circle cx={cx} cy={70} r={st === "current" ? 13 : 10} fill={st === "done" ? C.ink : st === "current" ? C.brand : C.surface}
+                        stroke={st === "done" ? C.ink : st === "current" ? C.brand : C.faint} strokeWidth={3} strokeDasharray={st === "missed" ? "4 4" : undefined} />
                 <text x={cx} y={124} textAnchor={anchor} fontSize={22} fontWeight={st === "current" ? 600 : 500}
                       fill={st === "upcoming" ? C.muted : C.ink}>{sentence(ph.phase)}</text>
                 <text x={cx} y={156} textAnchor={anchor} fontSize={18} fill={C.muted}>{fmtDate(ph.start!)}</text>
@@ -547,8 +547,8 @@ function SummaryScene({ p, scenes, index }: SP) {
           );
         })()}
         {p.next_step && (
-          <Card style={{ background: C.signalSoft, ...rise(progressAt(frame, 30, 24)) }} pad={44}>
-            <div style={{ ...T.label, color: C.signalText }}>Suggested next step</div>
+          <Card style={{ background: C.brandSoft, ...rise(progressAt(frame, 30, 24)) }} pad={44}>
+            <div style={{ ...T.label, color: C.brandText }}>Suggested next step</div>
             <div style={{ ...T.title, fontSize: 36, lineHeight: "46px", color: C.ink, marginTop: 10 }}>{p.next_step}</div>
           </Card>
         )}
