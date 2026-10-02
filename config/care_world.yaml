@@ -1,0 +1,45 @@
+# Care world (simulator/care_world.py): how synthetic patients respond to open care tasks, day by day.
+# ALL COEFFICIENTS ARE SYNTHETIC ASSUMPTIONS for the closed-loop demo, chosen to look plausible (distance as the main
+# access barrier, INS-5; reminders help, a CHW home visit most). They are not estimates from Rwandan data.
+#
+# Daily completion probability of an open task:  p_day = expit(base_logit[type] + sum(beta * x))
+# drawn with a deterministic random number per (seed, task, day), so a run is reproducible for the same seed and sim time.
+seed_offset: 913
+
+base_logit:            # expit(-3.0) = 4.7 % a day -> ~76 % within 30 days before covariates
+  ENDOSCOPY: -3.4
+  HP_TEST: -3.0
+  HP_TEST_OF_CURE: -3.3
+  HP_TREATMENT: -2.6
+  HB_RECHECK: -2.9
+  IRON_COURSE: -2.6
+  B12_CHECK: -3.1
+  B12_INJECTION: -2.8
+  FOLLOWUP_VISIT: -3.1
+  RESULT_DISCUSSED: -2.8
+  NUTRITION_REVIEW: -3.2
+  PAIN_REVIEW: -2.6
+  CHEMO_CYCLE: -1.6
+  CHW_VISIT: -1.0      # done by the community health worker at home
+
+beta:
+  distance_per_10km: -0.15     # home health centre -> task facility, capped at 150 km (INS-5 access barrier)
+  age_70_plus: -0.30
+  age_under_40: -0.15
+  male: -0.15
+  urban: 0.20                  # home district in the City of Kigali
+  past_visit: 0.06             # per EMR visit day in the last 365 days, capped at 8 (attendance regularity)
+  overdue_per_week: -0.05      # motivation fades after the due date, capped at -0.4
+  channel: {APP: 0.15, SMS: 0.35, CHW: 0.90}   # once a notification on that channel was delivered for the task
+  reminder: 0.10               # per reminder received, capped at 4
+  urgent: 0.25                 # task types that are part of a cancer treatment course or an alarm work-up
+engagement_sd: 0.7             # latent per-person engagement ~ N(0, sd), deterministic from the person id
+urgent_types: [ENDOSCOPY, CHEMO_CYCLE, RESULT_DISCUSSED, PAIN_REVIEW]
+
+decline_prob: {ENDOSCOPY: 0.05, CHEMO_CYCLE: 0.03, default: 0.02}   # once per task (outcome reported to the engine)
+
+hp:
+  test_sensitivity: 0.92
+  false_positive: 0.05
+  eradication_prob: 0.85       # a completed eradication course clears the infection with this probability
+chw_distance_km: 3
