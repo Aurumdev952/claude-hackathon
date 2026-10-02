@@ -13,6 +13,7 @@ tier2:
   params: {max_depth: 5, learning_rate: 0.05, subsample: 0.8, colsample_bytree: 0.8,
            min_child_weight: 5, n_estimators: 800, early_stopping_rounds: 50}
   calibration: isotonic
+  calibration_prior: 5     # plateau rates shrunk to the base rate with 5 pseudo-observations (ml/calibration.py, D-58)
 tier3:
   enabled: true
   arch: gru                  # gru | transformer
