@@ -15,6 +15,8 @@ import { AsrTrend, annotationsFor, type Obs } from "./geo/AsrTrend";
 import { HeroStat, KpiCard, type KpiDef, type KpiPoint } from "./overview/KpiStrip";
 import { MapHero, TopDistricts } from "./overview/MiniMap";
 import { CountsVsAsr, countsVsAsrSummary } from "./overview/CountsVsAsr";
+import { CareCoordinationCard, OutlookMiniCard } from "./overview/LoopCards";
+import { VideoButton } from "@/components/video";
 
 /** Narrow screens move the hero's arrow to the top and drop its legend tile. */
 function useNarrow(px = 640) {
@@ -158,7 +160,8 @@ export default function Overview() {
             <li><b>Joinpoints</b> mark where the trend changes slope; APC is the annual percent change in that segment.</li>
           </ul>,
           notes: "The ministry view shows aggregates only; districts with fewer than 5 cases are suppressed.",
-        }} />
+        }}
+        actions={<VideoButton kind="ministry" params={{ from: f.yearFrom, to: f.yearTo, sex: f.sex, age: f.ageBand, def: f.caseDef }} title="Surveillance reel" />} />
 
       {kq.error && <ErrorNote error={kq.error} />}
 
@@ -237,6 +240,10 @@ export default function Overview() {
             <GridItem key={i} span={{ md: 4 }}><Skeleton variant="card" h={300} label="Reading the KPI mart" /></GridItem>
           ))}
         </div>
+
+        {/* v3: care coordination and the 2031 outlook (each opens its view) */}
+        <GridItem span={{ md: 6, lg: 7 }}><CareCoordinationCard /></GridItem>
+        <GridItem span={{ md: 6, lg: 5 }}><OutlookMiniCard /></GridItem>
 
         {/* Counts vs rate */}
         <GridItem span={{ lg: 8 }}>
