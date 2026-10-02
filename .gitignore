@@ -16,7 +16,6 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 # env
-.env
 *.log
 frontend/public/models/body.glb
 data/analytics/tmp/
@@ -44,3 +43,4 @@ video/node_modules/
 video/out/
 video/public/models/
 data/v3*/
+config.bat

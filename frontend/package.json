@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
-    "build": "tsc -b && vite build",
+    "dev": "node init && vite --host 0.0.0.0 --port 5173",
+    "build": "node init && tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173",
     "typecheck": "tsc -b --noEmit",
     "test:e2e": "playwright test",

@@ -8,9 +8,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch --clear-screen=false src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/src/index.js",
+    "dev": "node init && tsx watch --clear-screen=false src/index.ts",
+    "build": "node init && tsc -p tsconfig.build.json",
+    "start": "node init && node dist/src/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:fixture": "tsx test/fixtures/build-duck.ts",
