@@ -20,7 +20,8 @@ from .features import build_feature_table, design_matrix, prepare_sources
 ACTIONS = {"RISK_BAND_HIGH": "Consider upper GI endoscopy referral",
            "ALARM_NO_SCOPE_90D": "Alarm features without endoscopy for 90+ days: refer for endoscopy",
            "HB_DROP": "Investigate falling haemoglobin: FBC, iron studies, consider GI work-up",
-           "HP_POS_UNTREATED": "Start H. pylori eradication therapy per national guideline"}
+           "HP_POS_UNTREATED": "Start H. pylori eradication therapy per national guideline",
+           "CARE_OVERDUE": "Care step overdue after reminders, SMS and a CHW visit: contact the patient"}  # v3 (L2)
 
 
 def score_in_pipeline(con, sim_time: dt.datetime, log=print):
@@ -41,6 +42,9 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     con.execute(f"ALTER TABLE pt_features ADD COLUMN as_of DATE DEFAULT DATE '{L}'")
     X = design_matrix(feats)
     clf, iso, meta = tier2_xgb.load(Path(act[2]["path"]))
+    if any(f not in X.columns for f in meta["features"]):  # v3 learning-loop features of a promoted challenger (L3)
+        from .feedback import add_loop_features
+        X = add_loop_features(con, feats, X)
     X = X[meta["features"]]
     t1 = tier1_score.points(feats)
     t2 = tier2_xgb.predict(clf, iso, X)
@@ -185,7 +189,32 @@ def _alerts(con, sim_time, feats: pd.DataFrame, risk: pd.DataFrame):
             new.append({"alert_id": str(uuid.uuid4()), "patient_id": int(r.patient_id), "facility_id": fac.get(r.patient_id),
                         "created_at": pd.Timestamp(sim_time), "trigger": t, "severity": sev, "status": "NEW", "summary": text,
                         "reasons": r.top_reasons, "suggested_action": ACTIONS[t]})
+    new += _care_overdue(con, sim_time, existing | {(a["patient_id"], a["trigger"]) for a in new})
     if new:
         con.register("_new", pd.DataFrame(new))
         con.execute("INSERT INTO pt_alerts SELECT * FROM _new")
         con.unregister("_new")
+
+
+def _care_overdue(con, sim_time, existing: set) -> list[dict]:
+    """v3 (docs/contracts/v3-loop.md, track L2): CARE_OVERDUE when the care engine escalated a task to the doctor
+    (care_tasks snapshot, escalation_level >= 3) on an open plan. Same 180-day (patient, trigger) dedupe as above."""
+    if not con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name IN ('care_tasks', 'care_plans')").fetchone()[0] == 2:
+        return []
+    rows = con.execute("""SELECT t.patient_id, p.facility_id, t.title, t.due_at, p.pathway
+                          FROM care_tasks t JOIN care_plans p ON p.id = t.plan_id
+                          WHERE t.escalation_level >= 3 AND t.status IN ('ESCALATED', 'OVERDUE')
+                            AND p.status IN ('ACTIVE', 'ESCALATED')
+                          ORDER BY t.due_at""").fetchall()
+    out, seen = [], set()
+    for pid, fac, title, due, pathway in rows:
+        key = (int(pid), "CARE_OVERDUE")
+        if key in existing or key in seen:
+            continue
+        seen.add(key)
+        days = (pd.Timestamp(sim_time) - pd.Timestamp(due)).days if due is not None else 0
+        out.append({"alert_id": str(uuid.uuid4()), "patient_id": int(pid), "facility_id": int(fac) if fac is not None else None,
+                    "created_at": pd.Timestamp(sim_time), "trigger": "CARE_OVERDUE", "severity": "HIGH",
+                    "status": "NEW", "summary": f"Care step '{title}' is {days} days overdue after reminders, SMS and a CHW visit.",
+                    "reasons": json.dumps([]), "suggested_action": ACTIONS["CARE_OVERDUE"]})
+    return out

@@ -21,8 +21,19 @@ from .ws import HUB, endpoint
 PREFIX = "/api/v1"
 
 
+def _drain_care_outbox() -> list[dict]:
+    """Queued care events (care.sqlite outbox, written by the API and the simulator process). v3 contract §4.3."""
+    try:
+        from care.store import get_store
+        return get_store().drain()
+    except Exception as e:  # noqa: BLE001
+        print(f"care outbox error: {e}")
+        return []
+
+
 async def _watch():
-    """Poll current.json every 2 s (SPEC §10.2); on change reopen the serve file and broadcast `refresh`."""
+    """Poll current.json every 2 s (SPEC §10.2); on change reopen the serve file and broadcast `refresh`.
+    Also drains the care outbox and dispatches targeted care events (v3)."""
     last_tick = None
     seen_alerts: set[str] = set()
     first = True
@@ -47,6 +58,8 @@ async def _watch():
                 last_tick = tick
             except (FileNotFoundError, json.JSONDecodeError):
                 pass
+            for msg in await asyncio.to_thread(_drain_care_outbox):
+                await HUB.dispatch(msg)
         except Exception as e:  # never let the watcher die
             print(f"watcher error: {e}")
         await asyncio.sleep(2)

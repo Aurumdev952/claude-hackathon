@@ -172,8 +172,8 @@ pathways:
         title: Follow-up check-up
         start: true
         repeat:
-          - {from_days: 91, to_days: 1095, every_days: 91}     # every 3 months in years 1-3
-          - {from_days: 1095, to_days: 1826, every_days: 182}  # every 6 months in years 3-5
+          - {from_days: 91, to_days: 1092, every_days: 91}     # every 3 months in years 1-3
+          - {from_days: 1274, to_days: 1826, every_days: 182}  # every 6 months in years 3-5
         window_days: 21         # opens 21 days before the due date
       - type: B12_CHECK
         title: Vitamin B12, iron and vitamin D blood tests
@@ -185,8 +185,8 @@ pathways:
         title: Weight and nutrition check
         start: true
         repeat:
-          - {from_days: 91, to_days: 1095, every_days: 91}
-          - {from_days: 1095, to_days: 1826, every_days: 182}
+          - {from_days: 91, to_days: 1092, every_days: 91}
+          - {from_days: 1274, to_days: 1826, every_days: 182}
         window_days: 21
       - type: B12_INJECTION
         title: Vitamin B12 injection
