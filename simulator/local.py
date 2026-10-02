@@ -10,6 +10,7 @@ analytics catch up, in this order:
 4. `pipeline.run(extract_local=True)` through the core step (local extract ingests the new parts);
 5. `care.engine.reconcile(t0, t1, con)` on the work DB (evidence straight from the new raw rows) when importable;
 6. care snapshot, marts (fast tick: heavy population marts once per sim month), score, publish;
+   then `ml.retrain.maybe_retrain(t1)` when importable (L3: retrain + forecast refit every 30 sim days);
 7. `data/sim_state/last_tick.json` (the API `_watch()` broadcasts it as `sim_tick`).
 
 A file lock (`data/sim_state/advance.lock`) serialises callers: a second caller gets `BusyError`. The auto clock
@@ -106,6 +107,22 @@ def _care_reconcile(t0: dt.datetime, t1: dt.datetime, log) -> dict:
         con.close()
 
 
+def _learning_loop(t1: dt.datetime, log) -> dict | None:
+    try:
+        from ml import retrain
+    except Exception as e:  # noqa: BLE001 - L3 module optional
+        log(f"  learning loop not importable ({e.__class__.__name__}); skipping")
+        return None
+    try:
+        out = retrain.maybe_retrain(t1, log=log)
+    except Exception as e:  # noqa: BLE001 - never stop the clock
+        log(f"  learning loop failed: {e.__class__.__name__}: {e}")
+        return {"error": f"{e.__class__.__name__}: {e}"}
+    if not out:
+        return None
+    return {k: (v.get("status") or v.get("decision") or "done") if isinstance(v, dict) else v for k, v in out.items()}
+
+
 # ----------------------------------------------------------------------------------------------- advance
 class _Lock:
     def __init__(self, path: Path):
@@ -128,7 +145,7 @@ class _Lock:
 
 
 def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: bool = True, care_world: bool = True,
-            seed: int | None = None, log=print) -> dict:
+            learning_loop: bool = True, seed: int | None = None, log=print) -> dict:
     """Advance the sim clock by `days` (1-366). Returns {tick_id, sim_time_from, sim_time_to, rows, care, pipeline_s,
     status, ...}. Raises BusyError if another advance holds the lock."""
     days = int(days)
@@ -175,6 +192,7 @@ def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: boo
         state.update({"sim_time": _iso(t1), "tick_id": tick_id, "updated_at": dt.datetime.now().isoformat()})
         _write(_dir() / "sim_state.json", state)
         care: dict = {}
+        learn: dict | None = None
         pipe_s = 0.0
         if run_pipeline:
             from pipeline import run as prun
@@ -189,12 +207,17 @@ def advance(days: int, *, on_progress=None, fast: bool = True, run_pipeline: boo
             r2 = prun.run(start_at="marts", fast=fast, log=log)
             pipe_s = round(time.time() - t, 2)
             timings.update({f"pipeline.{k}": v for k, v in {**r1.get("steps", {}), **r2.get("steps", {})}.items()})
+            if learning_loop:  # L3: retrain + forecast refit every N sim days (no-op otherwise), republishes itself
+                prog(0.9, "learning loop")
+                tl = time.time()
+                learn = _learning_loop(t1, log)
+                timings["learning_loop"] = round(time.time() - tl, 2)
         persons = int(counts.get("person", 0))
         info = {"tick_id": tick_id, "sim_time": _iso(t1), "sim_time_from": _iso(t0), "sim_time_to": _iso(t1),
                 "encounters_added": n_enc, "obs_added": n_obs, "persons_added": persons,
                 "rows": {k: int(v) for k, v in counts.items() if v}, "care": care,
                 "care_world": {k: v for k, v in cw.items() if k != "outcomes"} | {"outcomes": len(cw.get("outcomes", []))},
-                "pipeline_s": pipe_s, "seconds": round(time.time() - wall0, 2), "timings": timings,
+                "learning_loop": learn, "pipeline_s": pipe_s, "seconds": round(time.time() - wall0, 2), "timings": timings,
                 "status": "done", "wall_time": dt.datetime.now(dt.timezone.utc).isoformat()}
         _write(_dir() / "last_tick.json", info)
         _write(prog_file, {"pid": os.getpid(), "days": days, "progress": 1.0, "step": "done", "running": False,
@@ -276,12 +299,13 @@ if __name__ == "__main__":
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--no-pipeline", action="store_true", help="only write the EMR rows (no analytics refresh)")
     ap.add_argument("--full", action="store_true", help="rebuild every mart (no fast tick)")
+    ap.add_argument("--no-learning-loop", action="store_true", help="skip ml.retrain.maybe_retrain after the tick")
     a = ap.parse_args()
     if a.status:
         print(json.dumps(status(), indent=1, default=str))
     elif a.auto:
         auto()
     else:
-        out = advance(a.days or 7, run_pipeline=not a.no_pipeline, fast=not a.full)
+        out = advance(a.days or 7, run_pipeline=not a.no_pipeline, fast=not a.full, learning_loop=not a.no_learning_loop)
         print(json.dumps({k: v for k, v in out.items() if k != "timings"}, indent=1, default=str))
         print("timings:", json.dumps(out.get("timings", {})))
