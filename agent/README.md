@@ -45,6 +45,10 @@ without restart).
 | `SANDBOX_TIMEOUT_S`, `SANDBOX_MEM_MB` | `30`, `2048` | sandbox limits |
 | `AGENT_MAX_STEPS` | `8` | tool-loop steps per turn |
 | `AGENT_SERVE_DB` | - | pin a specific DuckDB file (tests use the fixture) instead of following `current.json` |
+| `DATA_DIR` | `data` | dataset root (v3: `data/next`); the serve DB is `<DATA_DIR>/analytics/current.json` |
+| `API_URL` | `http://localhost:8000` | FastAPI for the v3 tools that need it (live care plans and journey, worklist `p_adhere`, plan preview, scenarios) |
+| `VIDEO_URL` | `http://127.0.0.1:8790` | video render server for `create_video` |
+| `AGENT_UPSTREAM_TIMEOUT_MS` | `8000` | timeout of those calls |
 
 Model check (2026-10-01): `deepseek/deepseek-v4.1-flash` is listed on OpenRouter and tool calling works (including
 forced `tool_choice`). `deepseek/deepseek-v4.1` (the planned eval judge) is **not** listed; the closest are
@@ -122,11 +126,15 @@ const { messages, sendMessage, regenerate, setMessages, stop, status } = useChat
 | `tool-make_chart` | `ChartWidget {kind:"chart", id, spec: ChartSpec}` or `{ok:false, error, available_columns}` | `ChartSpec` = discriminated union on `type` |
 | `tool-make_patient_widget` | `PatientWidget {kind:"patient", ...}` | doctor only; includes `name` for the clinician's screen |
 | `tool-run_python` | `ArtifactSpec {kind:"artifact", run, ok, files:[{name,url,mime,kind,bytes}], stdout, stderr, error, timed_out}` | render `<img src=url>` or a sandboxed `<iframe src=url>` |
+| `tool-create_video` | `VideoWidget {kind:"video", id, job_id, video_kind, title, subtitle?, status, progress?, cached?, url, poster_url, download_url?, status_url, error?}` | v3; the UI polls `status_url` (`/video/jobs/<id>`, proxied) and shows poster, player and download |
 
 `ChartSpec` types (all carry `title, subtitle?, caption?, unit?, caveats?, source?{tool, sql, note}`):
 
 - `line` / `area`: `x:{key,label?,kind?}`, `series:[{key, label?, lci?, uci?, dashed?, axis?}]`, `data: Row[]`,
   `annotations?:[{x,label}]`, `referenceLines?:[{y,label}]` (+ `stacked?` for area). CI band from `lci`/`uci` columns.
+  v3 `fan?: {lo95, hi95, lo80?, hi80?, start?, label?}` draws forecast prediction bands (95% lighter, 80% darker) with a
+  "Forecast" marker at `start`; dashed series take the colour of the observed series (`get_forecast` rows: `observed`,
+  `forecast`, `lo80`, `hi80`, `lo95`, `hi95`).
 - `bar`: same axes/series, `orientation?: "vertical"|"horizontal"`, `stacked?`.
 - `kpi`: `tiles:[{label, value|null, valueLabel? ("<5"), unit?, format?, ci?:[l,u], delta?, deltaLabel?, trend?: number[]}]`.
 - `table`: `columns:[{key,label?,format?}]`, `data`.
@@ -159,12 +167,26 @@ events[{ts,event_type,label,value_num,value_text,unit,is_abnormal,facility,highl
 | `make_chart` | x | x | the chart widget; references a `dataset_id` from a data tool (exact rows) or takes inline `data` |
 | `make_patient_widget` | | x | the patient card |
 | `run_python` | x | x | sandbox, max 2 runs per answer |
+| `get_care_funnel` | x | | v3 care programme: funnel flagged -> approved -> notified -> attended -> endoscopy -> cancer found -> early stage, by district, adherence by channel / distance / sex / age / pathway, days to endoscopy, impact, CHW workload (cells < 5 suppressed) |
+| `get_forecast` | x | | `mart_forecast` history + forecast to 2031 with 80/95% bands (national / province / district, sex, age, cases or ASR), drivers, backtest |
+| `run_forecast_scenario` | x | | `POST /forecast/scenario` (H. pylori coverage, smoking, salt, endoscopy access): cases averted, stage shift, assumptions |
+| `get_model_monitoring` | x | | learning loop: champion / challenger, gates, retrain history, drift (PSI), feedback-label counts; promotion stays in Model Arena |
+| `get_care_plan` | | x | plans, tasks, audit events of one patient (`/patients/{id}/care`, falls back to the `pt_care_*` snapshot) |
+| `list_followups` | | x | facility worklist (`/care/worklist`), OVERDUE / ESCALATED first, with `p_adhere` |
+| `get_patient_journey` | | x | phases, milestones, recovery summary and series (`/patients/{id}/journey`, falls back to `pt_journey` / `pt_recovery`) |
+| `draft_care_plan` | | x | suggests a pathway and renders tasks + patient messages with `POST /care/notifications/preview`; **never** creates a plan or sends anything (the doctor approves in the UI) |
+| `create_video` | x | x | doctor: patient case summary (own facility); ministry: national reel (16:9 or vertical); returns a `VideoWidget` |
 
 Data tools return `dataset_id` + `rows`; datasets are rebuilt from persisted tool parts, so follow-up turns can chart
 earlier results. After a data tool returns rows for a trend / comparison / ranking question the next step is forced to
 `make_chart`; a doctor question about one patient is forced to `make_patient_widget` once the patient is known.
 
 ## Guardrails and privacy
+
+- v3 care actions: no tool creates plans, changes tasks or sends notifications (`FORBIDDEN_ACTION_TOOLS` in
+  `specs.ts`). `src/lib/upstream.ts` forwards the caller's role headers and allows only three POSTs (care preview,
+  forecast scenario, video job); every other upstream call is a GET. The preview's APP greeting (the patient's first
+  name) is dropped before anything reaches the agent; doctor notes on plans stay on the clinician's screen.
 
 - SQL (`src/guardrails/sql.ts`, port of `api/llm/guardrails.py` + `nl2sql.py`): parsed by DuckDB itself
   (`json_serialize_sql`); exactly one SELECT, no table functions, no `read_*` / forbidden functions, no schema-qualified
@@ -223,7 +245,8 @@ variables as HTML (plotly.js from its CDN). Artifacts are moved to `AGENT_ARTIFA
 
 - `pnpm test`: builds `agent/data/fixtures/serve_fixture.duckdb` (`test/fixtures/build-duck.ts`) and runs
   `guardrails.test.ts` (allow / forbid, doctor scoping, suppression, de-identification, `numbersSupported` parity with
-  Python outputs), `tools.test.ts`, `repo.test.ts` (create, append, truncate inclusive / exclusive, pinning),
+  Python outputs), `tools.test.ts`, `v3_tools.test.ts` (care plan, follow-ups, journey, draft-only plan with a mock API
+  that records every request, care funnel suppression, forecast fan, scenario, learning loop, videos, care-table scoping), `repo.test.ts` (create, append, truncate inclusive / exclusive, pinning),
   `sandbox.test.ts` (PNG, socket / `/etc/passwd` / subprocess blocked, infinite loop killed, no network under unshare,
   scrubbed env) and `app.test.ts` (SSE chat + persistence, regenerate, edit / rewind, `/complete`, doctor privacy across
   turns, MCP JSON-RPC) with `MockLanguageModelV4`.
