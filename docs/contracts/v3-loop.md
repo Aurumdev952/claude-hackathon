@@ -205,6 +205,28 @@ All endpoints are under `/api/v1` and use the standard envelope `{meta, data}`.
 - The engine queues events in `care.sqlite` (`outbox` table: id, payload, created). The API `_watch()` drains the queue
   every 2 s and dispatches. This works because the simulator runs in another process.
 
+### 4.4 Additive details (L2, backward compatible)
+
+- **Extra columns:** `care_plans.context` (json clinical facts at approval: alarm, gastrectomy, advanced, hb_baseline,
+  distance_km, district_code, sex, age_band), `care_tasks.occurrence` (index of a recurring task, NULL for one-off
+  tasks), `created_sim` on `care_events` and `recommendation_outcomes`. Task `reminders` counts the ladder steps passed.
+  A recurring occurrence whose next window opens unattended is closed as `CANCELLED` with `result = 'MISSED'`.
+- **Snapshot names in DuckDB / serve:** `care_plans`, `care_tasks`, `care_events`, `care_notifications`,
+  `care_patient_reports`, `care_recommendation_outcomes` (all `care_` so publish copies them). Sim-time columns are
+  TIMESTAMP.
+- **Evidence for task types not in the §4.1 table:** PATHOLOGY_REVIEW encounter 6; RESULT_DISCUSSED encounter 3/7;
+  ONCOLOGY_INTAKE encounter 7; STAGING_CT obs 5040; MDT_PLAN obs 5060 (result CURATIVE/PALLIATIVE/BSC); B12_INJECTION
+  drug 6017; NUTRITION_REVIEW obs 3000 or 3107; SURVEILLANCE_IMAGING obs 5071; PAIN_REVIEW encounter 3/7 or drug 6016.
+  HP_TREATMENT accepts any of drugs 6001-6004. A fact closes at most one task per plan.
+- **API:** `GET /care/pathways` is also open to the ministry (configuration only; patient role 403). Doctor care routes
+  return 403 `FORBIDDEN` for a patient not linked to the facility (and not on a plan approved at / targeted to it).
+  A patient addressing another patient's notification or task gets 403. `POST /admin/sim advance` takes days 1-90 and
+  returns 409 `SIM_BUSY` while an advance runs. `GET /patients/{id}/journey` adds `source` (`pt_journey`|`live`) and
+  `recovery.summary` (the pt_recovery scalars). `GET /me/notifications` items carry `greeting` ("Hi {first name},")
+  for APP messages only; stored bodies never contain a name.
+- **Marts:** `pt_treatment` (published copy of `core_fact_treatment` for the cohort; the live journey uses it),
+  `pt_recovery.series` (json weight/hb/b12/albumin/ecog series).
+
 ## 5. Pipeline marts (L2: care; L3: forecasting and monitoring)
 
 | Table | Owner | Key columns |

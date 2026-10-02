@@ -66,6 +66,8 @@ def compute(patient: dict, events: list[dict], *, treatment: list[dict] | None =
         death = None
     flag_t = _d(alerts[0]["created_at"]) if alerts else _d((risk or {}).get("first_high_at"))
     plan_t = _d(plans[0]["approved_at"]) if plans else None
+    if plan_t and (flag_t is None or flag_t > plan_t):
+        flag_t = plan_t  # a plan approved straight from the record (or before the alert was re-raised)
     notif_t = _d(first_notification)
     tasks = [t for p in plans for t in (p.get("tasks") or [])]
     phases: list[dict] = []
