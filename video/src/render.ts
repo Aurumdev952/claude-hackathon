@@ -1,7 +1,7 @@
 /** Node-side rendering: bundle the compositions once, then render MP4s (H.264) and poster stills with the local
  * Chromium headless shell and SwiftShader GL (swangle) for the 3D shot. Used by the render server and the CLI. */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
@@ -13,15 +13,17 @@ export const VIDEO_ROOT = resolve(here, "..");
 export const REPO_ROOT = resolve(VIDEO_ROOT, "..");
 export const OUT_DIR = resolve(process.env.VIDEO_OUT_DIR ?? join(REPO_ROOT, "data", "videos"));
 
-/** GL backend: swangle (SwiftShader through ANGLE) for compositions with the 3D shot, as the plan requires; the 2D-only
- * reels use Chromium's default, which rasterises SVG about twice as fast here. VIDEO_GL overrides both. */
-const GL_3D = (process.env.VIDEO_GL ?? "swangle") as ChromiumOptions["gl"];
-const GL_2D = (process.env.VIDEO_GL ?? null) as ChromiumOptions["gl"];
+/** GL backend. Chromium's default rasterises the SVG scenes about 2.5x faster than swangle here and still gives WebGL
+ * through SwiftShader, so it is the first choice; for the 3D composition a tiny GlCheck still proves WebGL works and
+ * otherwise swangle (SwiftShader via ANGLE, the plan's setting) is used; with no WebGL at all the 2D body is drawn.
+ * VIDEO_GL=swangle|angle|egl|swiftshader|default forces one backend for everything. */
+const glEnv = process.env.VIDEO_GL;
+const forcedGl: ChromiumOptions["gl"] | undefined = glEnv === undefined || glEnv === ""
+  ? undefined : (glEnv === "default" || glEnv === "auto" ? null : glEnv) as ChromiumOptions["gl"];
 const HAS_3D = new Set(["PatientCaseSummary"]);
-const optionsFor = (compositionId: string): ChromiumOptions => ({ gl: HAS_3D.has(compositionId) ? GL_3D : GL_2D, headless: true });
 /** A 3D frame slower than this (ms, measured once per process on a real frame) switches patient videos to the 2D body. */
 const MAX_3D_MS = Number(process.env.VIDEO_3D_MAX_MS ?? 6000);
-let probe3d: Promise<boolean> | null = null;
+let mode3d: Promise<{ gl: ChromiumOptions["gl"]; use3d: boolean }> | null = null;
 
 let bundlePromise: Promise<string> | null = null;
 /** Webpack-bundle the Remotion project once per process (about 10-20 s). */
@@ -76,13 +78,15 @@ export async function renderVideo(compositionId: string, props: Record<string, u
   const hash = opts.hash ?? propsHash(compositionId, props);
   const serveUrl = await getBundle();
   opts.onProgress?.(0.02, "bundled");
-  const chromiumOptions = optionsFor(compositionId);
+  let gl: ChromiumOptions["gl"] = forcedGl === undefined ? null : forcedGl;
+  if (HAS_3D.has(compositionId)) {
+    const m = await (mode3d ??= choose3d(serveUrl, compositionId, props));
+    gl = m.gl;
+    if (!m.use3d || process.env.VIDEO_3D === "off") props = { ...props, force2d: true };
+  }
+  const chromiumOptions: ChromiumOptions = { gl, headless: true };
   const puppeteerInstance = await getBrowser(chromiumOptions);
   const exe = browserExecutable();
-  if (HAS_3D.has(compositionId) && !props.force2d) {
-    const ok = process.env.VIDEO_3D === "off" ? false : await (probe3d ??= measure3d(serveUrl, compositionId, props, puppeteerInstance, chromiumOptions));
-    if (!ok) props = { ...props, force2d: true };
-  }
   const composition = await selectComposition({ serveUrl, id: compositionId, inputProps: props, puppeteerInstance, browserExecutable: exe, chromiumOptions });
   const mp4 = join(outDir, `${hash}.mp4`), png = join(outDir, `${hash}.png`);
   const tmp = join(outDir, `${hash}.part.mp4`);
@@ -95,27 +99,44 @@ export async function renderVideo(compositionId: string, props: Record<string, u
   // poster: the end of the title scene (everything has animated in)
   await renderStill({ serveUrl, composition, inputProps: props, frame: Math.min(composition.durationInFrames - 1, 110), output: png,
     imageFormat: "png", puppeteerInstance, browserExecutable: exe, chromiumOptions, overwrite: true });
-  const { renameSync } = await import("node:fs");
   renameSync(tmp, mp4);
   opts.onProgress?.(1, "done");
   return { mp4, png, seconds: (Date.now() - t0) / 1000, frames: composition.durationInFrames };
 }
 
-/** Render one 3D frame (the middle of the body scene) and time it. A failure or a slow frame means "use the 2D body". */
-async function measure3d(serveUrl: string, id: string, props: Record<string, unknown>, puppeteerInstance: Awaited<ReturnType<typeof openBrowser>>, chromiumOptions: ChromiumOptions) {
-  try {
-    const composition = await selectComposition({ serveUrl, id, inputProps: props, puppeteerInstance, chromiumOptions });
-    const out = join(OUT_DIR, `probe-3d-${process.pid}.png`);
-    const t0 = Date.now();
-    await renderStill({ serveUrl, composition, inputProps: props, frame: 210, output: out, puppeteerInstance, chromiumOptions, overwrite: true, timeoutInMilliseconds: 60_000 });
-    const ms = Date.now() - t0;
-    try { (await import("node:fs")).unlinkSync(out); } catch { /* ignore */ }
-    console.log(`[video] 3D probe frame: ${ms} ms (limit ${MAX_3D_MS} ms) -> ${ms <= MAX_3D_MS ? "3D" : "2D fallback"}`);
-    return ms <= MAX_3D_MS;
-  } catch (e) {
-    console.warn("[video] 3D probe failed, using the 2D body:", (e as Error).message);
-    return false;
+/** Pick the GL backend for the 3D shot (GlCheck still: default first, then swangle) and time one real 3D frame. */
+async function choose3d(serveUrl: string, id: string, props: Record<string, unknown>): Promise<{ gl: ChromiumOptions["gl"]; use3d: boolean }> {
+  const candidates: ChromiumOptions["gl"][] = forcedGl !== undefined ? [forcedGl] : [null, "swangle"];
+  for (const gl of candidates) {
+    const chromiumOptions: ChromiumOptions = { gl, headless: true };
+    try {
+      const puppeteerInstance = await getBrowser(chromiumOptions);
+      const check = await selectComposition({ serveUrl, id: "GlCheck", inputProps: {}, puppeteerInstance, chromiumOptions });
+      await renderStill({ serveUrl, composition: check, inputProps: {}, frame: 0, output: join(OUT_DIR, `glcheck-${process.pid}.png`), puppeteerInstance, chromiumOptions, overwrite: true });
+      try { unlinkSync(join(OUT_DIR, `glcheck-${process.pid}.png`)); } catch { /* ignore */ }
+      const composition = await selectComposition({ serveUrl, id, inputProps: props, puppeteerInstance, chromiumOptions });
+      const out = join(OUT_DIR, `probe-3d-${process.pid}.png`);
+      const t0 = Date.now();
+      await renderStill({ serveUrl, composition, inputProps: props, frame: 210, output: out, puppeteerInstance, chromiumOptions, overwrite: true, timeoutInMilliseconds: 60_000 });
+      const ms = Date.now() - t0;
+      try { unlinkSync(out); } catch { /* ignore */ }
+      const use3d = ms <= MAX_3D_MS;
+      console.log(`[video] WebGL with gl=${gl ?? "default"}; 3D probe frame ${ms} ms (limit ${MAX_3D_MS} ms) -> ${use3d ? "3D" : "2D fallback"}`);
+      return { gl, use3d };
+    } catch (e) {
+      console.warn(`[video] no WebGL with gl=${gl ?? "default"}: ${(e as Error).message.split("\n")[0]}`);
+    }
   }
+  console.warn("[video] no WebGL backend works: patient videos use the 2D body");
+  return { gl: forcedGl ?? null, use3d: false };
+}
+
+/** Close the long-lived browsers (CLI renders call this so the process can exit). */
+export async function closeBrowsers() {
+  for (const b of browsers.values()) {
+    try { await (await b).close({ silent: true }); } catch { /* already closed */ }
+  }
+  browsers.clear();
 }
 
 export const cachedFiles = (hash: string, outDir = OUT_DIR) => {
