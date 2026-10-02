@@ -58,6 +58,27 @@ async function handler(req: IncomingMessage, res: ServerResponse) {
       messages: [{ channel: "APP", title: "Check-up advised", body: "Please visit Ruhengeri District Hospital (Synthetic) for a check-up by 14 July 2026.", greeting: "Hi Alice," },
                  { channel: "SMS", title: null, body: "Early Signals: please visit Ruhengeri District Hospital (Synthetic) for a check-up by 14 Jul." }] }));
   }
+  // ministry care aggregates: the API applies (complementary) suppression; the tool passes it through
+  if (url.startsWith("/api/v1/care/funnel")) {
+    return reply(res, 200, env({ steps: [{ step: "flagged", n: 90 }, { step: "approved", n: 48 }, { step: "notified", n: 46 }, { step: "attended", n: 35 },
+      { step: "endoscopy", n: 33 }, { step: "cancer_found", n: 6 }, { step: "early_stage", n: null, n_label: "<5" }],
+      by_district: [{ district_code: "NOR-MUS", flagged: 60, approved: 30 }, { district_code: "SOU-NYG", flagged: null, flagged_label: "<5", approved: null, approved_label: "<5" },
+        { district_code: "EAS-KAY", flagged: null, flagged_label: "suppressed", approved: 18 }],
+      by_pathway: [], filters: {} }));
+  }
+  if (url.startsWith("/api/v1/care/adherence")) {
+    const by = new URL(url, "http://x").searchParams.get("by");
+    return reply(res, 200, env(by === "pathway"
+      ? [{ dim: "pathway", level: "ENDOSCOPY_REFERRAL", n: 33, adhered: 25, rate: 0.758, median_days: 18 }]
+      : [{ dim: "channel", level: "APP", n: 40, adhered: 28, rate: 0.7, median_days: 12 }, { dim: "channel", level: "SMS", n: null, n_label: "<5", adhered: null, rate: null, median_days: null }]));
+  }
+  if (url === "/api/v1/care/impact") {
+    return reply(res, 200, env([{ route: "care_pathway", n: null, n_label: "<5", early_stage_pct: null, surv_1y: null }, { route: "usual", n: 160, early_stage_pct: 21.3, surv_1y: 0.41 }],
+      { caveat: "Synthetic data. Associational comparison, not a causal effect." }));
+  }
+  if (url === "/api/v1/care/chw-workload") {
+    return reply(res, 200, env([{ district_code: "NOR-MUS", district_name: "Musanze", open_visits: 9, overdue: null, overdue_label: "<5", completed_30d: 6 }]));
+  }
   if (url === "/api/v1/forecast/scenario" && req.method === "POST") {
     return reply(res, 200, env({ baseline: [{ year: 2030, mean: 3906.2, lo95: 3244.8, hi95: 4373.1 }, { year: 2031, mean: 4186.4, lo95: 3371.9, hi95: 4875.9 }],
       scenario: [{ year: 2030, mean: 3800.0, lo95: 3150.0, hi95: 4270.0 }, { year: 2031, mean: 4020.4, lo95: 3240.0, hi95: 4700.0 }],
@@ -216,22 +237,34 @@ describe("doctor care tools", () => {
 });
 
 describe("ministry outlook tools", () => {
-  it("get_care_funnel sums the funnel and suppresses small cells", async () => {
+  it("get_care_funnel reads the API's suppressed aggregates (single suppression authority) and fails closed", async () => {
     const t = ministry();
-    const o = await run("get_care_funnel", {}, t);
-    expect(o.ok).toBe(true);
+    useApi(true);
+    hits.length = 0;
+    const o = await run("get_care_funnel", { from: "2026", district: "NOR-MUS" }, t);
+    expect(o.ok, JSON.stringify(o)).toBe(true);
+    const funnelHit = hits.find((h) => h.url.startsWith("/api/v1/care/funnel"));
+    expect(funnelHit?.url).toBe("/api/v1/care/funnel?from=2026-01-01&district=NOR-MUS");
+    expect(funnelHit?.headers["x-role"]).toBe("ministry");
     const steps = Object.fromEntries(o.rows.map((r: { step: string }) => [r.step, r]));
     expect(steps.flagged.n).toBe(90);
-    expect(steps.approved).toMatchObject({ n: 48, pct_of_prev: 53.3 });
+    expect(steps.approved).toMatchObject({ n: 48, pct_of_prev: 53.3, label: "Plan approved" });
     expect(steps.early_stage).toMatchObject({ n: null, n_label: "<5", pct_of_prev: null });
-    const nyg = o.by_district.rows.find((r: { district_code: string }) => r.district_code === "SOU-NYG");
-    expect(nyg).toMatchObject({ flagged: null, flagged_label: "<5", district_name: "Nyaruguru" });
+    expect(o.by_district.rows.find((r: { district_code: string }) => r.district_code === "EAS-KAY")).toMatchObject({ flagged: null, flagged_label: "suppressed" });
     const sms = o.adherence.rows.find((r: { level: string }) => r.level === "SMS");
-    expect(sms).toMatchObject({ n: null, n_label: "<5", rate: null, median_days: null });
+    expect(sms).toMatchObject({ n: null, n_label: "<5", rate: null, rate_pct: null, median_days: null });
     expect(o.days_to_endoscopy).toMatchObject({ n: 33, median_days: 18 });
     expect(o.impact.rows.find((r: { route: string }) => r.route === "care_pathway")).toMatchObject({ n: null, early_stage_pct: null });
+    expect(o.impact.caveat).toMatch(/not a causal effect/);
     const safe = JSON.stringify(modelSafe(by.get_care_funnel, o, t));
     expect(safe).not.toMatch(/patient_id|display_id/);
+    useApi(false);
+    try {
+      const down = await run("get_care_funnel", {}, ministry());
+      expect(down.ok).toBe(false); // no fallback to the raw marts: suppression lives in the API
+    } finally {
+      useApi(true);
+    }
   });
 
   it("get_forecast: history + forecast with nested bands, bridge, summary, drivers, backtest", async () => {
@@ -337,12 +370,11 @@ describe("create_video", () => {
 });
 
 describe("v3 guardrails", () => {
-  it("ministry: care marts are queryable with suppression, care_* patient rows are not", async () => {
+  it("ministry: care aggregates and care_* patient rows are both out of reach of model-written SQL", async () => {
     const ctx = { role: "ministry" as const, facilityId: null };
-    const f = await guardedQuery(ctx, "SELECT district_code, flagged, approved, endoscopy FROM mart_care_funnel WHERE district_code = 'SOU-NYG'");
-    expect(f.ok).toBe(true);
-    expect(f.rows[0]).toMatchObject({ flagged: null, flagged_label: "<5" });
-    for (const tbl of ["care_plans", "care_tasks", "pt_care_plan", "pt_journey", "ml_feedback_labels"]) {
+    // small care counts could be rebuilt by differencing in free SQL; they are read through get_care_funnel (the API)
+    for (const tbl of ["mart_care_funnel", "mart_care_adherence", "mart_care_impact", "mart_chw_workload",
+                       "care_plans", "care_tasks", "pt_care_plan", "pt_journey", "ml_feedback_labels"]) {
       const r = await guardedQuery(ctx, `SELECT count(*) AS n FROM ${tbl}`);
       expect(r.ok, tbl).toBe(false);
       expect(r.error_kind).toBe("unsafe");

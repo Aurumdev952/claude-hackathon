@@ -58,55 +58,49 @@ export const getCareFunnel = defineTool({
     adherence_by: z.enum(["channel", "distance", "sex", "age", "district", "pathway"]).default("channel"),
   }),
   async execute(i, t) {
-    const db = SERVE();
-    if (!(await db.hasTable("mart_care_funnel"))) return { ok: false, error: "Care coordination marts are not published yet" };
-    const where = ["TRUE"];
-    const params: unknown[] = [];
+    // The API is the single place that applies small-cell suppression to care aggregates, including complementary
+    // suppression (a total minus the visible cells must not give back a hidden one), so the agent reads it rather than
+    // re-implementing the rules over the marts. If the API is unreachable the tool fails closed.
     const day = (s: string, end: boolean) => (s.length === 4 ? `${s}-${end ? "12-31" : "01-01"}` : s.length === 7 ? `${s}-${end ? "28" : "01"}` : s);
-    if (i.from) { where.push("period >= CAST(? AS DATE)"); params.push(day(i.from, false)); }
-    if (i.to) { where.push("period <= CAST(? AS DATE)"); params.push(day(i.to, true)); }
-    if (i.district) { where.push("district_code = ?"); params.push(i.district); }
-    const w = where.join(" AND ");
-    const sums = FUNNEL.map((f) => `sum(${f})::INT AS ${f}`).join(", ");
-    const tot = (await db.one(`SELECT ${sums} FROM mart_care_funnel WHERE ${w}`, params)) ?? {};
-    let prev: number | null = null;
-    const steps = FUNNEL.map((f) => {
-      const n = Number(tot[f] ?? 0);
-      const row = suppressCells({ step: f, label: FUNNEL_LABEL[f], n, pct_of_prev: prev && prev >= 5 && n >= 5 ? round((100 * n) / prev, 1) : null }, ["n"], ["pct_of_prev"]);
-      prev = n;
-      return row;
-    });
-    const byDistrict = (await db.rows(
-      `SELECT f.district_code, d.name AS district_name, ${FUNNEL.map((x) => `sum(f.${x})::INT AS ${x}`).join(", ")}
-       FROM mart_care_funnel f LEFT JOIN ref_district d USING (district_code) WHERE ${w.replace(/\b(period|district_code)\b/g, "f.$1")} GROUP BY 1, 2 ORDER BY 3 DESC`,
-      params,
-    )).map((r) => suppressCells(r, FUNNEL));
-    const adherence = (await db.hasTable("mart_care_adherence"))
-      ? (await db.rows("SELECT dim, level, n, adhered, rate, median_days FROM mart_care_adherence WHERE dim = ? ORDER BY level", [i.adherence_by]))
-          .map((r) => suppressCells({ ...r, rate_pct: typeof r.rate === "number" ? round(100 * r.rate, 1) : null, median_days: round(r.median_days, 1) }, ["n", "adhered"], ["rate", "rate_pct", "median_days"]))
-      : [];
-    const endo = (await db.hasTable("mart_care_adherence"))
-      ? await db.one("SELECT n, adhered, rate, median_days FROM mart_care_adherence WHERE dim = 'pathway' AND level = 'ENDOSCOPY_REFERRAL'")
-      : null;
-    const daysToEndoscopy = endo ? suppressCells({ n: endo.n, median_days: round(endo.median_days, 1) }, ["n"], ["median_days"]) : null;
-    const impact = (await db.hasTable("mart_care_impact"))
-      ? (await db.rows("SELECT route, n, early_stage_pct, surv_1y, n_surv_eligible FROM mart_care_impact ORDER BY route"))
-          .map((r) => suppressCells({ ...r, early_stage_pct: round(r.early_stage_pct, 1), surv_1y: round(r.surv_1y, 3) }, ["n", "n_surv_eligible"], ["early_stage_pct", "surv_1y"]))
-      : [];
-    const chw = (await db.hasTable("mart_chw_workload"))
-      ? (await db.rows("SELECT w.district_code, d.name AS district_name, w.open_visits, w.overdue, w.completed_30d FROM mart_chw_workload w LEFT JOIN ref_district d USING (district_code) ORDER BY open_visits DESC"))
-          .map((r) => suppressCells(r, ["open_visits", "overdue", "completed_30d"]))
-      : [];
-    return {
-      ok: true, filters: { from: i.from ?? null, to: i.to ?? null, district: i.district ?? null },
-      dataset_id: t.datasets.register("get_care_funnel", steps as RowObject[]), rows: steps,
-      by_district: { dataset_id: t.datasets.register("get_care_funnel", byDistrict), rows: byDistrict },
-      adherence: { by: i.adherence_by, dataset_id: t.datasets.register("get_care_funnel", adherence as RowObject[]), rows: adherence },
-      days_to_endoscopy: daysToEndoscopy,
-      impact: { rows: impact, caveat: CARE_CAVEAT },
-      chw_workload: chw,
-      caveats: [CARE_CAVEAT, "Cells with fewer than 5 patients are suppressed (shown as <5)."],
-    };
+    const q = new URLSearchParams();
+    if (i.from) q.set("from", day(i.from, false));
+    if (i.to) q.set("to", day(i.to, true));
+    if (i.district) q.set("district", i.district);
+    try {
+      const [funnel, adh, endoAdh, impact, chw] = await Promise.all([
+        api<{ steps: Obj[]; by_district: Obj[]; by_pathway: Obj[] }>(t.ctx, `/care/funnel${q.size ? `?${q}` : ""}`),
+        api<Obj[]>(t.ctx, `/care/adherence?by=${i.adherence_by}`),
+        api<Obj[]>(t.ctx, "/care/adherence?by=pathway"),
+        api<Obj[]>(t.ctx, "/care/impact"),
+        api<Obj[]>(t.ctx, "/care/chw-workload"),
+      ]);
+      let prev: number | null = null;
+      const steps = funnel.data.steps.map((st) => {
+        const n = typeof st.n === "number" ? st.n : null;
+        const row = { ...st, label: FUNNEL_LABEL[String(st.step)] ?? st.step,
+          pct_of_prev: prev !== null && n !== null && prev >= 5 && n >= 5 ? round((100 * n) / prev, 1) : null };
+        prev = n;
+        return row;
+      });
+      const adherence = adh.data.map((r) => ({ ...r, rate_pct: typeof r.rate === "number" ? round(100 * r.rate, 1) : null,
+        median_days: typeof r.median_days === "number" ? round(r.median_days, 1) : r.median_days ?? null }));
+      const endo = endoAdh.data.find((r) => r.level === "ENDOSCOPY_REFERRAL") ?? null;
+      const byDistrict = funnel.data.by_district as RowObject[];
+      return {
+        ok: true, filters: { from: i.from ?? null, to: i.to ?? null, district: i.district ?? null },
+        dataset_id: t.datasets.register("get_care_funnel", steps as RowObject[]), rows: steps,
+        by_district: { dataset_id: t.datasets.register("get_care_funnel", byDistrict), rows: byDistrict },
+        by_pathway: funnel.data.by_pathway,
+        adherence: { by: i.adherence_by, dataset_id: t.datasets.register("get_care_funnel", adherence as RowObject[]), rows: adherence },
+        days_to_endoscopy: endo ? { n: endo.n ?? null, n_label: endo.n_label ?? null,
+          median_days: typeof endo.median_days === "number" ? round(endo.median_days, 1) : null } : null,
+        impact: { rows: impact.data, caveat: String(impact.envelope.caveat ?? CARE_CAVEAT) },
+        chw_workload: chw.data,
+        caveats: [CARE_CAVEAT, "Small cells are suppressed: '<5' for counts 1-4, 'suppressed' for a larger cell hidden so a small one cannot be worked out from the totals."],
+      };
+    } catch (e) {
+      return upstreamMessage(e);
+    }
   },
 });
 
