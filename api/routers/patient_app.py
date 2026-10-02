@@ -17,6 +17,28 @@ router = APIRouter()
 CHW = {"name": "CHW (Synthetic)", "phone": "+250 7xx xxx xxx"}
 HIDDEN_PLAN = ("note", "model_id", "risk_at_approval", "band_at_approval", "propensity", "context", "source_alert_id",
                "trigger", "approved_by", "emr_encounter_id")
+# Internal pathway and task codes can reveal a diagnosis (ONCOLOGY_TREATMENT, CHEMO_CYCLE, STAGING_CT, ...). The patient
+# payload drops the pathway code (the friendly `pathway_name` stays) and replaces task types with neutral codes. The field
+# name `type` is kept for the patient app (it keys the medicine-course tracker on HP_TREATMENT / IRON_COURSE, which are
+# kept as they are).
+PATIENT_TASK = {"ONCOLOGY_INTAKE": "SPECIALIST_VISIT", "STAGING_CT": "SCAN", "MDT_PLAN": "TEAM_PLAN", "SURGERY": "OPERATION",
+                "CHEMO_CYCLE": "TREATMENT_CYCLE", "SURVEILLANCE_IMAGING": "SCAN", "PATHOLOGY_REVIEW": "LAB_REVIEW",
+                "RESULT_DISCUSSED": "RESULTS_VISIT", "PAIN_REVIEW": "COMFORT_REVIEW"}
+
+
+def patient_task_type(t: str | None) -> str | None:
+    return PATIENT_TASK.get(t, t) if t else t
+
+
+def patient_template_key(key: str | None) -> str | None:
+    """`<pathway>.<task>.<stage>` -> `care.<neutral task>.<stage>` (no pathway code)."""
+    if not key:
+        return key
+    parts = str(key).split(".")
+    task, stage = (parts[1], parts[2]) if len(parts) >= 3 else (parts[0], parts[-1])
+    return f"care.{patient_task_type(task)}.{stage}"
+
+
 PATIENT_EVENTS = {"PLAN_CREATED", "TASK_CREATED", "TASK_OPENED", "NOTIFIED", "COMPLETED", "RESCHEDULED", "PATIENT_CONFIRMED",
                   "PATIENT_ACTED", "CHECKIN", "DOSE", "CHW_ASSIGNED", "PLAN_COMPLETED", "MISSED", "OVERDUE"}
 
@@ -48,6 +70,7 @@ def me(r: Role = Depends(p)):
 def _note(n: dict, first_name: str | None) -> dict:
     out = {k: n[k] for k in ("id", "plan_id", "task_id", "channel", "template_key", "title", "body", "created_sim",
                              "delivered_sim", "read_sim", "acted_sim")}
+    out["template_key"] = patient_template_key(out["template_key"])
     if n["channel"] == "APP":
         out["greeting"] = messages.greeting(first_name)
     return out
@@ -86,13 +109,14 @@ def patient_plans(pid: int) -> list[dict]:
     names = {k: v["name"] for k, v in pathways.pathways().items()}
     out = []
     for pl in engine.plans_for(pid):
-        q = {k: v for k, v in pl.items() if k not in HIDDEN_PLAN}
-        q["pathway_name"] = names.get(pl["pathway"], pl["pathway"])
+        q = {k: v for k, v in pl.items() if k not in HIDDEN_PLAN and k != "pathway"}
+        q["pathway_name"] = names.get(pl["pathway"], "Care plan")
         fid = pl.get("target_facility_id") or pl.get("facility_id")
         loc = SERVE.one("SELECT name FROM core_dim_location WHERE location_id = ?", [fid]) if fid else None
         q["target_facility_name"] = (loc or {}).get("name")   # additive (U1): the next-step card names the facility
-        q["tasks"] = [{k: t[k] for k in ("id", "plan_id", "seq", "type", "title", "status", "opens_at", "due_at",
-                                         "completed_at", "reminders")} | {"patient_facing": pathways.patient_facing(pl["pathway"], t["type"])}
+        q["tasks"] = [{k: t[k] for k in ("id", "plan_id", "seq", "title", "status", "opens_at", "due_at", "completed_at",
+                                         "reminders")}
+                      | {"type": patient_task_type(t["type"]), "patient_facing": pathways.patient_facing(pl["pathway"], t["type"])}
                       for t in pl["tasks"]]
         q["events"] = [{"id": e["id"], "task_id": e["task_id"], "kind": e["kind"], "actor": e["actor"], "sim_time": e["sim_time"]}
                        for e in pl["events"] if e["kind"] in PATIENT_EVENTS]
