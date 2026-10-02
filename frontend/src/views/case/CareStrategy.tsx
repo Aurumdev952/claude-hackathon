@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowDownRight, ArrowUpRight, BellRing, ClipboardList, FlaskConical, HeartPulse, Microscope, Minus, Pill, ScanSearch, ShieldPlus, Sparkles, Stethoscope, TrendingUp, Bug,
+  ArrowDownRight, ArrowUpRight, BellRing, ClipboardCheck, ClipboardList, FlaskConical, HeartPulse, Microscope, Minus, Pill, Route, ScanSearch, ShieldPlus, Sparkles, Stethoscope, TrendingUp, Bug,
 } from "lucide-react";
-import { Card, DetailModal, PillTabs, Sparkline, useDetailModal } from "@/components/ui";
+import { Card, DetailModal, ErrorNote, PillTabs, Skeleton, Sparkline, useDetailModal } from "@/components/ui";
 import { date, fmt } from "@/lib/format";
 import { EASE, itemEnter, stagger } from "@/lib/motion";
 import { AlertActions } from "@/views/doctor/AlertActions";
@@ -13,8 +14,12 @@ import { NotScored, SHAP_NOTE, Track } from "@/views/doctor/RiskCard";
 import type { CaseData, Measure } from "./types";
 import { useCaseUI } from "./store";
 import { MEASURE_ORGANS } from "./measureOrgans";
+import { CarePlanView } from "./CarePlanView";
+import { JourneyView } from "./JourneyView";
+import { ApprovePlanModal, type ApproveTarget } from "@/views/doctor/ApprovePlanModal";
+import { type CareTask, isOpenPlan, useJourney, usePatientCare } from "@/views/doctor/care";
 
-type TabKey = "alerts" | "reasons" | "vitals" | "meds";
+type TabKey = "alerts" | "reasons" | "vitals" | "meds" | "journey" | "care";
 
 /** Tile used by every tab (reference grey nested tile): white icon circle + title + one muted line. `tone` is kept for
  * call-site compatibility; status is carried by text (a small dot + label in `right`), not by tinted icons. */
@@ -140,18 +145,55 @@ function Meds({ data }: { data: CaseData }) {
   );
 }
 
-/** "Care strategy" card (reference "Customized care strategy"): tabs on a grey track (Alerts, Why flagged, Vitals and labs,
- * Medicines) over a two-column grid of grey tiles. */
+/** Journey (diagnosed) or care plan (everyone else) tab: GET /patients/{id}/journey and /patients/{id}/care. Evidence links
+ * move the replay playhead to the EMR fact that closed the step. */
+function CareTab({ data, journey: withJourney }: { data: CaseData; journey: boolean }) {
+  const id = data.header.patient_id;
+  const care = usePatientCare(id);
+  const j = useJourney(id, withJourney);
+  const set = useCaseUI((s) => s.set);
+  const qc = useQueryClient();
+  const [start, setStart] = useState<ApproveTarget | null>(null);
+  const simNow = (care.data?.meta?.sim_time as string | undefined) ?? data.window.end;
+  const jump = (d: string, _t: CareTask) => set({ replayT: Date.parse(d.length <= 10 ? `${d}T12:00:00` : d), playing: false });
+  const plans = care.data?.data?.plans ?? [];
+  const startBtn = (
+    <Button size="sm" radius="full" className="h-9 px-4 bg-ink text-ink-on text-[13px] font-semibold" startContent={<ClipboardCheck size={14} aria-hidden />}
+            onPress={() => setStart({ patientId: id, isCase: data.header.is_case, label: <>{data.header.name} <span className="tabular">{data.header.display_id}</span></> })}>Start care plan</Button>
+  );
+  return (
+    <div className="flex flex-col gap-6">
+      {withJourney && (j.isLoading ? <Skeleton variant="card" h={260} label="Loading journey" /> : j.error ? <ErrorNote error={j.error} />
+        : j.data ? <JourneyView journey={j.data.data} simNow={simNow} sex={data.header.sex} /> : null)}
+      <section aria-label="Care plans" className={withJourney ? "pt-5 border-t border-hairline" : ""}>
+        {withJourney && <h3 className="text-label text-muted mb-3">Care plan</h3>}
+        {care.isLoading ? <Skeleton variant="list" rows={3} label="Loading care plans" /> : care.error ? <ErrorNote error={care.error} />
+          : <CarePlanView plans={plans} simNow={simNow} onEvidence={jump}
+                          empty={<div className="flex items-center gap-4 rounded-tile bg-tile px-5 py-4"><span className="flex-1 text-label font-normal text-muted">No care plan yet. Approve an alert, or start one here.</span>{startBtn}</div>} />}
+        {plans.length > 0 && !plans.some(isOpenPlan) && <div className="mt-3">{startBtn}</div>}
+      </section>
+      <ApprovePlanModal target={start} isOpen={!!start} onOpenChange={(o) => { if (!o) { setStart(null); qc.invalidateQueries({ queryKey: ["patients", "case", id] }); } }} />
+    </div>
+  );
+}
+
+/** "Care strategy" card (reference "Customized care strategy"): tabs on a grey track (Journey or Care plan, Alerts, Why
+ * flagged, Vitals and labs, Medicines) over a two-column grid of grey tiles. */
 export function CareStrategy({ data, className = "" }: { data: CaseData; className?: string }) {
   const newAlerts = data.alerts.filter((a) => a.status === "NEW").length;
-  const [tab, setTab] = useState<TabKey>(newAlerts ? "alerts" : data.risk ? "reasons" : "vitals");
+  const dx = !!data.header.is_case;
+  const care = usePatientCare(data.header.patient_id);
+  const openPlans = (care.data?.data?.plans ?? []).filter(isOpenPlan).length;
+  const [tab, setTab] = useState<TabKey>(dx ? "journey" : newAlerts ? "alerts" : data.risk ? "reasons" : "vitals");
   const abnormal = [...data.labs, ...data.vitals].filter((m) => m.abnormal).length;
   return (
     <Card title="Care strategy" icon={<Sparkles size={16} />} className={className}
-          info={{ about: "What to act on for this patient: open alerts and their suggested actions, the reasons the models flagged them, measurements, and medicines.", notes: SHAP_NOTE }}>
+          info={{ about: "What to act on for this patient: the care plan or recovery journey, open alerts and their suggested actions, the reasons the models flagged them, measurements, and medicines.", notes: SHAP_NOTE }}>
       <div className="-mt-1 mb-4 max-w-full overflow-x-auto scrollbar-none">
         <PillTabs ariaLabel="Care strategy" size="sm" variant="glass" selectedKey={tab} onSelectionChange={setTab} panelClassName="hidden"
                   items={[
+                    dx ? { key: "journey" as const, label: "Journey", icon: <Route size={13} aria-hidden /> }
+                       : { key: "care" as const, label: "Care plan", icon: <ClipboardList size={13} aria-hidden />, count: openPlans || undefined },
                     { key: "alerts", label: "Alerts", icon: <BellRing size={13} aria-hidden />, count: data.alerts.length },
                     { key: "reasons", label: "Why flagged", count: data.risk?.top_reasons?.length || undefined },
                     { key: "vitals", label: "Vitals and labs", count: abnormal || undefined },
@@ -160,7 +202,8 @@ export function CareStrategy({ data, className = "" }: { data: CaseData; classNa
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16, ease: EASE }}>
-          {tab === "alerts" && <AlertActions alerts={data.alerts} columns={2} variant="tiles" />}
+          {(tab === "journey" || tab === "care") && <CareTab data={data} journey={tab === "journey"} />}
+          {tab === "alerts" && <AlertActions alerts={data.alerts} columns={2} variant="tiles" isCase={dx} />}
           {tab === "reasons" && <Reasons data={data} />}
           {tab === "vitals" && <Measures data={data} />}
           {tab === "meds" && <Meds data={data} />}

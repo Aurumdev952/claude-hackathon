@@ -215,6 +215,12 @@ function Legend({ data, state }: { data: CaseData; state: BodyState }) {
           ) : <Key swatch="repeating-radial-gradient(circle,#f2a541 0 1px,transparent 1px 3px)" round label={`Suspected region: ${state.lesion!.region}`} />}
         </div>
       )}
+      {data.surgery && (
+        <div className="flex flex-col gap-1.5 text-[13px]">
+          <Key swatch="repeating-linear-gradient(90deg,#8fb8d8 0 3px,transparent 3px 6px)" label={`Stomach removed: gastrectomy ${date(data.surgery.date)}${state.resected ? "" : " (later in the replay)"}`} />
+          {!!state.recoveryMonths && <span className="text-muted">Recovery: {Math.round(state.recoveryMonths)} months since surgery; earlier findings fade as the patient recovers.</span>}
+        </div>
+      )}
       <div>
         <div className="text-label text-muted mb-1.5">What the animations mean</div>
         <ul className="list-disc pl-4 text-[13px] text-ink/90 leading-snug flex flex-col gap-0.5">{PHYSIOLOGY_NOTES.map((n) => <li key={n}>{n}</li>)}</ul>

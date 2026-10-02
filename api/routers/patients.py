@@ -82,7 +82,39 @@ def patients(risk_band: str | None = None, q: str | None = None, status: str = "
     for x in rows:
         x["top_reasons"] = (parse_json(x["top_reasons"]) or [])[:2]
         x["open_alerts"] = open_alerts.get(x["patient_id"], 0)
+    if status == "diagnosed":
+        _add_journey(rows)
     return envelope(rows, page=page, page_size=page_size, total=total)
+
+
+def _add_journey(rows: list[dict]):
+    """Diagnosed list (v3 "In recovery" tab, additive): the current journey phase from pt_journey and the pt_recovery
+    scalars a worklist needs (missed visits, next visit, intent, gastrectomy, recurrence)."""
+    ids = [x["patient_id"] for x in rows]
+    if not ids:
+        return
+    ph = ",".join("?" * len(ids))
+    phase: dict = {}
+    if SERVE.has_table("pt_journey"):
+        # the current phase, else the latest one already done
+        for j in SERVE.rows(f"""SELECT patient_id, phase, status, start_date FROM pt_journey WHERE patient_id IN ({ph})
+                                AND status IN ('current', 'done') QUALIFY row_number() OVER (PARTITION BY patient_id
+                                ORDER BY status = 'current' DESC, seq DESC) = 1""", ids):
+            phase[j["patient_id"]] = j
+    rec: dict = {}
+    if SERVE.has_table("pt_recovery"):
+        for r in SERVE.rows(f"""SELECT patient_id, intent, gastrectomy, missed_visits_12m, next_visit_due, recurrence,
+                                       chemo_done, chemo_planned, weight_change_pct
+                                FROM pt_recovery WHERE patient_id IN ({ph})""", ids):
+            rec[r["patient_id"]] = r
+    for x in rows:
+        j, r = phase.get(x["patient_id"]), rec.get(x["patient_id"]) or {}
+        x["journey"] = {"phase": j["phase"] if j else None, "phase_status": j["status"] if j else None,
+                        "phase_start": j["start_date"] if j else None, "intent": r.get("intent"),
+                        "gastrectomy": r.get("gastrectomy"), "missed_visits": r.get("missed_visits_12m"),
+                        "next_visit": r.get("next_visit_due"), "recurrence": r.get("recurrence"),
+                        "chemo_done": r.get("chemo_done"), "chemo_planned": r.get("chemo_planned"),
+                        "weight_change_pct": r.get("weight_change_pct")}
 
 
 def _header(pid: int) -> dict:
