@@ -10,10 +10,13 @@ import { ModelCards } from "./models/ModelCards";
 import { CurveChart, CurveLegend, CurveTable, withCumulative, type Kind, type ModelCurves } from "./models/Curves";
 import { ImportanceBars, ImportanceTable } from "./models/Importance";
 import { SubgroupTable } from "./models/Subgroups";
+import { LearningLoop } from "./models/LearningLoop";
+import { useRole } from "@/state/role";
 import { TIER_META, type Curves, type Importance, type Metrics, type RegistryModel, type Subgroup, type Thresholds } from "./models/types";
 
 /** V6 - Model Arena (SPEC §16.3, §13): three tiers compared on the same temporal test set. */
 export default function ModelArena() {
+  const role = useRole((s) => s.role);
   const reg = useQuery({
     queryKey: ["models", "list"], queryFn: () => get<RegistryModel[]>("/models"), retry: false,
     refetchInterval: (q) => ((q.state.error as ApiError | null)?.code === "NO_MODELS" ? 30_000 : false),
@@ -108,6 +111,8 @@ export default function ModelArena() {
           </Card>
         </GridItem>
       </BentoGrid>
+      {/* v3: retraining on verified outcomes, gated promotion (ministry only: the endpoints are ministry-only) */}
+      {role === "ministry" && <LearningLoop />}
     </div>
   );
 }
