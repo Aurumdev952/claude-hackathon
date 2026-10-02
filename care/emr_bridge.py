@@ -139,3 +139,21 @@ class Rows:
             for o, i in zip(todo, self.emr.next_ids("obs", len(todo))):
                 o["obs_id"] = i
         return self.emr.write(self.frames(), tick or self.sim.strftime("%Y-%m-%dT%H:%M:%S"))
+
+
+def commit_all(rows: list[Rows], tick: str | None = None) -> dict:
+    """Write several Rows builders as one write-back part per table (one reconcile pass -> one part)."""
+    rows = [r for r in rows if r is not None]
+    if not rows:
+        return {}
+    for r in rows:
+        todo = [o for o in r.data["obs"] if o["obs_id"] is None]
+        if todo:
+            for o, i in zip(todo, r.emr.next_ids("obs", len(todo))):
+                o["obs_id"] = i
+    frames: dict[str, list[pl.DataFrame]] = {}
+    for r in rows:
+        for t, df in r.frames().items():
+            frames.setdefault(t, []).append(df)
+    merged = {t: pl.concat(dfs) for t, dfs in frames.items()}
+    return rows[0].emr.write(merged, tick or max(r.sim for r in rows).strftime("%Y-%m-%dT%H:%M:%S"))

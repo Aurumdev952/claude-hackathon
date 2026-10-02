@@ -19,7 +19,7 @@ from typing import Any
 from shared.concepts import C
 
 from . import evidence, messages, pathways
-from .emr_bridge import ENC_CARE, ENC_CHW, ENC_PATIENT, Rows, adapter  # noqa: F401
+from .emr_bridge import ENC_CARE, ENC_CHW, ENC_PATIENT, Rows, adapter, commit_all  # noqa: F401
 from .store import get_store, iso, sim_now, to_dt
 
 TERMINAL = ("COMPLETED", "CANCELLED", "DECLINED")
@@ -501,11 +501,10 @@ def reconcile(t0, t1, con=None, *, log=print) -> dict:
         for p in plans.values():
             store.update("care_plans", p["id"], {"status": p["status"], "closed_sim": p.get("closed_sim")}, c)
         w.flush(c)
-    for r in w.emr:
-        try:
-            r.commit()
-        except Exception as e:  # noqa: BLE001
-            log(f"care: EMR write failed: {e}")
+    try:
+        commit_all(w.emr, iso(t1))
+    except Exception as e:  # noqa: BLE001
+        log(f"care: EMR write failed: {e}")
     _upsert_outcomes(list(plans), db, t1)
     summary["reminders"] = w.counts["reminders"]
     summary["notifications"] = w.counts["notifications"]
@@ -569,7 +568,8 @@ def _ladder(w: _Writer, plan: dict, t: dict, horizon: dt.datetime, summary: dict
             summary["escalations"] += 1
             continue
         if s.get("spawn") == "CHW_VISIT":
-            if "CHW" in chans:
+            has_own_chw = any(x["type"] == "CHW_VISIT" for x in pathways.pathway(plan["pathway"])["tasks"])
+            if "CHW" in chans and not has_own_chw:  # palliative care already has monthly CHW home visits
                 chw = _spawn_task(w, plan, "CHW_VISIT", at, opens_days=0, due_days=int(s.get("chw_due_days", 7)))
                 w.notify(plan, t, "overdue", "CHW", at)
                 r = Rows(plan["patient_id"], plan["facility_id"], at, ENC_CARE, at)
@@ -834,8 +834,7 @@ def patch_task(task_id: str, action: str, *, reason: str | None = None, due_at: 
     with store.tx() as c:
         store.update("care_plans", plan["id"], {"status": plan["status"], "closed_sim": plan.get("closed_sim")}, c)
         w.flush(c)
-    for r in w.emr:
-        r.commit()
+    commit_all(w.emr, iso(now))
     _upsert_outcomes([plan["id"]], db, now)
     return {"task": _public_task(store.one("SELECT * FROM care_tasks WHERE id = ?", [task_id])),
             "plan": plan_detail(plan["id"])["plan"]}
@@ -908,7 +907,7 @@ def worklist(facility_id: int, con=None) -> list[dict]:
     store = get_store()
     now = to_dt(sim_now())
     rows = store.rows(f"""SELECT t.*, p.pathway, p.facility_id, p.target_facility_id, p.display_id, p.channels, p.context,
-                                 p.status AS plan_status, p.approved_at
+                                 p.status AS plan_status, p.approved_at, p.risk_at_approval
                           FROM care_tasks t JOIN care_plans p ON p.id = t.plan_id
                           WHERE p.status IN {PLAN_OPEN} AND t.status IN ('DUE','NOTIFIED','OVERDUE','ESCALATED')
                             AND (p.facility_id = ? OR p.target_facility_id = ?)""", [facility_id, facility_id])
@@ -921,11 +920,12 @@ def worklist(facility_id: int, con=None) -> list[dict]:
         for r in db.rows(f"""SELECT patient_id, display_id, given_name, family_name, age, sex FROM pt_patient
                               WHERE patient_id IN ({','.join(str(int(p)) for p in pids)})"""):
             pts[int(r["patient_id"])] = r
+    ctxs = [json.loads(r.get("context") or "{}") for r in rows]
+    bases = _model_p([{"task": r, "ctx": c} for r, c in zip(rows, ctxs)])
     out = []
-    for r in rows:
-        ctx = json.loads(r.get("context") or "{}")
+    for r, ctx, base in zip(rows, ctxs, bases):
         overdue = max(0, (now - to_dt(r["due_at"])).days)
-        p = p_adhere(r, ctx, overdue)
+        p = p_adhere(r, ctx, overdue, base)
         prio = round((1 - p) * (1 + overdue / 7) * (2.0 if r["status"] == "ESCALATED" else 1.0) *
                      (1.5 if r["status"] == "OVERDUE" else 1.0), 3)
         task = {k: r[k] for k in ("id", "plan_id", "patient_id", "seq", "type", "title", "status", "opens_at", "due_at",
@@ -939,20 +939,32 @@ def worklist(facility_id: int, con=None) -> list[dict]:
     return out
 
 
-def p_adhere(task: dict, ctx: dict, overdue_days: int) -> float:
-    """Probability the patient completes the task on time. Uses the L3 model when present, else a config prior."""
+def p_adhere(task: dict, ctx: dict, overdue_days: int, base: float | None = None) -> float:
+    """P(the patient completes this task): the adherence model's on-time probability at approval (ml.adherence, L3;
+    a config prior until enough outcomes exist), lowered for days overdue and escalation steps already used."""
+    if base is None:
+        base = _model_p([{"task": task, "ctx": ctx}])[0]
+    z = math.log(base / (1 - base)) - 0.08 * overdue_days - 0.35 * int(task.get("escalation_level") or 0)
+    return 1 / (1 + math.exp(-z))
+
+
+def _model_p(items: list[dict]) -> list[float]:
+    rows = [{"pathway": it["task"].get("pathway"), "channels": it["task"].get("channels"), "distance_km": it["ctx"].get("distance_km"),
+             "sex": it["ctx"].get("sex"), "age_band": it["ctx"].get("age_band"),
+             "risk_at_approval": it["task"].get("risk_at_approval")} for it in items]
     try:
         from ml import adherence  # track L3
-        fn = getattr(adherence, "predict_one", None)
-        if fn:
-            v = fn(task=task, context=ctx, overdue_days=overdue_days)
-            if v is not None:
-                return float(v)
-    except Exception:  # noqa: BLE001
+        out = [float(min(0.99, max(0.01, v))) for v in adherence.predict_p_adhere(rows)]
+        if len(out) == len(rows):
+            return out
+    except Exception:  # noqa: BLE001 - fall back to the built-in prior
         pass
-    z = 1.2 - 0.025 * float(ctx.get("distance_km") or 15) - 0.35 * int(task.get("escalation_level") or 0) \
-        - 0.08 * overdue_days + (0.2 if ctx.get("sex") == "F" else 0.0) - (0.3 if ctx.get("age_band") == "70+" else 0.0)
-    return 1 / (1 + math.exp(-z))
+    res = []
+    for r in rows:
+        z = 1.0 - 0.025 * float(r["distance_km"] or 15) + (0.2 if r["sex"] == "F" else 0.0) - \
+            (0.3 if r["age_band"] == "70+" else 0.0) + (0.3 if "CHW" in str(r["channels"]) else 0.0)
+        res.append(1 / (1 + math.exp(-z)))
+    return res
 
 
 def notifications_for(patient_id: int, *, channels: tuple[str, ...] = ("APP", "SMS")) -> list[dict]:

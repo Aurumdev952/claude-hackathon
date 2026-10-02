@@ -18,8 +18,9 @@ from .store import get_store, iso, set_clock, sim_now, to_dt
 
 MARKER = "[demo]"
 # pathway -> days before the current sim time that the plan was approved
-BACKDATE = {"ENDOSCOPY_REFERRAL": 12, "HP_TEST_AND_TREAT": 40, "ANAEMIA_WORKUP": 26, "ONCOLOGY_TREATMENT": 30,
-            "SURVIVORSHIP": 200, "PALLIATIVE_SUPPORT": 45}
+# (first facility; the second facility uses about half, so the demo shows every stage of the reminder ladder)
+BACKDATE = {"ENDOSCOPY_REFERRAL": 12, "HP_TEST_AND_TREAT": 40, "ANAEMIA_WORKUP": 26, "ONCOLOGY_TREATMENT": 18,
+            "SURVIVORSHIP": 200, "PALLIATIVE_SUPPORT": 20}
 
 
 def _candidates(db: engine.DB, fac: int, now: dt.datetime) -> list[tuple[str, int, str | None]]:
@@ -84,6 +85,21 @@ def _candidates(db: engine.DB, fac: int, now: dt.datetime) -> list[tuple[str, in
     return out
 
 
+def reset(log=print) -> int:
+    """Remove the demo plans (and their tasks, events, notifications, outcomes) from care.sqlite. EMR rows already
+    written to the write-back stay (they are ordinary CARE_COORDINATION encounters)."""
+    store = get_store()
+    ids = [r["id"] for r in store.rows("SELECT id FROM care_plans WHERE note LIKE ?", [f"%{MARKER}%"])]
+    if ids:
+        ph = ",".join("?" * len(ids))
+        with store.tx() as c:
+            for t, col in (("care_tasks", "plan_id"), ("care_events", "plan_id"), ("notifications", "plan_id"),
+                           ("recommendation_outcomes", "plan_id"), ("care_plans", "id")):
+                c.execute(f"DELETE FROM {t} WHERE {col} IN ({ph})", ids)
+    log(f"removed {len(ids)} demo plans")
+    return len(ids)
+
+
 def seed(target: int = 8, dry_run: bool = False, log=print) -> list[dict]:
     store = get_store()
     existing = store.rows("SELECT id, display_id, pathway, facility_id, status FROM care_plans WHERE note LIKE ?",
@@ -118,8 +134,10 @@ def seed(target: int = 8, dry_run: bool = False, log=print) -> list[dict]:
         return []
     made = []
     try:
+        first_fac = order[0][0] if order else None
         for fac, pw, pid, aid in order:
-            approved = now - dt.timedelta(days=BACKDATE.get(pw, 14))
+            days = BACKDATE.get(pw, 14)
+            approved = now - dt.timedelta(days=days if fac == first_fac else max(7, days // 2))
             set_clock(lambda a=approved: iso(a))
             try:
                 r = engine.create_plan(pid, fac, pw, alert_id=aid, note=f"Approved from the follow-up queue {MARKER}",
@@ -145,5 +163,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--reset", action="store_true", help="remove the demo plans first, then seed again")
     a = ap.parse_args()
+    if a.reset and not a.dry_run:
+        reset()
     seed(a.target, a.dry_run)
