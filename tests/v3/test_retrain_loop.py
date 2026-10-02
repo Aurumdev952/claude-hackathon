@@ -16,10 +16,10 @@ GC = load_yaml("forecast.yaml")["learning_loop"]["gates"]
 BASE = {"auroc": 0.95, "auprc": 0.35, "brier": 0.020, "calib_slope": 1.05, "ppv_at_high": 0.40}
 
 
-def _gates(chall: dict, sub_drop: float = 0.0, vol: tuple = (100, 110)):
+def _gates(chall: dict, sub_drop: float = 0.0, vol: tuple = (100, 110), population: int = 0):
     from ml.retrain import gates
     sub = [{"var": "sex", "value": "F", "champion": 0.9, "challenger": 0.9 - sub_drop, "drop": sub_drop}]
-    volume = {"champion": vol[0], "challenger": vol[1], "change": (vol[1] - vol[0]) / vol[0]}
+    volume = {"champion": vol[0], "challenger": vol[1], "change": (vol[1] - vol[0]) / vol[0], "population": population}
     return {g["name"]: g["pass"] for g in gates(BASE, {**BASE, **chall}, sub, volume, GC)}
 
 
@@ -42,6 +42,24 @@ def test_gates_subgroup_and_volume():
     assert not _gates({}, vol=(100, 130))["high_volume_change"]
     assert not _gates({}, vol=(100, 70))["high_volume_change"]
     assert _gates({}, vol=(100, 80))["high_volume_change"]
+
+
+def test_volume_gate_relative_or_absolute():
+    """+/-25% relative OR an absolute change of at most max(10, 0.5% of the scored population)."""
+    # small champion counts (dev data): +10 flags on 20 is +50% but only 10 patients -> pass; +11 -> fail
+    assert _gates({}, vol=(20, 30), population=1_000)["high_volume_change"]
+    assert not _gates({}, vol=(20, 31), population=1_000)["high_volume_change"]
+    assert _gates({}, vol=(20, 10), population=1_000)["high_volume_change"]
+    # 0.5% of a large population widens the absolute slack: 40 -> 80 with 10,000 scored (slack 50) passes
+    assert _gates({}, vol=(40, 80), population=10_000)["high_volume_change"]
+    assert not _gates({}, vol=(40, 100), population=10_000)["high_volume_change"]
+    # large counts still need the relative band: 1,000 -> 1,300 is +30% and +300 (slack 50) -> fail
+    assert not _gates({}, vol=(1_000, 1_300), population=10_000)["high_volume_change"]
+    assert _gates({}, vol=(1_000, 1_240), population=10_000)["high_volume_change"]
+    # no current population scored: champion/challenger unknown, change 0 -> pass
+    from ml.retrain import gates
+    g = gates(BASE, BASE, [], {"champion": None, "challenger": None, "change": 0.0}, GC)
+    assert {x["name"]: x["pass"] for x in g}["high_volume_change"]
 
 
 def test_ipw_weights_finite_and_clipped():

@@ -72,7 +72,8 @@ def eligible_at(con, dates: list) -> pd.DataFrame:
             LEFT JOIN core_gc_case c USING (patient_id)
             WHERE g.entry_date <= CAST(d.L AS DATE) AND date_diff('year', p.birthdate, CAST(d.L AS DATE)) >= 18
               AND (p.death_date IS NULL OR p.death_date > CAST(d.L AS DATE)) AND (c.dx_date IS NULL OR c.dx_date > CAST(d.L AS DATE))
-              AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)""").df()
+              AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)
+            ORDER BY g.patient_id, L""").df()   # deterministic row order: it feeds the challenger's training rows
     finally:
         con.unregister("_bf_dates")
     df["L"] = pd.to_datetime(df["L"]).astype("datetime64[ns]")
@@ -198,10 +199,28 @@ def gates(champ: dict, chall: dict, subgroups: list[dict], volume: dict, gc: dic
     drop = max([s["drop"] for s in subgroups], default=0.0)
     add("subgroup_auroc_drop", drop, float(gc["subgroup_auroc_drop_max"]), drop <= float(gc["subgroup_auroc_drop_max"]),
         note="largest AUROC drop vs champion across sex, age band and province")
-    add("high_volume_change", volume["change"], float(gc["high_volume_change_max"]),
-        abs(volume["change"]) <= float(gc["high_volume_change_max"]), volume["champion"], volume["challenger"],
-        "HIGH flags on the current population, relative change")
+    add("high_volume_change", volume["change"], float(gc["high_volume_change_max"]), volume_ok(volume, gc),
+        volume["champion"], volume["challenger"], volume_note(volume, gc))
     return out
+
+
+def volume_abs_max(volume: dict, gc: dict) -> float:
+    """Absolute HIGH-count slack: max(10, 0.5% of the scored population) by default (config gates.high_volume_abs_*)."""
+    return max(float(gc.get("high_volume_abs_min", 10)), float(gc.get("high_volume_abs_pct", 0.005)) * float(volume.get("population") or 0))
+
+
+def volume_ok(volume: dict, gc: dict) -> bool:
+    """HIGH volume gate: the relative change is within +/-25% OR the absolute change is small. A relative band alone is
+    meaningless when the champion flags only a handful of patients (dev data: ~20 HIGH, so 6 extra flags would fail)."""
+    if volume.get("champion") is None or volume.get("challenger") is None:
+        return abs(float(volume.get("change") or 0.0)) <= float(gc["high_volume_change_max"])
+    rel_ok = abs(float(volume["change"])) <= float(gc["high_volume_change_max"])
+    return rel_ok or abs(int(volume["challenger"]) - int(volume["champion"])) <= volume_abs_max(volume, gc)
+
+
+def volume_note(volume: dict, gc: dict) -> str:
+    return (f"HIGH flags on the current population: relative change within +/-{float(gc['high_volume_change_max']):.0%} "
+            f"or absolute change <= {volume_abs_max(volume, gc):.0f} patients")
 
 
 def _current_population(con) -> tuple[pd.DataFrame, pd.DataFrame] | None:
@@ -266,7 +285,10 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
             p = pd.to_numeric(fb["propensity"], errors="coerce").fillna(0.5).clip(1e-3, 1)
             fb["w"] = np.clip(1.0 / p, lo, hi)
             fb["split"] = [patient_split(int(x), models_cfg()["splits"]["val_patient_frac"]) for x in fb["patient_id"]]
-            fb = fb.sort_values("source").drop_duplicates(["patient_id", "L"])
+            # stable, total order: which duplicate survives and the order of appended training rows must not depend on
+            # the (thread-dependent) order DuckDB returned the feedback rows in
+            fb = (fb.sort_values(["source", "patient_id", "L"], kind="mergesort").drop_duplicates(["patient_id", "L"])
+                  .reset_index(drop=True))
         n_fb_train = int((fb["split"] == "train").sum()) if len(fb) else 0
 
         # ---- training set: base landmarks (w=1), verified feedback rows re-weighted by IPW / appended

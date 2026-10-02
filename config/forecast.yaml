@@ -61,6 +61,8 @@ learning_loop:
     tolerance: 0.01             # no metric worse than champion - 0.01
     subgroup_auroc_drop_max: 0.05
     high_volume_change_max: 0.25
+    high_volume_abs_min: 10       # ... or an absolute change of at most max(10, 0.5% of scored patients) (small HIGH counts)
+    high_volume_abs_pct: 0.005
   monitoring:
     window_days: 90
     top_features: 20
