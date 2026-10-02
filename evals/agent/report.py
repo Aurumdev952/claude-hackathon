@@ -98,7 +98,8 @@ def render_markdown(res: dict) -> str:
         (f"Replay {m['timestamp']} of `{m.get('reused_responses')}` (agent `{m.get('agent_model')}`), deepeval {m.get('deepeval_version')}, "
          if m.get("mode") == "offline" else
          f"Run {m['timestamp']} - agent `{m.get('agent_model')}` at {m.get('agent_url')} (serve run {m.get('serve_run_id')}), "
-         f"judge `{m.get('judge_model')}` via OpenRouter (reasoning {m.get('judge_reasoning', 'low')}), deepeval {m.get('deepeval_version')}, ") +
+         f"judge `{m.get('judge_model')}` via {'Anthropic' if m.get('judge_provider') == 'anthropic' else 'OpenRouter'} "
+         f"({'effort' if m.get('judge_provider') == 'anthropic' else 'reasoning'} {m.get('judge_reasoning', 'low')}), deepeval {m.get('deepeval_version')}, ") +
         f"{m['n_goldens']} goldens ({m.get('n_ministry', 0)} ministry, {m.get('n_doctor', 0)} doctor), "
         f"{m.get('duration_s', 0):.0f} s (agent {m.get('agent_phase_s', 0):.0f} s, judge {m.get('judge_phase_s', 0):.0f} s), " +
         (f"judge calls {m.get('judge_usage', {}).get('calls')} (cost ${m.get('judge_usage', {}).get('cost_usd')})." if m.get("mode") != "offline" else "no judge calls."),

@@ -459,6 +459,7 @@ dl = [
     { name = "optax" },
 ]
 eval = [
+    { name = "anthropic" },
     { name = "deepeval" },
     { name = "httpx" },
     { name = "jsonschema" },
@@ -474,6 +475,7 @@ report = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'eval'", specifier = ">=1.11" },
     { name = "anthropic", marker = "extra == 'llm'", specifier = ">=0.70" },
     { name = "apscheduler", specifier = ">=3.10,<4" },
     { name = "deepeval", marker = "extra == 'eval'", specifier = "==4.2.7" },

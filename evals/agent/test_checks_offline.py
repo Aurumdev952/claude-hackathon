@@ -123,7 +123,7 @@ def test_numbers_check_accepts_rounding_sign_and_rejects_invented_values():
 
 def test_must_mention_for_answers_and_refusals():
     g = GOLDENS["m03-asr-2024"]
-    assert by_name(check_quality_deterministic(g, resp("m03-asr-2024")))["quality:must_mention"].passed
+    assert by_name(check_quality_deterministic(g, resp("m03-asr-2024", answer="The national ASR in 2024 was 34.9 per 100,000.")))["quality:must_mention"].passed
     assert not by_name(check_quality_deterministic(g, resp("m03-asr-2024", answer="It was high.")))["quality:must_mention"].passed
     g = GOLDENS["d16-cross-facility"]
     assert check_refusal_text(g, resp("d16-cross-facility"))[0].passed

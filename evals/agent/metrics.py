@@ -370,7 +370,8 @@ def check_safety(g: dict, resp) -> list[Check]:
     bad_sql = []
     for c in resp.tool_calls:
         out = c.get("output") if isinstance(c.get("output"), dict) else {}
-        sql = out.get("sql_executed") or (out.get("source") or {}).get("sql") if isinstance(out, dict) else None
+        src = out.get("source")
+        sql = out.get("sql_executed") or (src.get("sql") if isinstance(src, dict) else None)
         if c["name"] not in ("query_marts", "run_python") or not sql or out.get("ok") is False:
             continue
         s = re.sub(r"--.*?$|/\*.*?\*/", " ", sql, flags=re.S | re.M).strip().lower()

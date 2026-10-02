@@ -11,3 +11,6 @@ process.env.AGENT_ARTIFACTS_DIR = path.join(tmp, "artifacts");
 process.env.AGENT_SANDBOX_WORK_DIR = path.join(tmp, "sandbox");
 process.env.AGENT_APP_STATE = path.join(tmp, "app_state.sqlite");
 process.env.SANDBOX_TIMEOUT_S = "20";
+// the mock model stands in for the provider; pin a provider so the repo .env (e.g. AGENT_PROVIDER=anthropic) cannot leak in
+process.env.AGENT_PROVIDER = "openrouter";
+process.env.AGENT_MODEL = "test/model";

@@ -35,7 +35,7 @@ function num(v: string | undefined, d: number): number {
   return Number.isFinite(n) ? n : d;
 }
 
-export type Provider = "openrouter" | "openai-compatible";
+export type Provider = "openrouter" | "openai-compatible" | "anthropic";
 
 export interface Config {
   port: number;
@@ -43,6 +43,8 @@ export interface Config {
   model: string;
   baseUrl: string | undefined;
   apiKey: string | undefined;
+  /** Anthropic only: output_config.effort (low | medium | high | xhigh | max). */
+  effort: "low" | "medium" | "high" | "xhigh" | "max";
   dataDir: string;
   analyticsDir: string;
   /** Explicit serve DB file (tests / fixtures); otherwise follows <analyticsDir>/current.json like api/deps.py */
@@ -69,13 +71,18 @@ export function loadConfig(): Config {
   const e = process.env;
   const dataDir = fromRepo(e.DATA_DIR || "data");
   const analyticsDir = e.AGENT_ANALYTICS_DIR ? fromRepo(e.AGENT_ANALYTICS_DIR) : path.join(dataDir, "analytics");
-  const provider = (e.AGENT_PROVIDER || "openrouter").toLowerCase() === "openai-compatible" ? "openai-compatible" : "openrouter";
+  const p = (e.AGENT_PROVIDER || "openrouter").toLowerCase();
+  const provider: Provider = p === "openai-compatible" || p === "anthropic" ? p : "openrouter";
+  const effort = (e.AGENT_EFFORT || "medium").toLowerCase();
   return {
     port: num(e.AGENT_PORT, 8787),
     provider,
-    model: e.AGENT_MODEL || "deepseek/deepseek-v4.1-flash",
+    model: e.AGENT_MODEL || (provider === "anthropic" ? "claude-sonnet-5-5" : "deepseek/deepseek-v4.1-flash"),
     baseUrl: e.AGENT_BASE_URL || undefined,
-    apiKey: provider === "openrouter" ? e.OPENROUTER_API_KEY : e.AGENT_API_KEY || e.OPENROUTER_API_KEY,
+    apiKey: provider === "openrouter" ? e.OPENROUTER_API_KEY
+      : provider === "anthropic" ? e.ANTHROPIC_API_KEY
+      : e.AGENT_API_KEY || e.OPENROUTER_API_KEY,
+    effort: (["low", "medium", "high", "xhigh", "max"].includes(effort) ? effort : "medium") as Config["effort"],
     dataDir,
     analyticsDir,
     serveDbPath: e.AGENT_SERVE_DB ? fromRepo(e.AGENT_SERVE_DB) : undefined,

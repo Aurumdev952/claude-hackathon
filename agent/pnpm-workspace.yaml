@@ -1,0 +1,7 @@
+# pnpm 11 settings for agent/ (package.json "pnpm" is no longer read)
+allowBuilds:
+  esbuild: true
+# vite (a vitest dependency) is pinned in pnpm-lock.yaml to 8.3.2, published inside pnpm's default 1-day
+# minimumReleaseAge window; only vite is exempt, every other package keeps the release-age check
+minimumReleaseAgeExclude:
+  - vite

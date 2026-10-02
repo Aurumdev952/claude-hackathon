@@ -22,7 +22,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 from . import client
-from .judge import OpenRouterJudge, judge_model_name, openrouter_key_status
+from .judge import judge_key_status, judge_model_name, judge_provider, make_judge
 from .metrics import Check, deterministic_checks, evaluate_golden, load_goldens
 from .report import build_results, now_stamp, write_reports
 
@@ -91,17 +91,17 @@ async def _judge_all(goldens, responses, judge):
 
 
 def preflight(need_agent: bool) -> tuple[dict, dict]:
-    """Agent health + OpenRouter key; raises EvalAborted with a clear reason."""
+    """Agent health + the judge key (OpenRouter credit or Anthropic key/model); raises EvalAborted with a clear reason."""
     problems = []
     health = client.health() if need_agent else {}
     if need_agent:
         if health is None:
             problems.append(f"agent not reachable at {client.agent_url()} (start it: make agent-dev)")
         elif not health.get("model_configured", True):
-            problems.append("agent has no model configured (OPENROUTER_API_KEY / AGENT_MODEL)")
-    key = openrouter_key_status()
+            problems.append("agent has no model configured (API key for AGENT_PROVIDER / AGENT_MODEL)")
+    key = judge_key_status()
     if not key.get("ok"):
-        problems.append(f"{key.get('error')} - the judge (and the agent's model) cannot be called")
+        problems.append(f"{key.get('error')} - the judge cannot be called")
     if problems:
         raise EvalAborted("; ".join(problems))
     return health or {}, key
@@ -136,7 +136,7 @@ def run_eval(write: bool = True) -> dict:
     bad = [k for k, r in responses.items() if not r.ok]
     _progress(f"agent phase done in {t_agent:.0f}s; failed calls: {bad or '-'}")
 
-    judge = None if is_offline else OpenRouterJudge()
+    judge = None if is_offline else make_judge()
     checks = asyncio.run(_judge_all(goldens, responses, judge))
     t_judge = time.time() - t0 - t_agent
 
@@ -155,7 +155,9 @@ def run_eval(write: bool = True) -> dict:
         "serve_run_id": (health.get("serve") or {}).get("run_id"),
         "sim_time": (health.get("serve") or {}).get("sim_time"),
         "judge_model": None if is_offline else judge_model_name(),
-        "judge_reasoning": None if is_offline else (os.getenv("EVAL_JUDGE_REASONING") or "off"),
+        "judge_provider": None if is_offline else judge_provider(),
+        "judge_reasoning": None if is_offline else (os.getenv("EVAL_JUDGE_EFFORT") or "medium") if judge_provider() == "anthropic"
+        else (os.getenv("EVAL_JUDGE_REASONING") or "off"),
         "judge_usage": judge.usage() if judge else {},
         "openrouter_key": {k: key.get(k) for k in ("limit", "limit_remaining", "usage")} if key else {},
         "deepeval_version": version("deepeval"),
