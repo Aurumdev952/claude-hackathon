@@ -148,7 +148,7 @@ function ChampionCard({ d, busy, onJob }: { d: Loop; busy: boolean; onJob: (id: 
       {c && ch ? (
         <div className="grid gap-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] mt-4">
           <table className="w-full text-[13px] tabular" aria-label="Holdout metrics, champion and challenger">
-            <thead><tr className="text-muted text-left"><th className="font-medium pb-1.5">Holdout</th><th className="font-medium pb-1.5 text-right">Champion</th><th className="font-medium pb-1.5 text-right">Challenger</th><th className="font-medium pb-1.5 text-right">Change</th></tr></thead>
+            <thead><tr className="text-muted text-left"><th className="font-medium pb-1.5">Holdout</th><th className="font-medium pb-1.5 pl-3 text-right">Champion</th><th className="font-medium pb-1.5 pl-3 text-right">Challenger</th><th className="font-medium pb-1.5 pl-3 text-right">Change</th></tr></thead>
             <tbody>
               {ROWS.map((r) => {
                 const a = c.champion?.[r.k] ?? null, b = c.challenger?.[r.k] ?? null;
@@ -156,18 +156,18 @@ function ChampionCard({ d, busy, onJob }: { d: Loop; busy: boolean; onJob: (id: 
                 return (
                   <tr key={r.k} className="border-t border-hairline">
                     <td className="py-1.5 text-ink">{r.label}</td>
-                    <td className="py-1.5 text-right text-muted">{r.f(a)}</td>
-                    <td className="py-1.5 text-right text-ink font-medium">{r.f(b)}</td>
-                    <td className="py-1.5 text-right text-muted">{delta === null ? "—" : r.k === "ppv_at_high" || r.k === "sens_at_spec90" ? signed(100 * delta, 1, " pts") : signed(delta, r.k === "brier" ? 4 : r.k === "calib_slope" ? 2 : 3)}</td>
+                    <td className="py-1.5 pl-3 text-right text-muted">{r.f(a)}</td>
+                    <td className="py-1.5 pl-3 text-right text-ink font-medium">{r.f(b)}</td>
+                    <td className="py-1.5 pl-3 text-right text-muted">{delta === null ? "—" : r.k === "ppv_at_high" || r.k === "sens_at_spec90" ? signed(100 * delta, 1, " pts") : signed(delta, r.k === "brier" ? 4 : r.k === "calib_slope" ? 2 : 3)}</td>
                   </tr>
                 );
               })}
               {c.volume && (
                 <tr className="border-t border-hairline">
                   <td className="py-1.5 text-ink">HIGH flags today</td>
-                  <td className="py-1.5 text-right text-muted">{c.volume.champion}</td>
-                  <td className="py-1.5 text-right text-ink font-medium">{c.volume.challenger}</td>
-                  <td className="py-1.5 text-right text-muted">{signed(c.volume.challenger - c.volume.champion, 0)}</td>
+                  <td className="py-1.5 pl-3 text-right text-muted">{c.volume.champion}</td>
+                  <td className="py-1.5 pl-3 text-right text-ink font-medium">{c.volume.challenger}</td>
+                  <td className="py-1.5 pl-3 text-right text-muted">{signed(c.volume.challenger - c.volume.champion, 0)}</td>
                 </tr>
               )}
             </tbody>
