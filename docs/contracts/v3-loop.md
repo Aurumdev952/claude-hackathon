@@ -466,3 +466,16 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   the full-screen route in production builds with scope `/patient/app` and has no runtime caching. `useLiveSocket`
   subscribes per role and re-subscribes on role, facility or patient change; `notification` events feed the phone
   banner (`usePush`).
+
+## 13. Next-plan suggestions (F2, additive, backward compatible)
+
+- The engine still only records `NEXT_PATHWAY_SUGGESTED` care events (cancer found -> `ONCOLOGY_TREATMENT`, curative
+  treatment -> `SURVIVORSHIP`, palliative intent or BSC -> `PALLIATIVE_SUPPORT`). It never creates the plan: the doctor
+  starts it through the usual approval (`POST /care/plans`).
+- `GET /care/suggestions` (doctor only; ministry and patient get 403) returns the facility's open suggestions
+  `[{patient_id, display_id, pathway, pathway_name, reason, since, from_plan_id}]`, newest first. One per patient and
+  pathway (the latest event). A suggestion is open until a plan on that pathway is created at or after it (any status
+  except `CANCELLED`), and is not offered while a plan on that pathway is open or when the patient has died. Facility
+  scope is the `check_access` rule: patients linked to the facility, or with a plan approved at or targeted to it.
+- `GET /patients/{id}/care` adds `suggested_next: [...]` (same row shape) next to `plans`. `/me/plan` is unchanged: the
+  patient app sees nothing until the doctor approves.
