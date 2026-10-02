@@ -1,157 +1,158 @@
 {
  "schema": 2,
- "generated_at": "2026-10-02T03:32:30Z",
- "run_id": 4,
+ "generated_at": "2026-10-02T08:07:40Z",
+ "run_id": 5,
  "sim_time": "2026-06-30T23:59:59",
- "published_at": "2026-10-02T03:32:28Z",
+ "published_at": "2026-10-02T08:03:00Z",
  "models": {
-  "1": "tier1-points-202610020331",
-  "2": "tier2-xgb-202610020331"
+  "1": "tier1-points-202610020956",
+  "2": "tier2-xgb-202610020956",
+  "3": "tier3-gru-202610020956"
  },
- "risk_model_id": "tier2-xgb-202610020331",
+ "risk_model_id": "tier2-xgb-202610020956",
  "thresholds": {
-  "high_cut": 0.2826632314055189,
-  "medium_cut": 0.08943148688046645
+  "high_cut": 0.4399106197118451,
+  "medium_cut": 0.029658552231872925
  },
  "bands": {
-  "HIGH": 18,
-  "MEDIUM": 882,
-  "LOW": 3535
+  "HIGH": 151,
+  "MEDIUM": 1356,
+  "LOW": 43915
  },
  "high_history": [
   {
    "date": "2026-06-30",
-   "high": 18,
-   "scored": 4435
+   "high": 151,
+   "scored": 45422
   }
  ],
  "cases_by_year": [
   {
    "year": 2016,
-   "cases": 7,
-   "cases_annualised": 7.0,
-   "asr": 26.221160698750605,
+   "cases": 70,
+   "cases_annualised": 70.0,
+   "asr": 31.198679611286146,
    "partial": false
   },
   {
    "year": 2017,
-   "cases": 8,
-   "cases_annualised": 8.0,
-   "asr": 23.171327081191922,
+   "cases": 108,
+   "cases_annualised": 108.0,
+   "asr": 36.077609430542644,
    "partial": false
   },
   {
    "year": 2018,
-   "cases": 11,
-   "cases_annualised": 11.0,
-   "asr": 22.00160555369481,
+   "cases": 143,
+   "cases_annualised": 143.0,
+   "asr": 27.746604011555853,
    "partial": false
   },
   {
    "year": 2019,
-   "cases": 22,
-   "cases_annualised": 22.0,
-   "asr": 35.070897292610915,
+   "cases": 187,
+   "cases_annualised": 187.0,
+   "asr": 30.87145989048367,
    "partial": false
   },
   {
    "year": 2020,
-   "cases": 14,
-   "cases_annualised": 14.0,
-   "asr": 17.464300574022104,
+   "cases": 210,
+   "cases_annualised": 210.0,
+   "asr": 31.195761929354177,
    "partial": false
   },
   {
    "year": 2021,
-   "cases": 18,
-   "cases_annualised": 18.0,
-   "asr": 27.5716554614956,
+   "cases": 237,
+   "cases_annualised": 237.0,
+   "asr": 33.09839989018666,
    "partial": false
   },
   {
    "year": 2022,
-   "cases": 31,
-   "cases_annualised": 31.0,
-   "asr": 37.936483939370646,
+   "cases": 241,
+   "cases_annualised": 241.0,
+   "asr": 31.612012489134756,
    "partial": false
   },
   {
    "year": 2023,
-   "cases": 17,
-   "cases_annualised": 17.0,
-   "asr": 24.635670899890833,
+   "cases": 272,
+   "cases_annualised": 272.0,
+   "asr": 33.613346307186156,
    "partial": false
   },
   {
    "year": 2024,
-   "cases": 34,
-   "cases_annualised": 34.0,
-   "asr": 38.34001572776195,
+   "cases": 301,
+   "cases_annualised": 301.0,
+   "asr": 34.92144482816115,
    "partial": false
   },
   {
    "year": 2025,
-   "cases": 28,
-   "cases_annualised": 28.0,
-   "asr": 32.406996707427346,
+   "cases": 298,
+   "cases_annualised": 298.0,
+   "asr": 33.36892514002738,
    "partial": false
   },
   {
    "year": 2026,
-   "cases": 19,
-   "cases_annualised": 38.3,
-   "asr": 39.24626371419494,
+   "cases": 178,
+   "cases_annualised": 359.2,
+   "asr": 38.34997263545221,
    "partial": true
   }
  ],
  "kpis": {
-  "high_patients": 18,
-  "high_awaiting_endoscopy": 18,
-  "new_high_patients_7d": 18,
-  "national_asr": 39.24626371419494,
-  "national_asr_lci": 23.45184713550767,
-  "national_asr_uci": 66.57013115574316,
+  "high_patients": 151,
+  "high_awaiting_endoscopy": 151,
+  "new_high_patients_7d": 151,
+  "national_asr": 38.34997263545221,
+  "national_asr_lci": 32.73173647590353,
+  "national_asr_uci": 44.938273129587515,
   "asr_year": 2026,
   "asr_partial_year": true,
-  "asr_delta": 6.839267006767592,
+  "asr_delta": 4.981047495424832,
   "last_full_year": 2025,
-  "last_full_year_asr": 32.406996707427346,
-  "cases_annualised": 38.341162672726284,
-  "new_high_alerts": 24,
-  "open_alerts": 129
+  "last_full_year_asr": 33.36892514002738,
+  "cases_annualised": 359.19615556554095,
+  "new_high_alerts": 199,
+  "open_alerts": 1249
  },
  "alerts_by_trigger": [
   {
    "trigger": "RISK_BAND_HIGH",
    "label": "High risk band",
-   "new": 16,
+   "new": 149,
    "earlier": 0,
-   "open": 16,
-   "total": 18
+   "open": 149,
+   "total": 151
   },
   {
    "trigger": "ALARM_NO_SCOPE_90D",
    "label": "Alarm, no scope 90 d",
-   "new": 6,
+   "new": 48,
    "earlier": 0,
-   "open": 6,
-   "total": 6
+   "open": 48,
+   "total": 48
   },
   {
    "trigger": "HB_DROP",
    "label": "Haemoglobin drop",
-   "new": 5,
+   "new": 39,
    "earlier": 0,
-   "open": 5,
-   "total": 6
+   "open": 39,
+   "total": 41
   },
   {
    "trigger": "HP_POS_UNTREATED",
    "label": "H. pylori untreated",
-   "new": 100,
+   "new": 1011,
    "earlier": 0,
-   "open": 100,
-   "total": 102
+   "open": 1011,
+   "total": 1012
   },
   {
    "trigger": "CARE_OVERDUE",
@@ -164,198 +165,53 @@
  ],
  "top_cases": [
   {
-   "patient_id": "NYA-00896376",
-   "sex": "F",
-   "age": 30,
-   "district_code": "EAS-NYA",
-   "district": "Nyagatare",
-   "facility": "Rwimiyaga Health Centre",
-   "facility_id": 2144,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.3943,
-   "t1_score": 8,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 45 days ago"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "1 visits with stomach complaints in 6 months"
-    },
-    {
-     "feature": "sx_epigastric",
-     "label": "Epigastric pain recorded 1 time(s)"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "KIR-01256131",
+   "patient_id": "MUS-00184052",
    "sex": "M",
-   "age": 31,
-   "district_code": "EAS-KIR",
-   "district": "Kirehe",
-   "facility": "Mushikiri Health Centre",
-   "facility_id": 2131,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.3943,
-   "t1_score": 6,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 18 days ago"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "4 visits with stomach complaints in 6 months"
-    },
-    {
-     "feature": "sx_epigastric",
-     "label": "Epigastric pain recorded 1 time(s)"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "RUB-0080650W",
-   "sex": "F",
-   "age": 68,
-   "district_code": "WES-RUB",
-   "district": "Rubavu",
-   "facility": "Busasamana Health Centre",
-   "facility_id": 2181,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.3943,
-   "t1_score": 3,
-   "top_reasons": [
-    {
-     "feature": "age",
-     "label": "Age 68"
-    },
-    {
-     "feature": "weight_change_pct_6m",
-     "label": "Weight changed -1.5% in 6 months"
-    },
-    {
-     "feature": "district_asr_prior",
-     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "KAY-0098898R",
-   "sex": "F",
-   "age": 41,
-   "district_code": "EAS-KAY",
-   "district": "Kayonza",
-   "facility": "Murama Health Centre",
-   "facility_id": 2123,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.3943,
-   "t1_score": 1,
-   "top_reasons": [
-    {
-     "feature": "district_asr_prior",
-     "label": "Lives in a district with a high gastric cancer rate (35 per 100,000)"
-    },
-    {
-     "feature": "n_ppi_courses_12m",
-     "label": "0 acid-suppressant courses in 12 months"
-    },
-    {
-     "feature": "weight_change_pct_12m",
-     "label": "Weight changed +0.0% in 12 months"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "GAT-0080911R",
-   "sex": "M",
-   "age": 89,
-   "district_code": "EAS-GAT",
-   "district": "Gatsibo",
-   "facility": "Rwimbogo Health Centre",
-   "facility_id": 2111,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
-   "t1_score": 16,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 25 days ago"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "4 visits with stomach complaints in 6 months"
-    },
-    {
-     "feature": "age",
-     "label": "Age 89"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "KAY-0093665C",
-   "sex": "M",
-   "age": 59,
-   "district_code": "EAS-KAY",
-   "district": "Kayonza",
-   "facility": "Rukara Health Centre",
-   "facility_id": 2119,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
-   "t1_score": 15,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 28 days ago"
-    },
-    {
-     "feature": "age",
-     "label": "Age 59"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "10 visits with stomach complaints in 6 months"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "MUS-00769648",
-   "sex": "M",
-   "age": 65,
+   "age": 54,
    "district_code": "NOR-MUS",
    "district": "Musanze",
    "facility": "Gashaki Health Centre",
    "facility_id": 2050,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
-   "t1_score": 13,
+   "ensemble_prob": 0.6885,
+   "t1_score": 17,
    "top_reasons": [
     {
      "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 44 days ago"
+     "label": "Last stomach-complaint visit 23 days ago"
     },
     {
-     "feature": "n_gi_visits_6m",
-     "label": "3 visits with stomach complaints in 6 months"
+     "feature": "sx_anorexia",
+     "label": "Loss of appetite recorded"
+    },
+    {
+     "feature": "weight_change_pct_12m",
+     "label": "Weight changed -10.5% in 12 months"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "RUB-02363505",
+   "sex": "M",
+   "age": 65,
+   "district_code": "WES-RUB",
+   "district": "Rubavu",
+   "facility": "Nyundo Health Centre",
+   "facility_id": 2184,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6885,
+   "t1_score": 12,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 42 days ago"
+    },
+    {
+     "feature": "sx_early_satiety",
+     "label": "Early satiety recorded"
     },
     {
      "feature": "age",
@@ -367,86 +223,231 @@
    "as_of": "2026-06-30"
   },
   {
-   "patient_id": "NYA-0119453Y",
+   "patient_id": "RUB-0380733K",
    "sex": "M",
-   "age": 54,
-   "district_code": "EAS-NYA",
-   "district": "Nyagatare",
-   "facility": "Matimba Health Centre",
-   "facility_id": 2142,
+   "age": 59,
+   "district_code": "WES-RUB",
+   "district": "Rubavu",
+   "facility": "Nyamyumba Health Centre",
+   "facility_id": 2187,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
+   "ensemble_prob": 0.6885,
+   "t1_score": 11,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 56 days ago"
+    },
+    {
+     "feature": "sx_anorexia",
+     "label": "Loss of appetite recorded"
+    },
+    {
+     "feature": "age",
+     "label": "Age 59"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "MUS-0428047V",
+   "sex": "M",
+   "age": 67,
+   "district_code": "NOR-MUS",
+   "district": "Musanze",
+   "facility": "Remera Health Centre",
+   "facility_id": 2049,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6885,
+   "t1_score": 9,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 0 days ago"
+    },
+    {
+     "feature": "age",
+     "label": "Age 67"
+    },
+    {
+     "feature": "sx_epigastric",
+     "label": "Epigastric pain recorded 3 time(s)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "RUB-1062570W",
+   "sex": "M",
+   "age": 60,
+   "district_code": "WES-RUB",
+   "district": "Rubavu",
+   "facility": "Cyanzarwe Health Centre",
+   "facility_id": 2186,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6659,
+   "t1_score": 9,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 51 days ago"
+    },
+    {
+     "feature": "age",
+     "label": "Age 60"
+    },
+    {
+     "feature": "sx_vomiting",
+     "label": "Vomiting recorded 1 time(s)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "MUS-08620610",
+   "sex": "M",
+   "age": 57,
+   "district_code": "NOR-MUS",
+   "district": "Musanze",
+   "facility": "Nkotsi Health Centre",
+   "facility_id": 2048,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6659,
+   "t1_score": 8,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 24 days ago"
+    },
+    {
+     "feature": "sx_early_satiety",
+     "label": "Early satiety recorded"
+    },
+    {
+     "feature": "age",
+     "label": "Age 57"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "NYA-0546962E",
+   "sex": "M",
+   "age": 66,
+   "district_code": "SOU-NYZ",
+   "district": "Nyanza",
+   "facility": "Ntyazo Health Centre",
+   "facility_id": 2087,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6489,
+   "t1_score": 17,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 28 days ago"
+    },
+    {
+     "feature": "sx_early_satiety",
+     "label": "Early satiety recorded"
+    },
+    {
+     "feature": "sx_anorexia",
+     "label": "Loss of appetite recorded"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "GAK-05465887",
+   "sex": "M",
+   "age": 74,
+   "district_code": "NOR-GAK",
+   "district": "Gakenke",
+   "facility": "Muyongwe Health Centre",
+   "facility_id": 2035,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6489,
+   "t1_score": 14,
+   "top_reasons": [
+    {
+     "feature": "sx_early_satiety",
+     "label": "Early satiety recorded"
+    },
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 17 days ago"
+    },
+    {
+     "feature": "age",
+     "label": "Age 74"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "NGO-10587981",
+   "sex": "M",
+   "age": 61,
+   "district_code": "EAS-NGO",
+   "district": "Ngoma",
+   "facility": "Zaza Health Centre",
+   "facility_id": 2138,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6489,
+   "t1_score": 14,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 27 days ago"
+    },
+    {
+     "feature": "sx_anorexia",
+     "label": "Loss of appetite recorded"
+    },
+    {
+     "feature": "age",
+     "label": "Age 61"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30"
+  },
+  {
+   "patient_id": "BUR-0355337L",
+   "sex": "F",
+   "age": 72,
+   "district_code": "NOR-BUR",
+   "district": "Burera",
+   "facility": "Kinoni Health Centre",
+   "facility_id": 2029,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.6489,
    "t1_score": 13,
    "top_reasons": [
     {
      "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 18 days ago"
+     "label": "Last stomach-complaint visit 27 days ago"
     },
     {
-     "feature": "age",
-     "label": "Age 54"
+     "feature": "weight_change_pct_12m",
+     "label": "Weight changed -8.4% in 12 months"
     },
     {
-     "feature": "n_gi_visits_6m",
-     "label": "5 visits with stomach complaints in 6 months"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "KIR-0055000G",
-   "sex": "F",
-   "age": 62,
-   "district_code": "EAS-KIR",
-   "district": "Kirehe",
-   "facility": "Mpanga Health Centre",
-   "facility_id": 2128,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
-   "t1_score": 11,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 79 days ago"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "2 visits with stomach complaints in 6 months"
-    },
-    {
-     "feature": "age",
-     "label": "Age 62"
-    }
-   ],
-   "scoped": false,
-   "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
-  },
-  {
-   "patient_id": "RWA-0015239X",
-   "sex": "M",
-   "age": 46,
-   "district_code": "EAS-RWA",
-   "district": "Rwamagana",
-   "facility": "Rubona Health Centre",
-   "facility_id": 2152,
-   "risk_band": "HIGH",
-   "ensemble_prob": 0.2827,
-   "t1_score": 11,
-   "top_reasons": [
-    {
-     "feature": "days_since_last_gi_visit",
-     "label": "Last stomach-complaint visit 6 days ago"
-    },
-    {
-     "feature": "n_gi_visits_6m",
-     "label": "6 visits with stomach complaints in 6 months"
-    },
-    {
-     "feature": "sx_epigastric",
-     "label": "Epigastric pain recorded 5 time(s)"
+     "feature": "sx_anorexia",
+     "label": "Loss of appetite recorded"
     }
    ],
    "scoped": false,
@@ -455,14 +456,14 @@
   }
  ],
  "data_quality": {
-  "checks_ok": 32,
-  "checks_low": 64,
+  "checks_ok": 25,
+  "checks_low": 71,
   "checks_warn": 5,
-  "freshness_days": 0.3,
-  "hp_tested_pct": 31.6,
-  "completeness_smoking_pct": 45.9,
-  "completeness_family_hx_pct": 20.7,
-  "duplicates_merged": 660.0,
+  "freshness_days": -0.6,
+  "hp_tested_pct": 30.9,
+  "completeness_smoking_pct": 46.0,
+  "completeness_family_hx_pct": 21.0,
+  "duplicates_merged": 6593.0,
   "raw_checks_failing": [],
   "mart_checks": {
    "OK": 3
@@ -473,25 +474,25 @@
   "plans_active": 8,
   "new_plans_7d": 0,
   "facilities": 2,
-  "open_tasks": 14,
+  "open_tasks": 15,
   "overdue_tasks": 5,
   "chw_escalations": 2,
-  "completed_tasks": 5,
-  "due_or_done_tasks": 10,
-  "completion_rate_pct": 50.0,
-  "endoscopies_completed": 1,
-  "median_days_to_endoscopy": 1.0,
+  "completed_tasks": 4,
+  "due_or_done_tasks": 9,
+  "completion_rate_pct": 44.4,
+  "endoscopies_completed": 0,
+  "median_days_to_endoscopy": null,
   "by_pathway": [
+   {
+    "pathway": "ANAEMIA_WORKUP",
+    "plans": 2
+   },
    {
     "pathway": "ENDOSCOPY_REFERRAL",
     "plans": 2
    },
    {
     "pathway": "HP_TEST_AND_TREAT",
-    "plans": 2
-   },
-   {
-    "pathway": "ANAEMIA_WORKUP",
     "plans": 1
    },
    {
@@ -518,7 +519,7 @@
   "lo95": 3371.9,
   "hi95": 4876.0,
   "model": "ensemble(apc+ets)",
-  "run_id": "fc-20260630-033130",
+  "run_id": "fc-20260630-095900",
   "base_year": 2025,
   "base_cases": 2771.0,
   "change_pct": 51.1,
