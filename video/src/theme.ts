@@ -1,5 +1,5 @@
-/** Design v3 tokens for video (light theme, D-44): flat white cards on a cool grey page, Urbanist only, one attention
- * accent (signal) and one data hue (sky). Values mirror frontend/src/styles.css and frontend/src/lib/viz.ts. No gradients,
+/** Design v3 tokens for video (light theme, D-44): flat white cards on a cool grey page, Urbanist only, the brand greens
+ * (logo, progress, current step), one attention accent (signal: high risk, abnormal, overdue) and one data hue (sky). Values mirror frontend/src/styles.css and frontend/src/lib/viz.ts. No gradients,
  * no glows, no shadows. Sizes are for a 1920x1080 frame (the vertical reel uses the same scale). */
 export const C = {
   page: "#F1F2F6",
@@ -12,6 +12,10 @@ export const C = {
   muted: "#6B7080",
   faint: "#A3A8B5",
   grey300: "#D6D8DF",
+  brand: "#4F6F51",
+  brand2: "#98D59B",
+  brandText: "#3F5A41",
+  brandSoft: "#E6F3E7",
   signal: "#F05A28",
   signalStrong: "#D14516",
   signalText: "#B83A12",

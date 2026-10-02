@@ -1,6 +1,7 @@
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { easeOut, clamp } from "../lib/anim";
 import { C, FONT, R, T } from "../theme";
+import { BrandMark } from "./BrandMark";
 
 export type SceneDef = { id: string; title: string; duration: number };
 
@@ -58,8 +59,8 @@ export function SceneFrame({ title, subtitle, context, index, scenes, children, 
       <div style={{ position: "absolute", left: L.padX, right: L.padX, top: L.vertical ? 64 : 52, display: "flex", alignItems: "center",
                     justifyContent: "space-between", gap: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, ...T.label, color: C.ink }}>
-          <span style={{ width: 16, height: 16, borderRadius: 8, background: C.signal }} />
-          <span style={{ fontWeight: 600 }}>Early Signals</span>
+          <BrandMark size={34} draw={index === 0 ? interpolate(frame, [2, 30], [0, 1], { ...clamp, easing: easeOut }) : 1} />
+          <span><span style={{ fontWeight: 400 }}>Early</span> <span style={{ fontWeight: 600 }}>Signals</span></span>
           <span style={{ color: C.muted, fontWeight: 500, marginLeft: 6 }}>{context}</span>
         </div>
         <SyntheticPill small />
@@ -88,7 +89,7 @@ function ProgressTrack({ index, scenes }: { index: number; scenes: SceneDef[] })
     <div style={{ position: "absolute", left: L.padX, right: L.padX, bottom: L.vertical ? 64 : 48, display: "flex", gap: 8 }}>
       {scenes.map((s, i) => (
         <div key={s.id} style={{ flex: s.duration, height: 4, borderRadius: 2, background: C.hairline, overflow: "hidden" }}>
-          <div style={{ height: 4, width: `${i < index ? 100 : i === index ? p * 100 : 0}%`, background: C.ink }} />
+          <div style={{ height: 4, width: `${i < index ? 100 : i === index ? p * 100 : 0}%`, background: C.brand }} />
         </div>
       ))}
     </div>
