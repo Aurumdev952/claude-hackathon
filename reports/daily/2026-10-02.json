@@ -1,20 +1,20 @@
 {
  "date": "2026-10-02",
- "generated_at": "2026-10-02T01:36:17Z",
+ "generated_at": "2026-10-02T03:32:30Z",
  "source": "live",
- "run_id": 6,
+ "run_id": 4,
  "sim_time": "2026-06-30T23:59:59",
- "published_at": "2026-10-02T01:08:46Z",
- "snapshot_generated_at": "2026-10-02T01:36:17Z",
+ "published_at": "2026-10-02T03:32:28Z",
+ "snapshot_generated_at": "2026-10-02T03:32:30Z",
  "models": {
-  "1": "tier1-points-202610020014",
-  "2": "tier2-xgb-202610020014"
+  "1": "tier1-points-202610020331",
+  "2": "tier2-xgb-202610020331"
  },
- "risk_model_id": "tier2-xgb-202610020014",
+ "risk_model_id": "tier2-xgb-202610020331",
  "kpis": {
-  "high_patients": 20,
-  "high_awaiting_endoscopy": 20,
-  "new_high_patients_7d": 20,
+  "high_patients": 18,
+  "high_awaiting_endoscopy": 18,
+  "new_high_patients_7d": 18,
   "national_asr": 39.24626371419494,
   "national_asr_lci": 23.45184713550767,
   "national_asr_uci": 66.57013115574316,
@@ -24,8 +24,8 @@
   "last_full_year": 2025,
   "last_full_year_asr": 32.406996707427346,
   "cases_annualised": 38.341162672726284,
-  "new_high_alerts": 26,
-  "open_alerts": 131,
+  "new_high_alerts": 24,
+  "open_alerts": 129,
   "agreement_pct": 66.7,
   "validated": 6,
   "care_overdue_tasks": 5,
@@ -34,9 +34,9 @@
   "forecast_horizon_mean": 4186.4
  },
  "deltas": {
-  "high_patients": 14,
-  "high_awaiting_endoscopy": 14,
-  "new_high_alerts": 14,
+  "high_patients": 12,
+  "high_awaiting_endoscopy": 12,
+  "new_high_alerts": 12,
   "agreement_pct": -33.3,
   "national_asr": 0.001986666001521087,
   "care_overdue_tasks": null,
@@ -45,8 +45,8 @@
  },
  "previous_report": "2026-10-01",
  "bands": {
-  "HIGH": 20,
-  "MEDIUM": 880,
+  "HIGH": 18,
+  "MEDIUM": 882,
   "LOW": 3535
  },
  "cases_by_year": [
@@ -131,7 +131,7 @@
  "high_history": [
   {
    "date": "2026-06-30",
-   "high": 20,
+   "high": 18,
    "scored": 4435
   }
  ],
@@ -139,10 +139,10 @@
   {
    "trigger": "RISK_BAND_HIGH",
    "label": "High risk band",
-   "new": 18,
+   "new": 16,
    "earlier": 0,
-   "open": 18,
-   "total": 20
+   "open": 16,
+   "total": 18
   },
   {
    "trigger": "ALARM_NO_SCOPE_90D",
@@ -187,7 +187,7 @@
    "facility": "Rwimiyaga Health Centre",
    "facility_id": 2144,
    "risk_band": "HIGH",
-   "ensemble_prob": 1.0,
+   "ensemble_prob": 0.3943,
    "t1_score": 8,
    "top_reasons": [
     {
@@ -218,7 +218,7 @@
    "facility": "Mushikiri Health Centre",
    "facility_id": 2131,
    "risk_band": "HIGH",
-   "ensemble_prob": 1.0,
+   "ensemble_prob": 0.3943,
    "t1_score": 6,
    "top_reasons": [
     {
@@ -249,7 +249,7 @@
    "facility": "Busasamana Health Centre",
    "facility_id": 2181,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.9899,
+   "ensemble_prob": 0.3943,
    "t1_score": 3,
    "top_reasons": [
     {
@@ -257,12 +257,12 @@
      "label": "Age 68"
     },
     {
-     "feature": "district_asr_prior",
-     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
-    },
-    {
      "feature": "weight_change_pct_6m",
      "label": "Weight changed -1.5% in 6 months"
+    },
+    {
+     "feature": "district_asr_prior",
+     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
     }
    ],
    "scoped": false,
@@ -280,7 +280,7 @@
    "facility": "Murama Health Centre",
    "facility_id": 2123,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.9899,
+   "ensemble_prob": 0.3943,
    "t1_score": 1,
    "top_reasons": [
     {
@@ -288,12 +288,12 @@
      "label": "Lives in a district with a high gastric cancer rate (35 per 100,000)"
     },
     {
-     "feature": "weight_change_pct_6m",
-     "label": "Weight changed +0.0% in 6 months"
-    },
-    {
      "feature": "n_ppi_courses_12m",
      "label": "0 acid-suppressant courses in 12 months"
+    },
+    {
+     "feature": "weight_change_pct_12m",
+     "label": "Weight changed +0.0% in 12 months"
     }
    ],
    "scoped": false,
@@ -311,7 +311,7 @@
    "facility": "Rwimbogo Health Centre",
    "facility_id": 2111,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 16,
    "top_reasons": [
     {
@@ -319,12 +319,12 @@
      "label": "Last stomach-complaint visit 25 days ago"
     },
     {
-     "feature": "age",
-     "label": "Age 89"
-    },
-    {
      "feature": "n_gi_visits_6m",
      "label": "4 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "age",
+     "label": "Age 89"
     }
    ],
    "scoped": false,
@@ -342,7 +342,7 @@
    "facility": "Rukara Health Centre",
    "facility_id": 2119,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 15,
    "top_reasons": [
     {
@@ -373,7 +373,7 @@
    "facility": "Gashaki Health Centre",
    "facility_id": 2050,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 13,
    "top_reasons": [
     {
@@ -404,7 +404,7 @@
    "facility": "Matimba Health Centre",
    "facility_id": 2142,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 13,
    "top_reasons": [
     {
@@ -435,7 +435,7 @@
    "facility": "Mpanga Health Centre",
    "facility_id": 2128,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 11,
    "top_reasons": [
     {
@@ -466,7 +466,7 @@
    "facility": "Rubona Health Centre",
    "facility_id": 2152,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 11,
    "top_reasons": [
     {
@@ -606,7 +606,7 @@
   "lo95": 3371.9,
   "hi95": 4876.0,
   "model": "ensemble(apc+ets)",
-  "run_id": "fc-20260630-010742",
+  "run_id": "fc-20260630-033130",
   "base_year": 2025,
   "base_cases": 2771.0,
   "change_pct": 51.1,
@@ -767,10 +767,10 @@
   ]
  },
  "highlights": [
-  "20 patients in the HIGH band out of 4,435 scored (+14 vs previous report); 20 not yet scoped.",
-  "26 new HIGH-severity alerts in the last 7 sim days; largest open queue: H. pylori untreated (100).",
+  "18 patients in the HIGH band out of 4,435 scored (+12 vs previous report); 18 not yet scoped.",
+  "24 new HIGH-severity alerts in the last 7 sim days; largest open queue: H. pylori untreated (100).",
   "Care coordination: 8 active plans, 0 approved in the last 7 sim days; 5 tasks overdue, 50% of due tasks completed.",
-  "Claude reviewed 3 of 20 HIGH cases: 4 agree, 0 disagree, 2 uncertain; most disputed reason: days since last GI visit."
+  "Claude reviewed 3 of 18 HIGH cases: 4 agree, 0 disagree, 2 uncertain; most disputed reason: days since last GI visit."
  ],
  "highlights_source": "auto"
 }

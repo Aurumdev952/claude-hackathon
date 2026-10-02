@@ -1,27 +1,27 @@
 {
  "schema": 2,
- "generated_at": "2026-10-02T01:36:17Z",
- "run_id": 6,
+ "generated_at": "2026-10-02T03:32:30Z",
+ "run_id": 4,
  "sim_time": "2026-06-30T23:59:59",
- "published_at": "2026-10-02T01:08:46Z",
+ "published_at": "2026-10-02T03:32:28Z",
  "models": {
-  "1": "tier1-points-202610020014",
-  "2": "tier2-xgb-202610020014"
+  "1": "tier1-points-202610020331",
+  "2": "tier2-xgb-202610020331"
  },
- "risk_model_id": "tier2-xgb-202610020014",
+ "risk_model_id": "tier2-xgb-202610020331",
  "thresholds": {
-  "high_cut": 0.30000001192092896,
-  "medium_cut": 0.11009174585342407
+  "high_cut": 0.2826632314055189,
+  "medium_cut": 0.08943148688046645
  },
  "bands": {
-  "HIGH": 20,
-  "MEDIUM": 880,
+  "HIGH": 18,
+  "MEDIUM": 882,
   "LOW": 3535
  },
  "high_history": [
   {
    "date": "2026-06-30",
-   "high": 20,
+   "high": 18,
    "scored": 4435
   }
  ],
@@ -105,9 +105,9 @@
   }
  ],
  "kpis": {
-  "high_patients": 20,
-  "high_awaiting_endoscopy": 20,
-  "new_high_patients_7d": 20,
+  "high_patients": 18,
+  "high_awaiting_endoscopy": 18,
+  "new_high_patients_7d": 18,
   "national_asr": 39.24626371419494,
   "national_asr_lci": 23.45184713550767,
   "national_asr_uci": 66.57013115574316,
@@ -117,17 +117,17 @@
   "last_full_year": 2025,
   "last_full_year_asr": 32.406996707427346,
   "cases_annualised": 38.341162672726284,
-  "new_high_alerts": 26,
-  "open_alerts": 131
+  "new_high_alerts": 24,
+  "open_alerts": 129
  },
  "alerts_by_trigger": [
   {
    "trigger": "RISK_BAND_HIGH",
    "label": "High risk band",
-   "new": 18,
+   "new": 16,
    "earlier": 0,
-   "open": 18,
-   "total": 20
+   "open": 16,
+   "total": 18
   },
   {
    "trigger": "ALARM_NO_SCOPE_90D",
@@ -172,7 +172,7 @@
    "facility": "Rwimiyaga Health Centre",
    "facility_id": 2144,
    "risk_band": "HIGH",
-   "ensemble_prob": 1.0,
+   "ensemble_prob": 0.3943,
    "t1_score": 8,
    "top_reasons": [
     {
@@ -201,7 +201,7 @@
    "facility": "Mushikiri Health Centre",
    "facility_id": 2131,
    "risk_band": "HIGH",
-   "ensemble_prob": 1.0,
+   "ensemble_prob": 0.3943,
    "t1_score": 6,
    "top_reasons": [
     {
@@ -230,7 +230,7 @@
    "facility": "Busasamana Health Centre",
    "facility_id": 2181,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.9899,
+   "ensemble_prob": 0.3943,
    "t1_score": 3,
    "top_reasons": [
     {
@@ -238,12 +238,12 @@
      "label": "Age 68"
     },
     {
-     "feature": "district_asr_prior",
-     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
-    },
-    {
      "feature": "weight_change_pct_6m",
      "label": "Weight changed -1.5% in 6 months"
+    },
+    {
+     "feature": "district_asr_prior",
+     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
     }
    ],
    "scoped": false,
@@ -259,7 +259,7 @@
    "facility": "Murama Health Centre",
    "facility_id": 2123,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.9899,
+   "ensemble_prob": 0.3943,
    "t1_score": 1,
    "top_reasons": [
     {
@@ -267,12 +267,12 @@
      "label": "Lives in a district with a high gastric cancer rate (35 per 100,000)"
     },
     {
-     "feature": "weight_change_pct_6m",
-     "label": "Weight changed +0.0% in 6 months"
-    },
-    {
      "feature": "n_ppi_courses_12m",
      "label": "0 acid-suppressant courses in 12 months"
+    },
+    {
+     "feature": "weight_change_pct_12m",
+     "label": "Weight changed +0.0% in 12 months"
     }
    ],
    "scoped": false,
@@ -288,7 +288,7 @@
    "facility": "Rwimbogo Health Centre",
    "facility_id": 2111,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 16,
    "top_reasons": [
     {
@@ -296,12 +296,12 @@
      "label": "Last stomach-complaint visit 25 days ago"
     },
     {
-     "feature": "age",
-     "label": "Age 89"
-    },
-    {
      "feature": "n_gi_visits_6m",
      "label": "4 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "age",
+     "label": "Age 89"
     }
    ],
    "scoped": false,
@@ -317,7 +317,7 @@
    "facility": "Rukara Health Centre",
    "facility_id": 2119,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 15,
    "top_reasons": [
     {
@@ -346,7 +346,7 @@
    "facility": "Gashaki Health Centre",
    "facility_id": 2050,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 13,
    "top_reasons": [
     {
@@ -375,7 +375,7 @@
    "facility": "Matimba Health Centre",
    "facility_id": 2142,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 13,
    "top_reasons": [
     {
@@ -404,7 +404,7 @@
    "facility": "Mpanga Health Centre",
    "facility_id": 2128,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 11,
    "top_reasons": [
     {
@@ -433,7 +433,7 @@
    "facility": "Rubona Health Centre",
    "facility_id": 2152,
    "risk_band": "HIGH",
-   "ensemble_prob": 0.3,
+   "ensemble_prob": 0.2827,
    "t1_score": 11,
    "top_reasons": [
     {
@@ -518,7 +518,7 @@
   "lo95": 3371.9,
   "hi95": 4876.0,
   "model": "ensemble(apc+ets)",
-  "run_id": "fc-20260630-010742",
+  "run_id": "fc-20260630-033130",
   "base_year": 2025,
   "base_cases": 2771.0,
   "change_pct": 51.1,
