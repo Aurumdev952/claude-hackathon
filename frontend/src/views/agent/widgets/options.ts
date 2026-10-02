@@ -40,8 +40,26 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
   const stacked = area && spec.stacked;
   const hasRight = spec.series.some((s) => s.axis === "right");
   const series: any[] = [];
+  // forecast fan (v3): dashed continuation series share the colour of the observed series; 95% band lighter, 80% darker
+  const fan = spec.fan;
+  const solidIdx = Math.max(0, spec.series.findIndex((s) => !s.dashed));
+  const colorOf = (i: number) => (fan && spec.series[i].dashed ? S[solidIdx % S.length] : S[i % S.length]);
+  if (fan && !stacked) {
+    const fc = S[solidIdx % S.length];
+    const band = (lo: string, hi: string, name: string, alpha: number) => {
+      const l = spec.data.map((r) => asNum(r[lo]));
+      const h = spec.data.map((r) => asNum(r[hi]));
+      series.push(
+        { name: `${name} low`, type: "line", stack: name, data: l.map((v) => v ?? "-"), symbol: "none", lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false }, z: 1 },
+        { name, type: "line", stack: name, data: h.map((v, j) => (v !== null && l[j] !== null ? v - (l[j] as number) : "-")),
+          symbol: "none", lineStyle: { opacity: 0 }, areaStyle: { color: alphaHex(fc, alpha) }, silent: true, tooltip: { show: false }, z: 1 },
+      );
+    };
+    band(fan.lo95, fan.hi95, "95% interval", 0.13);
+    if (fan.lo80 && fan.hi80) band(fan.lo80, fan.hi80, "80% interval", 0.2);
+  }
   spec.series.forEach((s, i) => {
-    const c = S[i % S.length];
+    const c = colorOf(i);
     const yAxisIndex = s.axis === "right" ? 1 : 0;
     if (s.lci && s.uci && !stacked) {
       const lo = spec.data.map((r) => asNum(r[s.lci!]));
@@ -64,13 +82,14 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
       emphasis: { focus: spec.series.length > 1 ? "series" : "none", scale: 1.4 },
       endLabel: spec.series.length <= 3 && lastIdx >= 0 && !compact
         ? { show: true, color: k.primary, fontSize: 11, fontWeight: 600, distance: 6, formatter: () => cellText(spec.data[lastIdx], s.key, undefined, spec.unit) } : undefined,
-      markLine: i === 0 && (spec.annotations?.length || spec.referenceLines?.length) ? {
+      markLine: i === 0 && (spec.annotations?.length || spec.referenceLines?.length || fan?.start !== undefined) ? {
         symbol: "none", silent: true, animation: false,
         label: { color: k.muted, fontSize: 10, position: "insideEndTop" },
         lineStyle: { color: k.axis, type: "dashed", width: 1 },
         data: [
           ...(spec.annotations ?? []).filter((a) => cats.includes(String(a.x))).map((a) => ({ xAxis: String(a.x), label: { formatter: a.label, position: "insideEndTop" } })),
           ...(spec.referenceLines ?? []).map((r) => ({ yAxis: r.y, label: { formatter: r.label ?? fmtNumber(r.y), position: "insideEndTop" } })),
+          ...(fan?.start !== undefined && cats.includes(String(fan.start)) ? [{ xAxis: String(fan.start), label: { formatter: "Forecast", position: "insideEndTop" } }] : []),
         ],
       } : undefined,
     });
@@ -84,7 +103,13 @@ export function lineOption(spec: Line, S: string[], k: Ink, compact = false) {
       formatter: (ps: any[]) => {
         const j = ps[0]?.dataIndex ?? 0;
         const row = spec.data[j];
-        return ttHead(cats[j], k) + spec.series.map((s, i) => ttRow(S[i % S.length], seriesLabel(s), cellText(row, s.key, undefined, spec.unit), ciText(row, s, spec.unit), k)).join("") + suppressedNote(row, k);
+        const withValue = spec.series.filter((s) => asNum(row[s.key]) !== null);
+        const shown = fan && withValue.length ? withValue : spec.series;
+        const bands = fan && asNum(row[fan.lo95]) !== null
+          ? `<div style="margin-top:4px;color:${k.muted};font-size:11px;font-variant-numeric:tabular-nums">`
+            + (fan.lo80 && fan.hi80 ? `80%: ${cellText(row, fan.lo80, undefined, spec.unit)}–${cellText(row, fan.hi80, undefined, spec.unit)} · ` : "")
+            + `95%: ${cellText(row, fan.lo95, undefined, spec.unit)}–${cellText(row, fan.hi95, undefined, spec.unit)}</div>` : "";
+        return ttHead(cats[j], k) + shown.map((s) => ttRow(colorOf(spec.series.indexOf(s)), seriesLabel(s), cellText(row, s.key, undefined, spec.unit), ciText(row, s, spec.unit), k)).join("") + bands + suppressedNote(row, k);
       },
     },
     xAxis: { ...(base().xAxis as object), type: "category", data: cats, boundaryGap: false, axisLabel: { color: k.muted, hideOverlap: true } },

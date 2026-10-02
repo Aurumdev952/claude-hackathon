@@ -81,11 +81,26 @@ function Legend({ spec, S }: { spec: ChartSpec; S: string[] }) {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-[13px] text-muted">
       {(spec.unit || spec.yLabel) && <span>{spec.yLabel ?? unitText(spec.unit)}</span>}
       <span className="flex-1" />
-      {multi && spec.series.map((s, i) => (
-        <span key={s.key} className="inline-flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: S[i % S.length], opacity: s.dashed ? 0.6 : 1 }} aria-hidden />{seriesLabel(s)}
+      {multi && spec.series.map((s, i) => {
+        const fan = spec.type !== "bar" && spec.fan;
+        const solid = Math.max(0, spec.series.findIndex((x) => !x.dashed));
+        const c = fan && s.dashed ? S[solid % S.length] : S[i % S.length];
+        return (
+          <span key={s.key} className="inline-flex items-center gap-2">
+            {s.dashed ? <span className="w-3.5 h-0 border-t-2 border-dashed" style={{ borderColor: c }} aria-hidden />
+                      : <span className="w-2 h-2 rounded-full" style={{ background: c }} aria-hidden />}{seriesLabel(s)}
+          </span>
+        );
+      })}
+      {spec.type !== "bar" && spec.fan && (
+        <span className="inline-flex items-center gap-2">
+          <span className="inline-flex" aria-hidden>
+            <span className="w-2.5 h-2.5 rounded-l-full" style={{ background: alphaHex(S[Math.max(0, spec.series.findIndex((x) => !x.dashed)) % S.length], 0.34) }} />
+            <span className="w-2.5 h-2.5 rounded-r-full" style={{ background: alphaHex(S[Math.max(0, spec.series.findIndex((x) => !x.dashed)) % S.length], 0.14) }} />
+          </span>
+          {spec.fan.label ?? (spec.fan.lo80 ? "80% / 95% interval" : "95% interval")}
         </span>
-      ))}
+      )}
       {ci && (
         <span className="inline-flex items-center gap-2">
           {spec.type === "bar" ? <span className="w-2.5 h-2.5 border-x border-muted/70 relative" aria-hidden><span className="absolute inset-x-0 top-1/2 h-px bg-muted/70" /></span>

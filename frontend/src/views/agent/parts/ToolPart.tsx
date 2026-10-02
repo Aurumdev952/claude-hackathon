@@ -25,6 +25,7 @@ function hint(p: ToolPartLike): string | null {
   if (o.kind === "chart" && isRecord(o.spec)) return `${String(o.spec.type)} chart`;
   if (o.kind === "patient") return "patient card";
   if (o.kind === "artifact") return `${Array.isArray(o.files) ? o.files.length : 0} file(s)`;
+  if (o.kind === "video") return `video ${String(o.status ?? "")}`.trim();
   if (typeof o.row_count === "number") return `${o.row_count} row${o.row_count === 1 ? "" : "s"}`;
   if (Array.isArray(o.rows)) return `${o.rows.length} row${o.rows.length === 1 ? "" : "s"}`;
   if (typeof o.total === "number") return `${o.total} total`;

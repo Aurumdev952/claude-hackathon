@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button, Popover, PopoverContent, PopoverTrigger, Tooltip } from "@heroui/react";
-import { ArtifactSpec, ChartWidget as ChartWidgetSchema, PatientWidget as PatientWidgetSchema } from "@agent/widgets";
+import { ArtifactSpec, ChartWidget as ChartWidgetSchema, PatientWidget as PatientWidgetSchema, VideoWidget as VideoWidgetSchema } from "@agent/widgets";
 import { AlertTriangle, Check, Copy, History, Pencil, RefreshCw } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { Markdown } from "./parts/Markdown";
@@ -9,6 +9,7 @@ import { StateDot, Steps, type StepItem } from "./parts/ToolPart";
 import { ArtifactWidget } from "./widgets/ArtifactWidget";
 import { ChartWidget } from "./widgets/ChartWidget";
 import { PatientWidget } from "./widgets/PatientWidget";
+import { VideoWidget } from "./widgets/VideoWidget";
 import { shortDate } from "./widgets/format";
 import { isToolPart, toolNameOf, WIDGET_TOOLS, type AgentMessage, type AgentRole, type ToolPartLike } from "./types";
 
@@ -59,6 +60,7 @@ function widgetFor(name: string, output: unknown): ReactNode {
   if (name === "make_chart") { const r = ChartWidgetSchema.safeParse(output); return r.success ? <ChartWidget widget={r.data} /> : null; }
   if (name === "make_patient_widget") { const r = PatientWidgetSchema.safeParse(output); return r.success ? <PatientWidget widget={r.data} /> : null; }
   if (name === "run_python") { const r = ArtifactSpec.safeParse(output); return r.success ? <ArtifactWidget widget={r.data} /> : null; }
+  if (name === "create_video") { const r = VideoWidgetSchema.safeParse(output); return r.success ? <VideoWidget widget={r.data} /> : null; }
   return null;
 }
 
