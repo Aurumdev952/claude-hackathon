@@ -25,8 +25,10 @@ def train(Xtr: pd.DataFrame, ytr, Xva: pd.DataFrame, yva, seed: int = 42):
     clf = xgb.XGBClassifier(objective="binary:logistic", n_estimators=p["n_estimators"], max_depth=p["max_depth"],
                             learning_rate=p["learning_rate"], subsample=p["subsample"], colsample_bytree=p["colsample_bytree"],
                             min_child_weight=p["min_child_weight"], scale_pos_weight=spw, eval_metric="aucpr",
-                            early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed, n_jobs=os.cpu_count())
+                            early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed, n_jobs=os.cpu_count(),
+                            device=os.environ.get("XGB_DEVICE", "cpu"))  # XGB_DEVICE=cuda needs the full xgboost wheel
     clf.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
+    clf.set_params(device="cpu")  # saved model and scoring stay CPU-only (xgboost-cpu deployment, D-35)
     raw_va = clf.predict_proba(Xva)[:, 1]
     iso = fit_calibrator(raw_va, yva)  # isotonic with small-plateau shrinkage (ml/calibration.py, D-58)
     return clf, iso
