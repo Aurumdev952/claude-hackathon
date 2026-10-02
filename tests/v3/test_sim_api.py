@@ -96,7 +96,7 @@ def _wait(pred, timeout=8.0):
 
 
 def _post(c, body):
-    return c.post("/api/v1/admin/sim", json=body)
+    return c.post("/api/v1/admin/sim", json=body, headers={"X-Role": "ministry"})  # the sim controls need a role (F1 #18a)
 
 
 def test_auto_start_validates_pace(sim):

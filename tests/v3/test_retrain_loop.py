@@ -125,8 +125,10 @@ def test_promote_then_rollback_restores_champion(tmp_path, monkeypatch):
     assert [a[0] for a in audit] == ["promote", "rollback"] and all(a[3] == "analyst@moh (test)" for a in audit)
     with pytest.raises(KeyError):
         registry.promote(con, "nope", "x", "y")
-    # rolling back the restored champion goes back to the model it replaced (an undo of the rollback)
-    assert registry.rollback(con, "tier2-xgb-v1", "x", "undo")["model_id"] == "tier2-xgb-ch-1"
+    # rolling back the restored champion does not undo the rollback (no ping-pong, F1 #17): v1 was never promoted
+    # over another model, so there is nothing further back to restore
+    with pytest.raises(ValueError):
+        registry.rollback(con, "tier2-xgb-v1", "x", "undo")
     with pytest.raises(ValueError):    # a champion with no recorded predecessor cannot be rolled back
         registry.rollback(_registry_con(), "tier2-xgb-v1", "x", "y")
 

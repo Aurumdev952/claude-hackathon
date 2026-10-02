@@ -1,6 +1,8 @@
 """Background jobs for long API actions (sim advance, model promote/retrain): a thread per job, progress in memory.
 
-Shared by v3 tracks (docs/contracts/v3-loop.md §3, §7). One job per `kind` can run at a time.
+Shared by v3 tracks (docs/contracts/v3-loop.md §3, §7). One job per `kind` can run at a time, and a job can name the
+kinds it conflicts with (`conflicts`): sim advances and model jobs both write the work DB and publish, so neither starts
+while the other runs (the cross-process guard is the advance lock, simulator.local.acquire).
 """
 from __future__ import annotations
 
@@ -21,14 +23,17 @@ class Busy(RuntimeError):
         self.kind, self.job_id = kind, job_id
 
 
-def submit(kind: str, fn: Callable[[Callable[[float, str], None]], Any], on_done: Callable[[dict], None] | None = None) -> dict:
-    """fn(progress) runs in a thread; progress(fraction 0-1, step label). Raises Busy if `kind` is already running."""
+def submit(kind: str, fn: Callable[[Callable[[float, str], None]], Any], on_done: Callable[[dict], None] | None = None,
+           conflicts: tuple[str, ...] = (), meta: dict | None = None) -> dict:
+    """fn(progress) runs in a thread; progress(fraction 0-1, step label). Raises Busy if `kind` or one of `conflicts`
+    is already running. `meta` (e.g. who requested it) is stored on the job."""
     with _LOCK:
-        if kind in _RUNNING:
-            raise Busy(kind, _RUNNING[kind])
+        for k in (kind, *conflicts):
+            if k in _RUNNING:
+                raise Busy(k, _RUNNING[k])
         jid = f"{kind}-{uuid.uuid4().hex[:8]}"
         job = {"id": jid, "kind": kind, "status": "queued", "progress": 0.0, "step": None, "result": None, "error": None,
-               "started_at": dt.datetime.now(dt.timezone.utc).isoformat(), "finished_at": None}
+               "started_at": dt.datetime.now(dt.timezone.utc).isoformat(), "finished_at": None, **(meta or {})}
         _JOBS[jid] = job
         _RUNNING[kind] = jid
 

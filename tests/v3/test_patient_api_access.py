@@ -254,4 +254,4 @@ def test_admin_sim_routes(client):
     if r.status_code == 503:
         assert r.json()["error"]["code"] == "SIM_UNAVAILABLE"
     err(client.get("/api/v1/admin/sim/jobs/nope"), 404)
-    err(client.post("/api/v1/admin/sim", json={"action": "advance", "days": 0}), 400, "INVALID_DAYS")
+    err(client.post("/api/v1/admin/sim", json={"action": "advance", "days": 0}, headers={"X-Role": "ministry"}), 400, "INVALID_DAYS")

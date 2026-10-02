@@ -7,12 +7,17 @@
 2. add the loop features (prior_negative_endoscopy_months, care_plan_open, missed_followups_12m; hp_eradicated is
    already a v1 feature). They are appended to the design matrix, so older models keep scoring unchanged;
 3. feedback labels: ml_feedback_labels (care outcomes, flags followed by endoscopy) plus champion "virtual flags" on
-   past quarterly landmarks (stored in ml_feedback_backfill). Selective labels are corrected with inverse-propensity
-   weights w = clip(1 / P(endoscopy | risk), 1, 20); test-split patients' feedback rows form the "verified" slice;
+   past quarterly landmarks (stored in ml_feedback_backfill). Selective labels are corrected with stabilised
+   inverse-propensity weights w = P(verified) / P(verified | x), clipped to [0.1, 10] (`ipw_weight`, ml/feedback.py;
+   P(verified | x) comes from a propensity model, never from the risk score); test-split patients' feedback rows form
+   the "verified" slice;
 4. train XGBoost with those sample weights (same hyper-parameters as v1), isotonic calibration on validation;
 5. evaluate champion and challenger on the same holdout + verified slice; gates: no metric worse than
    champion - 0.01 (AUROC, AUPRC, Brier, calibration slope distance from 1, PPV at HIGH), largest subgroup AUROC drop
-   <= 0.05 (sex, age band, province), HIGH volume change within +/-25% on the currently scored population;
+   <= 0.05 (sex, age band, province), HIGH volume change within +/-25% (or small in absolute terms) on the currently
+   scored population. HIGH is decided on the quantity production bands use (score.py): the Tier 2 + Tier 3 ensemble
+   when a Tier 3 model is active, else Tier 2. The challenger's high/medium cuts are frozen on that quantity on the
+   validation landmarks, as in ml/train.py;
 6. register the challenger (status='challenger', is_active=false, parent_model_id, n_feedback_labels), write its
    evaluation rows and ml_retrain_runs; retrain the adherence model. A person promotes it (POST /models/{id}/promote).
 """
@@ -32,7 +37,7 @@ from shared.config import load_yaml, models_cfg
 
 from . import evaluate as E
 from . import registry, tier2_xgb
-from .feedback import LOOP_FEATURES, add_loop_features, build_feedback_labels, propensity_model
+from .feedback import LOOP_FEATURES, add_loop_features, build_feedback_labels, propensity_model, stabilised_weight
 from .features import build_feature_table, design_matrix, prepare_sources
 from .labels import patient_split
 
@@ -108,6 +113,7 @@ def backfill(con, sim_time: dt.datetime, champion: dict, lc: dict, log=print) ->
     T = pd.Timestamp(sim_time)
     complete = df["L"] + pd.Timedelta(days=fu) <= T
     prop = propensity_model(df[complete].assign(scoped=df.loc[complete, "endo_t"].notna()))
+    marginal = float(df.loc[complete, "endo_t"].notna().mean()) if complete.any() else None
     hc = float(champion["params"].get("high_cut", np.quantile(df["risk"], 0.98)))
     flagged = df[df["risk"] >= hc].copy()
     flagged["propensity"] = prop(flagged["risk"].values)
@@ -120,7 +126,8 @@ def backfill(con, sim_time: dt.datetime, champion: dict, lc: dict, log=print) ->
     out = pd.DataFrame({"patient_id": v["patient_id"].astype("int64"), "landmark_date": v["L"].dt.date, "label": v["label"],
                         "label_kind": "cancer", "source": "flag_backfill", "verified": True, "propensity": v["propensity"],
                         "risk_at_landmark": v["risk"], "outcome_date": np.where(v["label"] == 1, dx[v.index].dt.date, et[v.index].dt.date),
-                        "model_id": champion["model_id"], "plan_id": None})
+                        "model_id": champion["model_id"], "plan_id": None,
+                        "ipw_weight": stabilised_weight(v["propensity"].values, marginal)})
     log(f"  backfill: {len(dates)} quarterly landmarks, {len(df):,} patient-landmarks, {len(flagged):,} virtual flags, "
         f"{len(out):,} verified ({int(out['label'].sum()) if len(out) else 0} cancers); scoped share "
         f"{df.loc[complete, 'endo_t'].notna().mean():.3f}")
@@ -148,9 +155,10 @@ def calib_slope(y, p) -> float | None:
     return calibration_slope(np.asarray(y), np.asarray(p))
 
 
-def model_metrics(y, p, hi_cut: float) -> dict:
+def model_metrics(y, p, hi_cut: float, p_band=None) -> dict:
+    """Discrimination and calibration of `p`; PPV and count at HIGH on `p_band` (the production ensemble; default p)."""
     m = E.metrics(y, p)
-    flagged = np.asarray(p) >= hi_cut
+    flagged = np.asarray(p if p_band is None else p_band) >= hi_cut
     y = np.asarray(y).astype(int)
     m["calib_slope"] = calib_slope(y, p)
     m["ppv_at_high"] = float(y[flagged].mean()) if flagged.any() else None
@@ -223,6 +231,42 @@ def volume_note(volume: dict, gc: dict) -> str:
             f"or absolute change <= {volume_abs_max(volume, gc):.0f} patients")
 
 
+def ensemble(t2, t3):
+    from .score import ensemble as _e
+    return _e(np.asarray(t2, float), None if t3 is None else np.asarray(t3, float))
+
+
+def _tier3_landmarks(con, t3_model: dict | None, frame: pd.DataFrame, X: pd.DataFrame, log=print) -> np.ndarray | None:
+    """Tier 3 probabilities for landmark rows, or None (no active Tier 3, or it cannot be run: Tier 2 alone, as in
+    production's fallback)."""
+    if not t3_model:
+        return None
+    try:
+        from .score import tier3_probs
+        return np.asarray(tier3_probs(con, t3_model, frame.reset_index(drop=True), X.reset_index(drop=True)), float)
+    except Exception as e:  # noqa: BLE001
+        log(f"  tier3 unavailable for the retrain ensemble ({e.__class__.__name__}: {e}); Tier 2 only")
+        return None
+
+
+def _current_tier3(con, cf: pd.DataFrame) -> np.ndarray | None:
+    """t3_prob of the current scoring run (pt_risk), aligned to the rows of pt_features."""
+    try:
+        r = con.execute("SELECT patient_id, t3_prob FROM pt_risk").df()
+    except Exception:  # noqa: BLE001
+        return None
+    v = cf[["patient_id"]].merge(r, on="patient_id", how="left")["t3_prob"].astype(float).values
+    return v if np.isfinite(v).any() else None
+
+
+def high_volume(pc_ca, pc_ch, pc3, champion_cut: float, challenger_cut: float) -> dict:
+    """HIGH counts on the current population, each model on its own cut, on the production quantity (the ensemble
+    with Tier 3 when `pc3` is given, as ml/score.py bands patients)."""
+    n_ca = int((ensemble(pc_ca, pc3) >= champion_cut).sum())
+    n_ch = int((ensemble(pc_ch, pc3) >= challenger_cut).sum())
+    return {"champion": n_ca, "challenger": n_ch, "change": (n_ch - n_ca) / max(n_ca, 1), "population": int(len(pc_ca))}
+
+
 def _current_population(con) -> tuple[pd.DataFrame, pd.DataFrame] | None:
     if not con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = 'pt_features'").fetchone()[0]:
         return None
@@ -279,11 +323,11 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
             con.unregister("_bf")
         fb = build_feedback_labels(con, sim_time, log)
         fb = fb[(fb["label_kind"] == "cancer") & fb["verified"].astype(bool)].copy() if len(fb) else fb
-        lo, hi = lc["ipw_clip"]
         if len(fb):
             fb["L"] = pd.to_datetime(fb["landmark_date"]).astype("datetime64[ns]")
-            p = pd.to_numeric(fb["propensity"], errors="coerce").fillna(0.5).clip(1e-3, 1)
-            fb["w"] = np.clip(1.0 / p, lo, hi)
+            # stabilised weights from ml/feedback.py; a row without one (no propensity) keeps weight 1
+            fb["w"] = pd.to_numeric(fb.get("ipw_weight"), errors="coerce").fillna(1.0).astype(float) \
+                if "ipw_weight" in fb else 1.0
             fb["split"] = [patient_split(int(x), models_cfg()["splits"]["val_patient_frac"]) for x in fb["patient_id"]]
             # stable, total order: which duplicate survives and the order of appended training rows must not depend on
             # the (thread-dependent) order DuckDB returned the feedback rows in
@@ -310,9 +354,10 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
         tr, va, te = (df["split"] == s for s in ("train", "val", "test"))
         w = df["w"].values.astype(float)
         w_tr = w[tr.values] / w[tr.values].mean()
+        from .feedback import IPW_CLIP
         ipw = {"n_feedback_train": n_fb_train, "n_weighted_rows": int((w[tr.values] != 1).sum()),
                "weight_min": float(w_tr.min()), "weight_max": float(w_tr.max()), "weight_mean": float(w[tr.values].mean()),
-               "finite": bool(np.isfinite(w_tr).all()), "clip": [lo, hi]}
+               "finite": bool(np.isfinite(w_tr).all()), "clip": list(IPW_CLIP), "kind": "stabilised"}
         log(f"  IPW: {ipw}")
 
         clf, iso = train_weighted(X[tr.values], y[tr.values], w_tr, X[va.values], y[va.values])
@@ -323,14 +368,24 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
         bands = models_cfg()["bands"]
         q_hi = 1 - bands["high_top_pct"] / 100
         q_med = 1 - (bands["high_top_pct"] + bands["medium_next_pct"]) / 100
-        ch_hi, ch_med = float(np.quantile(p_ch[va.values], q_hi)), float(np.quantile(p_ch[va.values], q_med))
-        ca_hi = float(np.quantile(p_ca[va.values], q_hi))
+        # bands are cut on what production scores (ml/score.py): the Tier 2 + Tier 3 ensemble when Tier 3 is active
+        t3_model = registry.active(con).get(3)
+        p3 = None
+        ev_rows = (va | te).values   # Tier 3 only where the ensemble is needed (validation cuts, holdout metrics)
+        sub3 = _tier3_landmarks(con, t3_model, df[ev_rows], X[ev_rows], log) if ev_rows.any() else None
+        if sub3 is not None:
+            p3 = np.full(len(df), np.nan)
+            p3[ev_rows] = sub3
+        e_ch, e_ca = ensemble(p_ch, p3), ensemble(p_ca, p3)
+        ch_hi, ch_med = float(np.quantile(e_ch[va.values], q_hi)), float(np.quantile(e_ch[va.values], q_med))
+        ca_hi = float(np.quantile(e_ca[va.values], q_hi))
+        t2_hi = float(np.quantile(p_ch[va.values], q_hi))   # the Tier 2 model's own evaluation rows (as ml/train.py)
         log(f"  challenger trained (best_iteration={clf.best_iteration})  {time.time() - t0:.0f}s")
 
         # ---- evaluation on the untouched holdout + verified slice
         yt = y[te.values]
-        m_ca = model_metrics(yt, p_ca[te.values], ca_hi)
-        m_ch = model_metrics(yt, p_ch[te.values], ch_hi)
+        m_ca = model_metrics(yt, p_ca[te.values], ca_hi, e_ca[te.values])
+        m_ch = model_metrics(yt, p_ch[te.values], ch_hi, e_ch[te.values])
         sub = subgroup_aurocs(df[te], yt, p_ch[te.values], p_ca[te.values])
         verified = {"n": 0}
         if len(fb) and (fb["split"] == "test").any():
@@ -340,18 +395,18 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
             vy = vdf["vlabel"].astype(int).values
             vp_ca = tier2_xgb.predict(c_clf, c_iso, vX[c_meta["features"]])
             vp_ch = tier2_xgb.predict(clf, iso, vX[feats_ch])
+            vp3 = _tier3_landmarks(con, t3_model, vdf, vX, log)
             verified = {"n": int(len(vy)), "n_pos": int(vy.sum()),
-                        "champion": model_metrics(vy, vp_ca, ca_hi) if 0 < vy.sum() < len(vy) else {"ppv": float(vy.mean()) if len(vy) else None},
-                        "challenger": model_metrics(vy, vp_ch, ch_hi) if 0 < vy.sum() < len(vy) else {"ppv": float(vy.mean()) if len(vy) else None}}
+                        "champion": model_metrics(vy, vp_ca, ca_hi, ensemble(vp_ca, vp3)) if 0 < vy.sum() < len(vy) else {"ppv": float(vy.mean()) if len(vy) else None},
+                        "challenger": model_metrics(vy, vp_ch, ch_hi, ensemble(vp_ch, vp3)) if 0 < vy.sum() < len(vy) else {"ppv": float(vy.mean()) if len(vy) else None}}
         cur = _current_population(con)
         volume = {"champion": None, "challenger": None, "change": 0.0}
         if cur is not None:
             cf, cX = cur
             pc_ca = tier2_xgb.predict(c_clf, c_iso, cX[c_meta["features"]])
             pc_ch = tier2_xgb.predict(clf, iso, cX[feats_ch])
-            n_ca = int((pc_ca >= float(champion["params"].get("high_cut", ca_hi))).sum())
-            n_ch = int((pc_ch >= ch_hi).sum())
-            volume = {"champion": n_ca, "challenger": n_ch, "change": (n_ch - n_ca) / max(n_ca, 1), "population": int(len(cf))}
+            pc3 = _current_tier3(con, cf) if t3_model else None   # Tier 3 of the current scoring run (pt_risk)
+            volume = high_volume(pc_ca, pc_ch, pc3, float(champion["params"].get("high_cut", ca_hi)), ch_hi)
         g = gates(m_ca, m_ch, sub, volume, lc["gates"])
         decision = "pending" if all(x["pass"] for x in g) else "gates_failed"
         log("  gates: " + ", ".join(f"{x['name']}={'PASS' if x['pass'] else 'FAIL'}" for x in g) + f" -> {decision}")
@@ -370,10 +425,10 @@ def run(con=None, sim_time: dt.datetime | None = None, log=print) -> dict:
         rows = []
         for split, part, pp in (("val", df[va], p_ch[va.values]), ("test", test, test["p"].values)):
             mm = E.metrics(part["label"].values, pp)
-            lt = E.lead_time(part.assign(p=pp), "p", ch_hi, chall_id)[0] if split == "test" else {}
-            rows.append({"model_id": chall_id, "tier": 2, "split": split, **mm, **lt, "high_threshold": ch_hi})
-        curves = E.curves(chall_id, test["label"].values, test["p"].values) + E.lead_time(test, "p", ch_hi, chall_id)[1]
-        sg = E.subgroups(chall_id, test, "p", ch_hi)
+            lt = E.lead_time(part.assign(p=pp), "p", t2_hi, chall_id)[0] if split == "test" else {}
+            rows.append({"model_id": chall_id, "tier": 2, "split": split, **mm, **lt, "high_threshold": t2_hi})
+        curves = E.curves(chall_id, test["label"].values, test["p"].values) + E.lead_time(test, "p", t2_hi, chall_id)[1]
+        sg = E.subgroups(chall_id, test, "p", t2_hi)
         samp = X[te.values].sample(min(3000, int(te.sum())), random_state=1)
         sv = tier2_xgb.shap_values(clf, samp)
         imp = pd.DataFrame({"feature": samp.columns, "mean_abs_shap": np.abs(sv).mean(axis=0)}).sort_values("mean_abs_shap", ascending=False)
@@ -466,12 +521,20 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--maybe", action="store_true", help="only when 30 sim days have passed since the last retrain")
     a = ap.parse_args()
+    from simulator import local as _clock
+    _lock = _clock.acquire("retrain (CLI)")   # never next to a sim advance or an API model job (BusyError otherwise)
     if a.maybe:
         from pipeline.db import work_connection
         from pipeline.run import sim_time_of
         c = work_connection()
         st = sim_time_of(c)
         c.close()
-        print(json.dumps(maybe_retrain(st, publish=False), default=_js, indent=1))
+        try:
+            print(json.dumps(maybe_retrain(st, publish=False), default=_js, indent=1))
+        finally:
+            _lock.release()
     else:
-        print(json.dumps(run(), default=_js, indent=1))
+        try:
+            print(json.dumps(run(), default=_js, indent=1))
+        finally:
+            _lock.release()
