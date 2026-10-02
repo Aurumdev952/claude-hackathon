@@ -350,3 +350,28 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   - `/patient` (phone frame and demo picker), `/patient/app` (full-screen PWA scope)
   - `/outlook`, `/care` (ministry)
 - **Nav:** the ministry gains "Outlook" and "Care programme". The doctor workspace gains the "Follow-ups" and "In recovery" tabs.
+
+## 10. L1 implementation notes (additive, backward compatible)
+
+- **§2 adapter extras:** `superseded()` also returns `seq` (a supersede record applies only to rows created before
+  it). Re-simulated rows dated after the current tick are stored in `writeback/deferred/<table>/part-*.parquet` (column
+  `_sup` = the supersede seq that created them) and replayed by date like the generator future. `ParquetEMR.read(table)`,
+  `log_tick(...)`, `defer(...)`, `deferred()` and `care.emr.window()` / `drop_superseded()` helpers exist. Care-created
+  rows get a deterministic `uuid` and `date_created = max(sim time, event time)`.
+- **Interventions:** `generator/intervention.py` `resimulate_from_endoscopy(patient_id, endo_day, site, *, seed)` ->
+  `(rows, update)`; `commit()` writes rows <= tick end and defers the rest. Every call is logged in
+  `writeback/interventions.parquet` (latent truth: original vs new stage, dx day, curative probability, death day).
+  `patient_id` is the EMR id; persons first seen after the history end map back through `_person_id_map.parquet`.
+- **§3 clock extras:** `advance(days, *, on_progress, fast=True, run_pipeline=True, care_world=True,
+  learning_loop=True, seed=None)`. Progress is also written to `data/sim_state/advance_progress.json`; `status()` adds
+  `days_left`, `last_tick`, and `auto.{running, paused, demo_mode}`. `last_tick.json` keeps the `simulator/tick.py`
+  fields and adds `rows`, `care`, `care_world`, `learning_loop`, `timings`. `pipeline.run --fast` reuses the heavy
+  population marts (joinpoint, spatial, survival, cox, warning, rate_surface) within a sim month.
+- **Latent tables (v3 generator):** `gastric_cases.parquet` adds `case_seed, sojourn_months, stage_months (list),
+  bg_death_day, hb_decline_start/rate, wt_loss_start/rate, intent, gastrectomy, gastrectomy_type, surgery_day, regimen,
+  chemo_planned, chemo_done, recurrence_day, recurrence_type, lost_to_fu_day`; `persons.parquet` adds `home2, hb_base,
+  height, bmi, alcohol_heavy, nsaid, atrophy_day`. Survivorship rows: B12 (3125) + cyanocobalamin (drug 18), vitamin D /
+  calcium, albumin, ECOG at every oncology RETURN visit, chemo cycle visits (5063 = planned cycle number, gaps = missed
+  cycles), surgical ADMISSION/DISCHARGE with 5064, recurrence 5070, surveillance CT 5071.
+- **§6 column names:** registry `stage_I_pct, stage_II_pct, stage_III_pct, stage_IV_pct` plus `expected_true_cases`,
+  `population` (registry denominators) and `provisional` (2026); surveys add `design_effect`.
