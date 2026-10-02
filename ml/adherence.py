@@ -99,9 +99,12 @@ def train(con, log=print) -> dict:
     from .feedback import care_table
     cfg = load_yaml("forecast.yaml")["adherence"]
     ro = care_table(con, "recommendation_outcomes")
-    n = 0 if ro is None else len(ro)
     target = "on_time" if ro is not None and "on_time" in ro and ro["on_time"].notna().any() else "adhered"
-    y = ro[target].fillna(0).astype(int).values if n else np.array([])
+    # plans still pending (target NULL: not yet due / not yet decided) are not failures: they are left out
+    if ro is not None and len(ro) and target in ro:
+        ro = ro[ro[target].notna()].reset_index(drop=True)
+    n = 0 if ro is None else len(ro)
+    y = ro[target].astype(int).values if n else np.array([])
     if n < int(cfg["min_outcomes"]) or min(y.sum(), n - y.sum()) < int(cfg["min_per_class"]):
         meta = {"status": "prior", "n": int(n), "prior": prior(), "reason": f"{n} outcomes (< {cfg['min_outcomes']} or < "
                 f"{cfg['min_per_class']} per class)"}
