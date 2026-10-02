@@ -59,7 +59,7 @@ export function useTaskActions(task: Pick<CareTask, "id" | "title" | "status" | 
           <div className="flex flex-wrap gap-2 pt-2 p-0.5">
             {mode === "reschedule" && (
               <input type="date" aria-label="New due date" value={due} min={minDue} onChange={(e) => setDue(e.target.value)} autoFocus
-                     className="h-9 rounded-full bg-surface px-3.5 text-[13px] text-ink tabular outline-none border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" />
+                     className="h-9 rounded-full bg-surface px-3.5 text-[13px] text-ink tabular outline-none border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand" />
             )}
             <Input size="sm" radius="full" aria-label={mode === "decline" ? "Reason for declining" : "Reason (optional)"} value={reason} onValueChange={setReason}
                    placeholder={mode === "decline" ? "Reason (required)" : "Reason (optional)"} autoFocus={mode === "decline"} className="flex-1 min-w-[160px]"

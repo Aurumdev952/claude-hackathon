@@ -53,7 +53,7 @@ export function MinistryOnly({ title }: { title: string }) {
       <PageHeader title={title} />
       <Card title="This is a ministry view" info="Ministry views show aggregates only, with small cells suppressed. Doctors see patient-level data for their own facility in the Patients view.">
         <p className="text-[15px] text-ink/90 max-w-[560px]">Switch to the ministry role to see national aggregates.</p>
-        <button type="button" onClick={() => setRole("ministry")} className="mt-4 h-10 px-4 rounded-full bg-ink text-ink-on text-[14px] font-medium focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">View as ministry</button>
+        <button type="button" onClick={() => setRole("ministry")} className="mt-4 h-10 px-4 rounded-full bg-ink text-ink-on text-[14px] font-medium focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">View as ministry</button>
       </Card>
     </div>
   );

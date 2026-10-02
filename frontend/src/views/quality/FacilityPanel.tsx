@@ -23,7 +23,7 @@ export function FacilityPanel({ rows, selected, onSelect, tierMode }: {
   }, [rows]);
   return (
     <div className="flex flex-col gap-3 h-full">
-      <select className="bg-tile rounded-full px-4 h-10 text-[14px] text-ink w-full outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal cursor-pointer" value={selected ?? ""}
+      <select className="bg-tile rounded-full px-4 h-10 text-[14px] text-ink w-full outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand cursor-pointer" value={selected ?? ""}
               onChange={(e) => onSelect(Number(e.target.value))} aria-label="Select facility">
         {!f && <option value="">Select a dot or choose a facility</option>}
         {options.map((o) => <option key={o.location_id} value={o.location_id}>{cleanName(o.name)}</option>)}

@@ -53,7 +53,7 @@ export function MapHero({ yearTo, compact = false }: { yearTo: number; compact?:
         </div>
       )}
       <button type="button" onClick={() => go(null)} aria-label="Open the map explorer"
-              className={`absolute z-10 grid place-items-center rounded-full bg-surface text-ink transition-colors hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
+              className={`absolute z-10 grid place-items-center rounded-full bg-surface text-ink transition-colors hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand
                           ${compact ? "right-4 top-4 w-12 h-12" : "right-5 bottom-5 w-[72px] h-[72px]"}`}>
         <ArrowUpRight size={compact ? 20 : 26} strokeWidth={1.75} aria-hidden />
       </button>
@@ -76,7 +76,7 @@ export function TopDistricts({ yearTo, n = 5 }: { yearTo: number; n?: number }) 
         return (
           <li key={r.geo_code}>
             <button onClick={() => go(r.geo_code)} title={`${r.name}: 95% CI ${fmt(r.asr_lci)}–${fmt(r.asr_uci)} per 100,000`}
-                    className="w-full h-14 flex items-center gap-3 px-3 rounded-tile hover:bg-tile text-left transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                    className="w-full h-14 flex items-center gap-3 px-3 rounded-tile hover:bg-tile text-left transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
               <span className="flex-1 min-w-0">
                 <span className="block text-[15px] leading-5 font-medium text-ink truncate">{r.name}</span>
                 <span className="flex items-center gap-3 text-micro text-muted tabular mt-0.5">

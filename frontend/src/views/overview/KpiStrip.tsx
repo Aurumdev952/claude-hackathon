@@ -64,7 +64,7 @@ export function HeroStat({ k, icon, attention = false }: { k: KpiDef; icon: Reac
   return (
     <div role="listitem" aria-label={`${k.label}: ${k.value}${k.unit ? " " + k.unit : ""}`} className="min-w-0 flex-1">
       <button type="button" onClick={d.open} aria-label={`${k.label}: details`}
-              className="w-full flex items-center gap-3 rounded-tile px-2.5 py-2 text-left hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+              className="w-full flex items-center gap-3 rounded-tile px-2.5 py-2 text-left hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
         <span className={`hidden sm:grid w-10 h-10 shrink-0 rounded-full place-items-center [&_svg]:w-[17px] [&_svg]:h-[17px] ${attention ? "bg-signal-soft text-signal-text" : "bg-tile text-ink"}`} aria-hidden>{icon}</span>
         <span className="min-w-0">
           <span className="flex items-baseline gap-1 whitespace-nowrap">

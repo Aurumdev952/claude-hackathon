@@ -40,7 +40,7 @@ export function PhaseTrack({ phases, labelOf = (p) => p.phase }: { phases: Journ
           <li key={`${p.phase}-${i}`} className="relative flex-1 min-w-[92px] pr-2" aria-current={cur ? "step" : undefined}>
             <div className="flex items-center h-5">
               <motion.span initial={reduce ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: reduce ? 0 : 0.05 * i, duration: 0.3, ease: EASE }}
-                           className={`relative z-[1] rounded-full shrink-0 ${cur ? "w-4 h-4 bg-signal ring-4 ring-signal/20" : done ? "w-3 h-3 bg-ink" : p.status === "missed" ? "w-3 h-3 border-[1.5px] border-signal" : "w-3 h-3 border border-dashed border-faint bg-surface"}`} aria-hidden />
+                           className={`relative z-[1] rounded-full shrink-0 ${cur ? "w-4 h-4 bg-brand ring-4 ring-brand/20" : done ? "w-3 h-3 bg-ink" : p.status === "missed" ? "w-3 h-3 border-[1.5px] border-signal" : "w-3 h-3 border border-dashed border-faint bg-surface"}`} aria-hidden />
               {next && <span className={`flex-1 ml-1 ${lineDone ? "h-[2px] bg-ink" : "border-t border-dashed border-faint"}`} aria-hidden />}
             </div>
             <div className={`mt-2 text-[13px] leading-[18px] ${cur ? "font-semibold text-ink" : done ? "text-ink" : "text-muted"}`}>{labelOf(p)}</div>
@@ -74,7 +74,7 @@ function Tile({ label, value, unit, note, flag, series, onOpen, children }: Tile
   if (!onOpen) return <motion.div variants={itemEnter} className={cls}>{body}</motion.div>;
   return (
     <motion.button type="button" variants={itemEnter} onClick={onOpen} aria-label={`${label}: open chart`}
-                   className={`${cls} transition-colors hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal`}>{body}</motion.button>
+                   className={`${cls} transition-colors hover:bg-tile-hover focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand`}>{body}</motion.button>
   );
 }
 
@@ -152,7 +152,7 @@ export function JourneyView({ journey, simNow, sex, compact = false }: { journey
         <div className="flex items-center mb-1.5">
           <h3 className="text-label text-muted flex-1">Milestones <span className="tabular">{milestones.length}</span></h3>
           {milestones.length > shown.length && (
-            <button type="button" onClick={all.open} className="text-micro text-ink underline decoration-hairline underline-offset-2 hover:decoration-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal rounded">All milestones</button>
+            <button type="button" onClick={all.open} className="text-micro text-ink underline decoration-hairline underline-offset-2 hover:decoration-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded">All milestones</button>
           )}
         </div>
         <MilestoneList items={shown} />

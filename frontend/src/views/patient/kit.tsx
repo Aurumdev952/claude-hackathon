@@ -13,7 +13,7 @@ export function Screen({ title, sub, trailing, onBack, children, label }: {
       {(title || onBack) && (
         <header className="flex items-end gap-3 pt-2 pb-1">
           {onBack && (
-            <button type="button" onClick={onBack} aria-label="Back" className="w-11 h-11 -ml-2 rounded-full grid place-items-center text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+            <button type="button" onClick={onBack} aria-label="Back" className="w-11 h-11 -ml-2 rounded-full grid place-items-center text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
               <ChevronLeft size={24} aria-hidden />
             </button>
           )}
@@ -44,9 +44,9 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
 }
 
 export const pBtn = {
-  primary: "h-12 px-5 rounded-full bg-signal-strong text-signal-on text-[16px] font-semibold active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-50",
-  ink: "h-12 px-5 rounded-full bg-ink text-ink-on text-[15px] font-semibold active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-45",
-  soft: "h-12 px-4 rounded-full bg-tile text-ink text-[15px] font-medium hover:bg-tile-hover active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal disabled:opacity-45",
+  primary: "h-12 px-5 rounded-full bg-signal-strong text-signal-on text-[16px] font-semibold active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50",
+  ink: "h-12 px-5 rounded-full bg-ink text-ink-on text-[15px] font-semibold active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-45",
+  soft: "h-12 px-4 rounded-full bg-tile text-ink text-[15px] font-medium hover:bg-tile-hover active:scale-[.98] transition-transform focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-45",
 };
 
 /** The phone screen element: sheets and banners portal into it so they stay inside the simulated device. */
@@ -67,7 +67,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             <div className="w-10 h-1.5 rounded-full bg-hairline mx-auto mb-3" aria-hidden />
             <div className="flex items-center gap-3 mb-4">
               <h2 className="flex-1 text-[20px] leading-7 font-semibold text-ink">{title}</h2>
-              <button type="button" onClick={onClose} aria-label="Close" className="w-10 h-10 rounded-full bg-tile grid place-items-center text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"><X size={18} /></button>
+              <button type="button" onClick={onClose} aria-label="Close" className="w-10 h-10 rounded-full bg-tile grid place-items-center text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><X size={18} /></button>
             </div>
             {children}
           </motion.div>

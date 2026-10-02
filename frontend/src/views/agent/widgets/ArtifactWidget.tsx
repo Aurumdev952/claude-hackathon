@@ -30,7 +30,7 @@ export function ArtifactWidget({ widget: a }: { widget: ArtifactSpec }) {
           <ul className="flex flex-wrap gap-2" aria-label="Files">
             {other.map((f) => (
               <li key={f.url}>
-                <a href={f.url} download={f.name} className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-3 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                <a href={f.url} download={f.name} className="inline-flex items-center gap-2 h-9 rounded-full bg-tile pl-3.5 pr-3 text-[13px] font-medium text-ink hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                   <FileText size={14} className="text-muted" aria-hidden />{f.name}<span className="text-muted font-normal tabular">{kb(f.bytes)}</span><Download size={14} className="text-muted" aria-hidden />
                 </a>
               </li>
@@ -40,7 +40,7 @@ export function ArtifactWidget({ widget: a }: { widget: ArtifactSpec }) {
         {log && (
           <div>
             <button type="button" onClick={() => setShowLog((v) => !v)} aria-expanded={showLog}
-                    className="inline-flex items-center gap-2 h-8 text-[13px] font-medium text-muted hover:text-ink hover:bg-tile rounded-full px-3 -ml-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                    className="inline-flex items-center gap-2 h-8 text-[13px] font-medium text-muted hover:text-ink hover:bg-tile rounded-full px-3 -ml-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
               <Terminal size={14} aria-hidden />{showLog ? "Hide console" : "Show console"}
             </button>
             {showLog && <pre className="mt-2 max-h-56 overflow-auto rounded-tile bg-tile p-4 text-[12px] leading-relaxed font-mono whitespace-pre-wrap text-ink/85">{log}</pre>}
@@ -79,7 +79,7 @@ function ImageFile({ file, title }: { file: ArtifactFile; title?: string }) {
       </div>
       <figcaption className="sr-only">{file.name}</figcaption>
       <DetailModal {...d.modalProps} title={title ?? file.name} size="5xl" icon={<ImageIcon size={16} />}
-                   footer={<a href={file.url} download={file.name} className="inline-flex items-center gap-2 h-10 rounded-full px-4 text-[14px] font-medium text-ink bg-tile hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"><Download size={15} aria-hidden />Download PNG</a>}>
+                   footer={<a href={file.url} download={file.name} className="inline-flex items-center gap-2 h-10 rounded-full px-4 text-[14px] font-medium text-ink bg-tile hover:bg-tile-hover transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><Download size={15} aria-hidden />Download PNG</a>}>
         <img src={file.url} alt={title ?? file.name} className="w-full h-auto rounded-tile bg-white" />
       </DetailModal>
     </figure>

@@ -30,7 +30,7 @@ function SimulatorPage() {
                     <div className="flex items-center gap-2 max-sm:w-full">
                       {patientId && <DemoPicker compact />}
                       <Link to="/patient/app" target="_blank" rel="noreferrer" aria-label="Open the full-screen app in a new tab"
-                            className="h-10 px-4 rounded-full bg-surface text-ink text-[14px] font-medium inline-flex items-center gap-2 hover:bg-tile dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                            className="h-10 px-4 rounded-full bg-surface text-ink text-[14px] font-medium inline-flex items-center gap-2 hover:bg-tile dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
                         <ExternalLink size={14} aria-hidden /><span className="max-sm:sr-only">Full screen</span>
                       </Link>
                     </div>

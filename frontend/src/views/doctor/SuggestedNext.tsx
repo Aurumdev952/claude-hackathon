@@ -98,7 +98,7 @@ export function SuggestionLink({ suggestions, onStart }: { suggestions: Suggesti
     <div className="flex flex-col gap-1">
       {suggestions.map((s) => (
         <button key={s.pathway} type="button" onClick={() => onStart(s)} title={s.reason}
-                className="self-start inline-flex items-center gap-2 text-[13px] text-ink rounded focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal group">
+                className="self-start inline-flex items-center gap-2 text-[13px] text-ink rounded focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group">
           <Signpost size={13} className="text-muted" aria-hidden />
           <span>Suggested: {s.pathway_name},</span>
           <span className="font-semibold underline decoration-hairline underline-offset-4 group-hover:decoration-ink">start</span>

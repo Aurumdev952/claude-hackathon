@@ -44,7 +44,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ on
           ) : (
             <motion.div key="send" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={SPRING}>
               <Button isIconOnly radius="full" type="submit" aria-label="Send message" isDisabled={!canSend}
-                      className={`w-10 h-10 min-w-10 transition-colors data-[disabled=true]:opacity-100 ${canSend ? "bg-signal-strong text-signal-on data-[hover=true]:bg-signal-text" : "bg-ink/[0.06] dark:bg-tile text-faint"}`}>
+                      className={`w-10 h-10 min-w-10 transition-colors data-[disabled=true]:opacity-100 ${canSend ? "bg-brand-strong text-brand-on data-[hover=true]:bg-brand-text" : "bg-ink/[0.06] dark:bg-tile text-faint"}`}>
                 <ArrowUp size={18} strokeWidth={2.25} aria-hidden />
               </Button>
             </motion.div>

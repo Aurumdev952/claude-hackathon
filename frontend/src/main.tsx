@@ -6,6 +6,7 @@ import "@fontsource-variable/urbanist";
 import "./styles.css";
 import { App } from "./app/App";
 import { Providers } from "./app/Providers";
+import { dismissSplashWhenLoaded } from "./app/splash";
 import { applyTheme, storedTheme } from "./lib/theme";
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } } });
@@ -16,6 +17,7 @@ async function boot() {
     const { worker } = await import("./mocks/browser");
     await worker.start({ onUnhandledRequest: "bypass" });
   }
+  dismissSplashWhenLoaded(qc);
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <QueryClientProvider client={qc}>

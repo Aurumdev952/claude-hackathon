@@ -153,7 +153,7 @@ function AssistantMessage({ message, streaming, busy, isLast, errored, onRegener
           <div className="flex items-center gap-2 text-[14px] text-muted">
             <span>The answer was interrupted.</span>
             <button type="button" onClick={() => onRegenerate(message.id)} disabled={busy}
-                    className="text-ink font-medium rounded-full h-8 px-3 bg-surface hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">Try again</button>
+                    className="text-ink font-medium rounded-full h-8 px-3 bg-surface hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">Try again</button>
           </div>
         )}
         {!streaming && !empty && (
@@ -231,7 +231,7 @@ function MetaChips({ message }: { message: AgentMessage }) {
       {!!m.tools_called?.length && <><dt className="text-muted">Tools</dt><dd className="text-ink">{m.tools_called.join(", ")}</dd></>}
     </dl>
   );
-  const meta = "inline-flex items-center gap-1.5 h-8 px-2 rounded-full text-[13px] text-muted cursor-default focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal";
+  const meta = "inline-flex items-center gap-1.5 h-8 px-2 rounded-full text-[13px] text-muted cursor-default focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand";
   const tip = "bg-surface shadow-float rounded-tile px-4 py-3 dark:border dark:border-hairline";
   return (
     <>

@@ -60,7 +60,7 @@ export function ConditionsPanel({ data }: { data: CaseData }) {
           return (
             <motion.div key={g.organ} variants={itemEnter} ref={(el: HTMLDivElement | null) => { refs.current[g.organ] = el; }}
                         className={`rounded-tile bg-tile transition-shadow p-2.5 ${active === g.organ ? "ring-2 ring-ink/15" : ""}`}>
-              <button className="w-full flex items-center gap-3 px-2 py-1.5 text-left rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
+              <button className="w-full flex items-center gap-3 px-2 py-1.5 text-left rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                       onMouseEnter={() => focus([g.organ], labelOf(g.organ))} onMouseLeave={() => focus(null)}
                       onFocus={() => focus([g.organ], labelOf(g.organ))} onBlur={() => focus(null)}
                       onClick={() => set({ selectedOrgan: selected === g.organ ? null : g.organ })} aria-pressed={selected === g.organ}>

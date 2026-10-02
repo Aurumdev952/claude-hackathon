@@ -70,7 +70,7 @@ export function SystemRail({ data, className = "" }: { data: CaseData; className
       <Tooltip content={label} placement="right" delay={200} closeDelay={0} offset={10} portalContainer={portal}
                classNames={{ content: "bg-ink text-ink-on text-[12px] font-medium px-2.5 py-1 rounded-full" }}>
         <button type="button" onClick={onPress} aria-label={dot ? `${label}, involved` : label} aria-pressed={on}
-                className="group relative w-10 h-10 grid place-items-center rounded-full transition-colors hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+                className="group relative w-10 h-10 grid place-items-center rounded-full transition-colors hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           {on && <motion.span layoutId="system-rail-active" className="absolute inset-0 rounded-full bg-ink" transition={SPRING} aria-hidden />}
           <Icon size={17} className={`relative transition-colors ${on ? "text-ink-on" : "text-muted group-hover:text-ink"}`} aria-hidden />
           {dot && <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ring-2 ${on ? "bg-ink-on ring-ink" : "bg-ink ring-surface"}`} aria-hidden />}

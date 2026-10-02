@@ -18,7 +18,7 @@ export function Toasts() {
               {t.tone === "alert" ? <BellRing size={16} /> : <Info size={16} />}
             </span>
             <span className="flex-1 min-w-0">{t.text}</span>
-            <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss" className="w-8 h-8 shrink-0 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"><X size={15} /></button>
+            <button type="button" onClick={() => dismiss(t.id)} aria-label="Dismiss" className="w-8 h-8 shrink-0 grid place-items-center rounded-full text-muted hover:text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><X size={15} /></button>
           </motion.div>
         ))}
       </AnimatePresence>

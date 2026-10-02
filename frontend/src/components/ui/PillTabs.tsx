@@ -63,7 +63,7 @@ const LOOK = {
     cursor: "bg-surface dark:bg-hairline shadow-none",
     still: "data-[selected=true]:bg-surface dark:data-[selected=true]:bg-hairline",
     text: "text-muted group-data-[selected=true]:text-ink group-data-[hover-unselected=true]:text-ink",
-    count: "bg-ink/5 text-muted group-data-[selected=true]:bg-signal-soft group-data-[selected=true]:text-signal-text",
+    count: "bg-ink/5 text-muted group-data-[selected=true]:bg-brand-soft group-data-[selected=true]:text-brand-text",
   },
 } as const;
 
@@ -88,7 +88,7 @@ export function PillTabs<K extends string = string>({ items, selectedKey, onSele
       classNames={{
         base: className,
         tabList: `${variant === "navy" ? "p-0 gap-1" : "p-1 gap-0.5"} ${look.tabList}`,
-        tab: `${size === "sm" ? "h-8 px-3.5" : "h-10 px-4"} data-[focus-visible=true]:outline-signal data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 ${still ? look.still : ""} ${tabClassName}`,
+        tab: `${size === "sm" ? "h-8 px-3.5" : "h-10 px-4"} data-[focus-visible=true]:outline-brand data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 ${still ? look.still : ""} ${tabClassName}`,
         tabContent: `${look.text} font-medium ${size === "sm" ? "text-[13px]" : "text-[14px]"} transition-colors`,
         cursor: look.cursor,
         panel: `px-0 pt-3 pb-0 ${panelClassName}`,
@@ -138,7 +138,7 @@ export function Seg<T extends string>({ value, options, onChange, label, size = 
         const on = o.value === value;
         return (
           <button key={o.value} type="button" aria-pressed={on} title={o.title} onClick={() => onChange(o.value)}
-                  className={`relative rounded-full ${size === "sm" ? "h-7 px-3 text-[13px]" : "h-8 px-4 text-[14px]"} font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
+                  className={`relative rounded-full ${size === "sm" ? "h-7 px-3 text-[13px]" : "h-8 px-4 text-[14px]"} font-medium transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand
                     ${on ? (variant === "light" ? "text-ink-on" : "text-ink font-semibold") : "text-muted hover:text-ink"}`}>
             {on && <motion.span layoutId={`seg-${id}`} className={`absolute inset-0 rounded-full ${pill}`} transition={SPRING} aria-hidden />}
             <span className="relative whitespace-nowrap">{o.label}</span>

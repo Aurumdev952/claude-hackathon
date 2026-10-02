@@ -66,7 +66,7 @@ function RiskReadout({ data, onOpen }: { data: CaseData; onOpen: () => void }) {
   const level: MarkLevel = band === "HIGH" ? "high" : band === "MEDIUM" ? "medium" : band === "LOW" ? "low" : "none";
   return (
     <button type="button" onClick={onOpen} aria-label="Risk details"
-            className="w-full text-left rounded-tile px-3 py-2 -mx-3 hover:bg-surface/70 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+            className="w-full text-left rounded-tile px-3 py-2 -mx-3 hover:bg-surface/70 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
       <div className="flex items-center justify-between gap-3 mb-2">
         <span className="text-label font-normal text-muted">Risk score</span>
         <span className="inline-flex items-center gap-3">

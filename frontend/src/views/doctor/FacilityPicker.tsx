@@ -45,7 +45,7 @@ export function FacilityPicker() {
             {rows.slice(0, 80).map((r) => (
               <motion.li key={r.location_id} variants={itemEnter}>
                 <button onClick={() => setFacility(r.location_id, r.name)}
-                        className="group w-full min-h-[64px] flex items-center gap-4 px-4 py-2.5 text-left rounded-tile hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-signal transition-colors">
+                        className="group w-full min-h-[64px] flex items-center gap-4 px-4 py-2.5 text-left rounded-tile hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand transition-colors">
                   <span className="w-10 h-10 shrink-0 rounded-full border border-hairline text-ink grid place-items-center bg-surface" aria-hidden><Building2 size={17} /></span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-[15px] leading-5 font-semibold text-ink truncate">{r.name.replace(" (Synthetic)", "")}</span>

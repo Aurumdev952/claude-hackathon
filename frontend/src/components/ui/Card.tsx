@@ -91,7 +91,7 @@ export function Card({ title, modalTitle, titleText, icon, iconTone = "accent", 
   return (
     <>
     <M {...anim} {...press} role={press.role ?? role} aria-label={rest["aria-label"] ?? press["aria-label"]} style={style}
-       className={`relative min-w-0 flex flex-col ${radius} ${TONE[tone]} ${PAD[padding]} ${onPress ? "cursor-pointer transition-colors hover:bg-tile/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal" : ""} ${className}`}>
+       className={`relative min-w-0 flex flex-col ${radius} ${TONE[tone]} ${PAD[padding]} ${onPress ? "cursor-pointer transition-colors hover:bg-tile/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" : ""} ${className}`}>
       <MotionScopeContext.Provider value="item">
         {hasHeader && (
           <header className={`flex items-center max-sm:flex-wrap gap-3 min-h-9 mb-5 ${padding === "none" ? "px-7 pt-6" : ""} ${headerClassName}`}>

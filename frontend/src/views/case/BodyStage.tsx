@@ -88,7 +88,7 @@ function PatientChip({ data }: { data: CaseData }) {
   return (
     <div className="overlay-surface rounded-full pl-1.5 pr-2 py-1.5 flex items-center gap-2.5 pointer-events-auto min-w-0 overflow-hidden">
       <Tooltip content="Doctor workspace" placement="bottom" portalContainer={portal} delay={250} closeDelay={0} classNames={TIP}>
-        <Link to="/doctor" aria-label="Doctor workspace" className="w-9 h-9 shrink-0 rounded-full grid place-items-center text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
+        <Link to="/doctor" aria-label="Doctor workspace" className="w-9 h-9 shrink-0 rounded-full grid place-items-center text-ink hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand">
           <ChevronLeft size={18} aria-hidden />
         </Link>
       </Tooltip>
@@ -116,7 +116,7 @@ function IconToggle({ label, pressed, onPress, children }: { label: string; pres
   return (
     <Tooltip content={label} placement="bottom" portalContainer={portal} delay={250} closeDelay={0} classNames={TIP}>
       <button type="button" onClick={onPress} aria-label={label} aria-pressed={pressed}
-              className={`w-9 h-9 rounded-full grid place-items-center transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal
+              className={`w-9 h-9 rounded-full grid place-items-center transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand
                           ${pressed ? "bg-tile-hover text-ink" : "text-muted hover:text-ink hover:bg-tile"}`}>
         {children}
       </button>

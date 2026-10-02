@@ -65,7 +65,7 @@ export function InRecovery({ onOpenPatient }: { onOpenPatient: (id: number) => v
                     return (
                       <motion.li key={r.patient_id} variants={itemEnter}>
                         <button type="button" onClick={() => setSel(r.patient_id)} aria-current={on ? "true" : undefined}
-                                className={`w-full min-h-[60px] text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-signal ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
+                                className={`w-full min-h-[60px] text-left px-3 py-2.5 rounded-tile flex items-center gap-3 transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand ${on ? "bg-tile" : "hover:bg-tile/70"}`}>
                           <PatientAvatar name={r.name} size="sm" className={on ? "!bg-surface" : ""} />
                           <span className="flex-1 min-w-0">
                             <span className="block text-[14px] leading-5 font-semibold text-ink truncate">{r.name}</span>

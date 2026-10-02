@@ -50,7 +50,7 @@ function StepRow({ task, simNow, onEvidence, actions }: { task: CareTask; simNow
           {result && task.status === "COMPLETED" && <span>{result}</span>}
           {!!task.escalation_level && isOpenTask(task) && <span>Escalation {task.escalation_level}</span>}
           {ev && onEvidence && (
-            <button type="button" onClick={() => onEvidence(String((ev as any).date), task)} className="inline-flex items-center gap-1 text-ink underline decoration-hairline underline-offset-2 hover:decoration-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal rounded">
+            <button type="button" onClick={() => onEvidence(String((ev as any).date), task)} className="inline-flex items-center gap-1 text-ink underline decoration-hairline underline-offset-2 hover:decoration-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand rounded">
               <FileSearch size={12} aria-hidden />Evidence {date(String((ev as any).date))}
             </button>
           )}

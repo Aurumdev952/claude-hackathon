@@ -11,8 +11,84 @@
       // apply the saved theme before first paint (light is the default)
       try { var t = localStorage.getItem("es-theme") === "dark" ? "dark" : "light"; document.documentElement.dataset.theme = t; document.documentElement.classList.toggle("dark", t === "dark"); } catch (e) {}
     </script>
+    <style>
+      /* Initial-load splash (src/app/splash.ts removes it once the first screen's data has loaded). Inline so it paints
+         before the JS bundle: the two signal lines trace in, a ring draws around them, then an arc orbits the ring and
+         a pulse runs along the lines until the data is ready. Mark geometry = src/components/brand/BrandMark.tsx. */
+      #es-splash { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #F1F2F6;
+        transition: opacity .45s ease, visibility .45s; font-family: "Urbanist Variable", Urbanist, system-ui, sans-serif; }
+      [data-theme="dark"] #es-splash { background: #0E1014; }
+      #es-splash.is-out { opacity: 0; visibility: hidden; }
+      #es-splash.is-out .es-stage { transform: scale(1.06); }
+      #es-splash .es-stage { display: flex; flex-direction: column; align-items: center; gap: 18px; transition: transform .45s ease; }
+      #es-splash svg { width: 168px; height: 168px; overflow: visible; }
+      #es-splash .es-line { fill: none; stroke: url(#es-sp-grad); stroke-width: 8.5; stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: es-draw .85s cubic-bezier(.65,0,.35,1) forwards; }
+      #es-splash .es-line.b { animation-delay: .28s; }
+      #es-splash .es-pulse { fill: none; stroke: #EFFFF0; stroke-width: 5; stroke-linecap: round; stroke-dasharray: .14 .86;
+        stroke-dashoffset: 1.14; opacity: 0; filter: drop-shadow(0 0 4px #98D59B);
+        animation: es-pulse 1.6s cubic-bezier(.45,0,.55,1) 1.9s infinite; }
+      #es-splash .es-pulse.b { animation-delay: 2.15s; }
+      #es-splash .es-ring { fill: none; stroke: url(#es-sp-ring); stroke-width: 3.5; stroke-linecap: round;
+        stroke-dasharray: 1 1; stroke-dashoffset: 1; transform: rotate(-90deg); transform-origin: 50px 41px;
+        animation: es-draw .8s cubic-bezier(.65,0,.35,1) 1.05s forwards; }
+      #es-splash .es-orbit { fill: none; stroke: #98D59B; stroke-width: 5; stroke-linecap: round; stroke-dasharray: .16 .84;
+        opacity: 0; transform-origin: 50px 41px; filter: drop-shadow(0 0 6px rgba(152,213,155,.9));
+        animation: es-fade .3s ease 1.8s forwards, es-spin 1.25s linear 1.8s infinite; }
+      #es-splash .es-halo { fill: url(#es-sp-halo); opacity: 0; transform-origin: 50px 41px;
+        animation: es-fade .5s ease 1.6s forwards, es-breathe 2.2s ease-in-out 2.1s infinite; }
+      /* the wordmark waits for Urbanist (registered by the JS bundle; splash.ts adds .font-ready) so it never shows a
+         fallback face first */
+      #es-splash .es-word { font-size: 22px; line-height: 28px; letter-spacing: -0.01em; color: #15171C; opacity: 0;
+        transform: translateY(6px); }
+      #es-splash.font-ready .es-word { animation: es-rise .6s ease .15s forwards; }
+      [data-theme="dark"] #es-splash .es-word { color: #F2F3F5; }
+      #es-splash .es-word b { font-weight: 600; }
+      #es-splash .es-note { font-size: 13px; color: #6B7080; opacity: 0; }
+      #es-splash.font-ready .es-note { animation: es-rise .6s ease .45s forwards, es-dim 1.8s ease-in-out 1.2s infinite; }
+      [data-theme="dark"] #es-splash .es-note { color: #8B909E; }
+      @keyframes es-draw { to { stroke-dashoffset: 0; } }
+      @keyframes es-pulse { 0% { stroke-dashoffset: 1.14; opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+      @keyframes es-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes es-fade { to { opacity: 1; } }
+      @keyframes es-breathe { 0%, 100% { transform: scale(.92); opacity: .55; } 50% { transform: scale(1.08); opacity: 1; } }
+      @keyframes es-rise { to { opacity: 1; transform: none; } }
+      @keyframes es-dim { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+      @media (prefers-reduced-motion: reduce) {
+        #es-splash .es-line, #es-splash .es-ring { animation: none; stroke-dashoffset: 0; }
+        #es-splash.font-ready .es-word, #es-splash.font-ready .es-note { animation: none; opacity: 1; transform: none; }
+        #es-splash .es-pulse, #es-splash .es-orbit { display: none; }
+        #es-splash .es-halo { animation: none; opacity: .7; }
+      }
+    </style>
   </head>
   <body>
+    <div id="es-splash" role="status" aria-live="polite" aria-label="Loading Early Signals">
+      <div class="es-stage">
+        <svg viewBox="-22 -31 144 144" aria-hidden="true">
+          <defs>
+            <linearGradient id="es-sp-grad" gradientUnits="userSpaceOnUse" x1="4" y1="78" x2="96" y2="4">
+              <stop offset="0" stop-color="#98D59B" /><stop offset="1" stop-color="#4F6F51" />
+            </linearGradient>
+            <linearGradient id="es-sp-ring" gradientUnits="userSpaceOnUse" x1="-18" y1="109" x2="118" y2="-27">
+              <stop offset="0" stop-color="#98D59B" /><stop offset="1" stop-color="#4F6F51" />
+            </linearGradient>
+            <radialGradient id="es-sp-halo" cx="50" cy="41" r="70" gradientUnits="userSpaceOnUse">
+              <stop offset=".55" stop-color="#98D59B" stop-opacity=".28" /><stop offset="1" stop-color="#98D59B" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <circle class="es-halo" cx="50" cy="41" r="70" />
+          <circle class="es-ring" cx="50" cy="41" r="64" pathLength="1" />
+          <circle class="es-orbit" cx="50" cy="41" r="64" pathLength="1" />
+          <path class="es-line a" pathLength="1" d="M6 45 L37 15 L50 28 L71 6 L94 29" />
+          <path class="es-line b" pathLength="1" d="M6 76 L37 46 L50 58 L71 37 L94 60" />
+          <path class="es-pulse a" pathLength="1" d="M6 45 L37 15 L50 28 L71 6 L94 29" />
+          <path class="es-pulse b" pathLength="1" d="M6 76 L37 46 L50 58 L71 37 L94 60" />
+        </svg>
+        <div class="es-word">Early <b>Signals</b></div>
+        <div class="es-note">Loading surveillance data…</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

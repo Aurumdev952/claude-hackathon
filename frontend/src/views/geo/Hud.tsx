@@ -82,7 +82,7 @@ export function TimeSlider({ periods, idx, onIdx, mode, onMode, playing, onPlay,
   const label = (p: Period) => (compact ? `’${String(p.end).slice(2)}` : p.type === "YEAR" ? String(p.end) : `${String(p.start).slice(2)}–${String(p.end).slice(2)}`);
   return (
     <div className={`${HUD} !rounded-[20px] pl-2.5 pr-3 py-2.5 flex items-center gap-4`} role="group" aria-label="Time slider">
-      <button className="w-10 h-10 rounded-full bg-ink text-ink-on flex items-center justify-center shrink-0 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-40"
+      <button className="w-10 h-10 rounded-full bg-ink text-ink-on flex items-center justify-center shrink-0 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-40"
               onClick={onPlay} aria-label={playing ? "Pause" : "Play through years"} disabled={!periodic || periods.length < 2}>
         {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
       </button>
@@ -92,7 +92,7 @@ export function TimeSlider({ periods, idx, onIdx, mode, onMode, playing, onPlay,
       </div>
       <div className={`flex-1 min-w-0 ${periodic ? "" : "opacity-45"}`} title={periodic ? undefined : staticNote ? `${staticNote}; the slider is paused` : "Fixed period"}>
         <input type="range" min={0} max={Math.max(0, periods.length - 1)} step={1} value={idx} onChange={(e) => onIdx(Number(e.target.value))}
-               className="block w-full h-6 cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:[&::-webkit-slider-thumb]:outline focus-visible:[&::-webkit-slider-thumb]:outline-2 focus-visible:[&::-webkit-slider-thumb]:outline-signal
+               className="block w-full h-6 cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:[&::-webkit-slider-thumb]:outline focus-visible:[&::-webkit-slider-thumb]:outline-2 focus-visible:[&::-webkit-slider-thumb]:outline-brand
                           [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:[background:linear-gradient(to_right,rgb(var(--ink))_0_var(--fill),rgb(var(--hairline))_var(--fill)_100%)]
                           [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-hairline [&::-moz-range-progress]:h-1.5 [&::-moz-range-progress]:rounded-full [&::-moz-range-progress]:bg-ink
                           [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:-mt-[5px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ink [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-surface

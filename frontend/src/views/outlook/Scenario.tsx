@@ -31,7 +31,7 @@ export function RangeSlider({ label, value, min, max, step, onChange, display, h
       <input type="range" min={min} max={max} step={step} value={value} aria-valuetext={display}
              onChange={(e) => onChange(Number(e.target.value))}
              style={{ background: `linear-gradient(90deg, ${h.sky} 0 ${t}%, ${m === "dark" ? "#2C313B" : "#E3E5EB"} ${t}% 100%)` }}
-             className="mt-2.5 w-full h-1.5 rounded-full appearance-none cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal
+             className="mt-2.5 w-full h-1.5 rounded-full appearance-none cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand
                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-solid [&::-webkit-slider-thumb]:border-ink
                         [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-surface [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-solid [&::-moz-range-thumb]:border-ink" />
       {hint && <span className="block text-micro text-muted mt-1.5">{hint}</span>}

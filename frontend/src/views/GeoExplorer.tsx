@@ -181,7 +181,7 @@ export default function GeoExplorer() {
             {/* Top-right: view controls (stacked; slides left of the district panel) */}
             <div className="absolute top-5 z-10 flex items-start gap-2 transition-[right] duration-300" style={{ right: selected ? PANEL_W + 20 : 20 }}>
               {!selected && (
-                <label className={`${HUD} relative !rounded-full flex items-center gap-2 pl-4 pr-9 h-10 text-[14px] focus-within:outline focus-within:outline-2 focus-within:outline-signal`}>
+                <label className={`${HUD} relative !rounded-full flex items-center gap-2 pl-4 pr-9 h-10 text-[14px] focus-within:outline focus-within:outline-2 focus-within:outline-brand`}>
                   <Crosshair size={15} className="text-muted" aria-hidden />
                   <span className="sr-only">Jump to district</span>
                   <select className="appearance-none bg-transparent text-ink text-[14px] outline-none max-w-[160px] cursor-pointer" value="" onChange={(e) => e.target.value && select(e.target.value)} aria-label="Jump to district">
@@ -251,7 +251,7 @@ function LayerBtn({ on, onClick, icon, label, disabled }: { on: boolean; onClick
   return (
     <Tooltip content={label} placement="bottom" delay={200} closeDelay={0} classNames={{ content: "bg-surface text-ink shadow-float text-[12px] rounded-[10px]" }}>
       <button aria-pressed={on} onClick={onClick} disabled={disabled} aria-label={label}
-              className={`w-10 h-10 grid place-items-center rounded-full transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-40 ${on ? "bg-ink text-ink-on" : "bg-surface text-ink hover:bg-tile dark:border dark:border-hairline"}`}>
+              className={`w-10 h-10 grid place-items-center rounded-full transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-40 ${on ? "bg-ink text-ink-on" : "bg-surface text-ink hover:bg-tile dark:border dark:border-hairline"}`}>
         {icon}
       </button>
     </Tooltip>
@@ -260,7 +260,7 @@ function LayerBtn({ on, onClick, icon, label, disabled }: { on: boolean; onClick
 function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <Tooltip content={label} placement="bottom" delay={200} closeDelay={0} classNames={{ content: "bg-surface text-ink shadow-float text-[12px] rounded-[10px]" }}>
-      <button className={`${HUD} !rounded-full w-10 h-10 grid place-items-center hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal`} onClick={onClick} aria-label={label}>{children}</button>
+      <button className={`${HUD} !rounded-full w-10 h-10 grid place-items-center hover:bg-tile focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`} onClick={onClick} aria-label={label}>{children}</button>
     </Tooltip>
   );
 }
@@ -297,7 +297,7 @@ function HotspotList({ rows, spatial, onSelect }: { rows: MapRow[]; spatial: Map
       </div>
       <ul className="flex flex-col -mx-3">
         {hh.map((r) => { const s = spatial.get(r.geo_code); return (
-          <li key={r.geo_code}><button className="w-full h-14 flex items-center gap-3 px-3 text-left rounded-tile hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal" onClick={() => onSelect(r.geo_code)}
+          <li key={r.geo_code}><button className="w-full h-14 flex items-center gap-3 px-3 text-left rounded-tile hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand" onClick={() => onSelect(r.geo_code)}
                     title={`${r.name}: SIR ${fmt(s?.sir, 2)} (95% CI ${fmt(s?.sir_lci, 2)}–${fmt(s?.sir_uci, 2)}), permutation p ${fmt(s?.lisa_p, 3)}`}>
             <span className="flex-1 min-w-0">
               <span className="block text-[15px] leading-5 font-medium text-ink truncate">{r.name}</span>
@@ -329,7 +329,7 @@ function CrudeAsrShift({ rows, onSelect, decoy }: { rows: MapRow[]; onSelect: (c
         const Icon = d > 0 ? ArrowUpRight : ArrowDownRight;
         return (
           <li key={r.geo_code}>
-            <button className={`w-full h-14 flex items-center gap-3 px-3 text-left rounded-tile hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${r.geo_code === decoy ? "bg-tile" : ""}`}
+            <button className={`w-full h-14 flex items-center gap-3 px-3 text-left rounded-tile hover:bg-tile transition-colors focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand ${r.geo_code === decoy ? "bg-tile" : ""}`}
                     onClick={() => onSelect(r.geo_code)} title={r.geo_code === decoy ? "Oldest age profile" : undefined}>
               <span className="flex-1 min-w-0">
                 <span className="block text-[15px] leading-5 font-medium text-ink truncate">{r.name}{r.geo_code === decoy && <span className="sr-only"> (oldest age profile)</span>}</span>

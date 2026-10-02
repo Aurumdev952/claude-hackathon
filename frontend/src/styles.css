@@ -14,7 +14,13 @@
  * --ink            #15171C    #F2F3F5    text, active nav pill, icons
  * --muted          #6B7080    #8B909E    secondary text (plan #8B909E darkened in light for 4.5:1 on white and tile)
  * --faint          #A3A8B5    #5A5F6B    non-text decoration (placeholder dots, empty tracks, chart grey)
- * --signal         #F05A28    #FF6D3A    the one accent: marks, active dots, bars, focus ring, highlighted points
+ * --brand          #4F6F51    #98D59B    brand primary: logo, primary buttons, focus ring, selected / current states
+ * --brand-strong   #4F6F51    #98D59B    solid brand fills that carry text (primary button): 5.6:1 with --on-brand
+ * --on-brand       #FFFFFF    #15171C    text on --brand-strong
+ * --brand-text     #3F5A41    #A9DDAB    brand-coloured text on white / brand-soft (AA)
+ * --brand-soft     #E6F3E7    #1F2E21    soft brand tint (selected counts, highlights)
+ * --brand-2        #98D59B    #98D59B    brand secondary (logo gradient light end, splash)
+ * --signal         #F05A28    #FF6D3A    attention only (not the brand): HIGH risk, late, abnormal, errors, hotspots
  * --signal-strong  #D14516    #FF6D3A    solid fills that carry text (primary button, HIGH pill): 4.6:1 with --on-signal
  * --on-signal      #FFFFFF    #15171C    text on --signal-strong
  * --signal-text    #B83A12    #FF8A5C    signal-coloured text on white / signal-soft (AA)
@@ -43,6 +49,12 @@
   --on-ink: 255 255 255;
   --muted: 107 112 128;         /* #6B7080 */
   --faint: 163 168 181;         /* #A3A8B5 */
+  --brand: 79 111 81;           /* #4F6F51 */
+  --brand-strong: 79 111 81;    /* #4F6F51 */
+  --on-brand: 255 255 255;
+  --brand-text: 63 90 65;       /* #3F5A41 */
+  --brand-soft: 230 243 231;    /* #E6F3E7 */
+  --brand-2: 152 213 155;       /* #98D59B */
   --signal: 240 90 40;          /* #F05A28 */
   --signal-strong: 209 69 22;   /* #D14516 */
   --on-signal: 255 255 255;
@@ -61,8 +73,8 @@
   --border: var(--hairline);
   --fg: var(--ink);
   --fg-muted: var(--muted);
-  --accent: var(--signal-strong);
-  --accent-hover: var(--signal-text);
+  --accent: var(--brand-strong);
+  --accent-hover: var(--brand-text);
   --accent-soft: var(--tile);
   --nav: var(--ink);
   --nav-fg: var(--on-ink);
@@ -87,6 +99,14 @@
   --on-ink: 21 23 28;
   --muted: 139 144 158;         /* #8B909E */
   --faint: 90 95 107;           /* #5A5F6B */
+  --brand: 152 213 155;         /* #98D59B */
+  --brand-strong: 152 213 155;
+  --on-brand: 21 23 28;
+  --brand-text: 169 221 171;    /* #A9DDAB */
+  --brand-soft: 31 46 33;       /* #1F2E21 */
+  --brand-2: 152 213 155;       /* #98D59B */
+  --mark-from: #B8E6BA;         /* logo gradient, lifted so the #4F6F51 end still reads on #0E1014 */
+  --mark-to: #7FB083;
   --signal: 255 109 58;         /* #FF6D3A */
   --signal-strong: 255 109 58;
   --on-signal: 21 23 28;
@@ -111,8 +131,8 @@ body { @apply bg-page text-ink font-sans antialiased; font-size: 14px; line-heig
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
-/* Focus: one visible ring everywhere (2px signal, offset 2px). Components that draw their own ring keep it. */
-:focus-visible { outline: 2px solid rgb(var(--signal)); outline-offset: 2px; }
+/* Focus: one visible ring everywhere (2px brand, offset 2px). Components that draw their own ring keep it. */
+:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; }
 
 /* App background: the plain page token (v2 glows removed). Kept as a class for older markup. */
 .page-bg { background-color: rgb(var(--page)); }
@@ -139,7 +159,7 @@ body { @apply bg-page text-ink font-sans antialiased; font-size: 14px; line-heig
   background: rgb(20 23 28 / 0.9); border: 1px solid rgb(242 243 245 / 0.16); color: #F2F3F5;
   transition: border-color .2s;
 }
-.case-label.is-strong { border-color: #FF6D3A; }
+.case-label.is-strong { border-color: #98D59B; }
 .case-label-line { position: absolute; top: 50%; width: 18px; height: 1px; background: rgb(242 243 245 / 0.45); }
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.28); } 22% { transform: scale(1.05); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } }
 .beat { animation: heartbeat var(--beat, 0.85s) ease-in-out infinite; transform-origin: center; }

@@ -50,7 +50,7 @@ export function ConversationSidebar({ activeId, onSelect, onNew, onDeleted, clas
         </Button>
       </div>
       <div className="pt-3 pb-2 shrink-0">
-        <label className="flex items-center gap-2.5 rounded-full bg-surface dark:border dark:border-hairline px-4 h-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-signal">
+        <label className="flex items-center gap-2.5 rounded-full bg-surface dark:border dark:border-hairline px-4 h-10 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand">
           <Search size={16} className="text-ink shrink-0" aria-hidden />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search chats" aria-label="Search chats"
                  className="flex-1 min-w-0 bg-transparent outline-none focus-visible:outline-none text-[14px] text-ink placeholder:text-muted" />
@@ -107,7 +107,7 @@ function Item({ c, active, onSelect, onRename, onDelete }: { c: Conversation; ac
   return (
     <div className={`group relative flex items-center rounded-full transition-colors ${active ? "bg-surface dark:bg-tile" : "hover:bg-ink/[0.04] dark:hover:bg-surface"}`}>
       <button type="button" onClick={onSelect} aria-current={active ? "page" : undefined} title={c.title}
-              className={`flex-1 min-w-0 h-10 text-left pl-3 pr-9 text-[14px] truncate rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal ${active ? "text-ink font-semibold" : "text-ink/80"}`}>
+              className={`flex-1 min-w-0 h-10 text-left pl-3 pr-9 text-[14px] truncate rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand ${active ? "text-ink font-semibold" : "text-ink/80"}`}>
         {c.title}
       </button>
       <Dropdown placement="bottom-end" classNames={{ content: "min-w-[160px] p-1.5 bg-surface shadow-float rounded-tile dark:border dark:border-hairline" }}>
@@ -134,6 +134,6 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (t: string 
     <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} aria-label="Chat title" maxLength={200}
            onKeyDown={(e) => { if (e.key === "Enter") onDone(v.trim() || null); if (e.key === "Escape") onDone(null); }}
            onBlur={() => onDone(v.trim() || null)}
-           className="w-full h-10 rounded-full bg-surface border border-hairline px-3 text-[14px] text-ink outline outline-2 outline-offset-0 outline-signal/40" />
+           className="w-full h-10 rounded-full bg-surface border border-hairline px-3 text-[14px] text-ink outline outline-2 outline-offset-0 outline-brand/40" />
   );
 }
