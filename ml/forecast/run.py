@@ -93,7 +93,12 @@ def _districts(h: History, provs: dict[str, GeoFit], eb: pd.DataFrame, rng, n: i
     return out
 
 
-def _driver_rows(geo_level, code, pop1, rate1, pop2, rate2, y1, y2) -> list[dict]:
+def _driver_rows(geo_level, code, pop1, rate1, pop2, rate2, y1, y2, target_to: float | None = None) -> list[dict]:
+    """target_to: the published (ensemble / EB) forecast mean for y2; the target-year rates are scaled to it so the
+    decomposition ends exactly at the number shown on the forecast chart (the scaling falls in the risk component)."""
+    tot = float(np.sum(pop2 * rate2))
+    if target_to is not None and np.isfinite(target_to) and tot > 0:
+        rate2 = rate2 * (target_to / tot)
     r = das_gupta(pop1, rate1, pop2, rate2)
     base = r["cases_from"]
     return [{"geo_level": geo_level, "geo_code": code, "from_year": y1, "to_year": y2, "component": comp, "cases": r[comp],
@@ -172,13 +177,15 @@ def run(con, sim_time: dt.datetime, log=print, c: dict | None = None, backtests:
     y1 = min(int(c["drivers"]["from_year"]), h.last_full)
     y2 = min(int(c["drivers"]["to_year"]), horizon)
     drv = []
+    fc_to = series[(series["kind"] == "forecast") & (series["metric"] == "cases") & (series["period"].dt.year == y2)
+                   & (series["sex"] == "ALL") & (series["age_band"] == "ALL")].set_index("geo_code")["mean"].to_dict()
     p1, r1, p2, r2, _ = _geo_driver_arrays(nat, y1, y2)
-    drv += _driver_rows("NATIONAL", "RW", p1, r1, p2, r2, y1, y2)
+    drv += _driver_rows("NATIONAL", "RW", p1, r1, p2, r2, y1, y2, fc_to.get("RW"))
     prov_arr = {}
     for p, g in provs.items():
         prov_arr[p] = _geo_driver_arrays(g, y1, y2)
         p1, r1, p2, r2, _ = prov_arr[p]
-        drv += _driver_rows("PROVINCE", p, p1, r1, p2, r2, y1, y2)
+        drv += _driver_rows("PROVINCE", p, p1, r1, p2, r2, y1, y2, fc_to.get(p))
     ebi = eb.set_index("district_code")
     for d in dfc:
         p = PROVINCE_OF[d]
@@ -187,7 +194,7 @@ def run(con, sim_time: dt.datetime, log=print, c: dict | None = None, backtests:
         pop1 = np.array([dp.get((y1, s, a), 0.0) for s, a in keys])
         pop2 = np.array([dp.get((y2, s, a), 0.0) for s, a in keys])
         sir = float(ebi.loc[d, "sir_eb"])
-        drv += _driver_rows("DISTRICT", d, pop1, r1 * sir, pop2, r2 * sir, y1, y2)
+        drv += _driver_rows("DISTRICT", d, pop1, r1 * sir, pop2, r2 * sir, y1, y2, fc_to.get(d))
     drivers = pd.DataFrame(drv)
 
     # ---- risk factors (yearly survey trends)
