@@ -23,7 +23,7 @@ export const useInsightsUi = create<InsightsUi>((set) => ({
 export function useRouteInsights(): { view: string | null; cards: Insight[]; provider: string | null } {
   const { pathname } = useLocation();
   const nav = activeNav(pathname);
-  const enabled = !!nav && nav.role !== "doctor" && !pathname.startsWith("/doctor/case") && !["/agent", "/ask"].includes(nav.to);
+  const enabled = !!nav && nav.role !== "doctor" && nav.role !== "patient" && !pathname.startsWith("/doctor/case") && !["/agent", "/ask"].includes(nav.to);
   const view = enabled ? nav!.view : "overview";
   const { data } = useInsights(view, enabled);
   const cards = enabled ? aiInsightCards(data) ?? [] : [];

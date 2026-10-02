@@ -1,6 +1,7 @@
-import { Activity, Brain, FlaskConical, Map, ShieldAlert, Sparkles, Stethoscope, TrendingUp } from "lucide-react";
+import { Activity, Brain, ClipboardCheck, FlaskConical, Map, ShieldAlert, Smartphone, Sparkles, Stethoscope, Telescope, TrendingUp } from "lucide-react";
+import type { AppRole } from "@/state/role";
 
-export type NavRole = "ministry" | "doctor" | "any";
+export type NavRole = "ministry" | "doctor" | "patient" | "any";
 export type NavItem = {
   to: string;
   /** Short label for the top pill tabs and the rail tooltip. */
@@ -22,12 +23,16 @@ export const NAV: readonly NavItem[] = [
   { to: "/trends", label: "Trends", title: "Trends lab", icon: TrendingUp, view: "trends", role: "ministry" },
   { to: "/warning", label: "Early warning", title: "Early warning", icon: ShieldAlert, view: "warning", role: "ministry" },
   { to: "/quality", label: "Care", title: "H. pylori & care quality", icon: FlaskConical, view: "quality", role: "ministry" },
+  { to: "/programme", label: "Follow-up", title: "Care coordination programme", icon: ClipboardCheck, view: "programme", role: "ministry" },
+  { to: "/outlook", label: "Outlook", title: "Outlook and forecasts", icon: Telescope, view: "outlook", role: "ministry" },
   { to: "/doctor", label: "Patients", title: "Doctor workspace", icon: Stethoscope, view: "overview", role: "doctor" },
+  { to: "/patient", label: "Patient app", title: "Patient app (simulated phone)", icon: Smartphone, view: "overview", role: "patient" },
   { to: "/models", label: "Models", title: "Model arena", icon: Brain, view: "models", role: "any" },
   { to: "/agent", label: "Agent", title: "AI agent", icon: Sparkles, view: "overview", role: "any", match: ["/ask"] },
 ];
 
-export const navFor = (role: "ministry" | "doctor") => NAV.filter((n) => n.role === "any" || n.role === role);
+export const navFor = (role: AppRole) =>
+  NAV.filter((n) => n.role === role || (n.role === "any" && role !== "patient"));
 
 const hit = (path: string, p: string) => (p === "/" ? path === "/" : path === p || path.startsWith(`${p}/`));
 /** The nav entry that owns a pathname (longest match wins). */

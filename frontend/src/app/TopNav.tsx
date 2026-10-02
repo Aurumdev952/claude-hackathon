@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownSection, DropdownTrigger, Kbd, Tooltip } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Building2, Check, ChevronDown, Database, Landmark, Menu, Moon, Search, Stethoscope, Sun } from "lucide-react";
+import { Bell, Building2, Check, ChevronDown, Database, Landmark, Menu, Moon, Search, Smartphone, Stethoscope, Sun } from "lucide-react";
 import { useStatus } from "@/api/hooks";
 import { InfoHint } from "@/components/ui/InfoHint";
 import { PillTabs } from "@/components/ui/PillTabs";
@@ -88,13 +88,14 @@ function RoleMenu() {
   const navigate = useNavigate();
   const fac = facilityName?.replace(" (Synthetic)", "") ?? null;
   // accessible name stays "Doctor · <facility>" (e2e); the visible pill shows the facility, or "Ministry"
-  const label = role === "doctor" ? `Doctor${fac ? ` · ${fac}` : ""}` : "Ministry";
-  const shown = role === "doctor" ? fac ?? "Doctor" : "Ministry";
+  const patientDisplayId = useRole((s) => s.patientDisplayId);
+  const label = role === "doctor" ? `Doctor${fac ? ` · ${fac}` : ""}` : role === "patient" ? `Patient${patientDisplayId ? ` · ${patientDisplayId}` : ""}` : "Ministry";
+  const shown = role === "doctor" ? fac ?? "Doctor" : role === "patient" ? patientDisplayId ?? "Patient" : "Ministry";
   return (
     <Dropdown placement="bottom-end" classNames={{ content: "bg-surface shadow-float rounded-card p-2 min-w-[280px] dark:border dark:border-hairline" }}>
       <DropdownTrigger>
         <Button size="sm" radius="full" variant="flat" aria-label={label} className="h-10 pl-1 pr-2 lg:pr-3.5 min-w-0 lg:min-w-[120px] max-w-[260px] shrink-0 gap-1 lg:gap-2 bg-surface border border-hairline text-ink data-[hover=true]:bg-tile"
-                startContent={<span className="w-8 h-8 rounded-full bg-tile text-ink grid place-items-center shrink-0" aria-hidden>{role === "doctor" ? <Stethoscope size={15} /> : <Landmark size={15} />}</span>}
+                startContent={<span className="w-8 h-8 rounded-full bg-tile text-ink grid place-items-center shrink-0" aria-hidden>{role === "doctor" ? <Stethoscope size={15} /> : role === "patient" ? <Smartphone size={15} /> : <Landmark size={15} />}</span>}
                 endContent={<ChevronDown size={15} className="text-muted shrink-0" aria-hidden />}>
           <span className="truncate text-[14px] font-medium hidden lg:inline">{shown}</span>
         </Button>
@@ -102,12 +103,15 @@ function RoleMenu() {
       <DropdownMenu aria-label="Switch role" onAction={(k) => {
         if (k === "ministry") { setRole("ministry"); navigate("/"); }
         if (k === "doctor") { setRole("doctor"); navigate("/doctor"); }
+        if (k === "patient") { setRole("patient"); navigate("/patient"); }
       }}>
         <DropdownSection title="View as" classNames={{ heading: "text-micro text-muted px-2" }}>
           <DropdownItem key="ministry" description="Aggregates only, small cells suppressed" startContent={<Landmark size={16} className="text-ink" aria-hidden />}
                         endContent={role === "ministry" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Ministry</DropdownItem>
           <DropdownItem key="doctor" description={fac ? `Patient-level data for ${fac}` : "Patient-level data for one facility"} startContent={<Building2 size={16} className="text-ink" aria-hidden />}
                         endContent={role === "doctor" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Doctor</DropdownItem>
+          <DropdownItem key="patient" description="Simulated phone: notifications, care plan, journey" startContent={<Smartphone size={16} className="text-ink" aria-hidden />}
+                        endContent={role === "patient" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Patient app</DropdownItem>
         </DropdownSection>
       </DropdownMenu>
     </Dropdown>
