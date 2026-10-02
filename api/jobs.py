@@ -48,6 +48,7 @@ def submit(kind: str, fn: Callable[[Callable[[float, str], None]], Any], on_done
             job["status"] = "running"
         try:
             res = fn(progress)
+            _refresh_serve()
             with _LOCK:
                 job.update(status="done", progress=1.0, result=res)
         except Exception as e:  # noqa: BLE001 - surfaced to the client as job.error
@@ -66,6 +67,17 @@ def submit(kind: str, fn: Callable[[Callable[[float, str], None]], Any], on_done
 
     threading.Thread(target=run, name=jid, daemon=True).start()
     return dict(job)
+
+
+def _refresh_serve():
+    """Jobs that publish (sim advance, promote, rollback, retrain) swap current.json; the API otherwise picks the new serve
+    DB up on its 2 s watch loop. Swapping here, before the job reads as done, means a client that refetches on "done"
+    never sees the previous run (found in Wave 3: a rollback read back the old champion)."""
+    try:
+        from .deps import SERVE
+        SERVE.refresh()
+    except Exception:  # noqa: BLE001 - the watch loop still refreshes; never fail a finished job on this
+        traceback.print_exc()
 
 
 def get(job_id: str) -> dict | None:
