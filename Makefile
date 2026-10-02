@@ -73,9 +73,10 @@ bootstrap:                  ## initial DuckDB load from Parquet + watermarks, fu
 pipeline-once:              ## one incremental batch (extract -> marts -> score -> publish)
 	$(PY) -m pipeline.run
 
-train:                      ## train the 3 model tiers, then re-score + publish
+train:                      ## train the 3 model tiers, then re-score + publish (+ forecasts, v3 L3)
 	$(PY) -m ml.train
 	$(PY) -m pipeline.run --no-extract --from score
+	$(MAKE) forecast
 
 snapshot:                   ## save Parquet + DuckDB + MySQL dump
 	mkdir -p $(SNAP)
@@ -185,3 +186,13 @@ dev-data-next:              ## regenerate the dev dataset into data/next (genera
 	$(MAKE) bootstrap DATA_DIR=data/next
 	$(MAKE) train DATA_DIR=data/next
 	$(MAKE) external-data DATA_DIR=data/next
+
+# ---- v3 L3: learning loop and forecasting (docs/contracts/v3-loop.md §5, §7) ----
+.PHONY: forecast retrain
+forecast:                   ## fit incidence/risk-factor/scenario forecasts + backtests (ml_forecast_*), rebuild forecast marts, publish
+	$(PY) -m ml.forecast
+	$(PY) -m pipeline.run --no-extract --from publish
+
+retrain:                    ## train a Tier 2 challenger on feedback labels (IPW), gate it vs the champion, register inactive, publish
+	$(PY) -m ml.retrain
+	$(PY) -m pipeline.run --no-extract --from publish

@@ -80,6 +80,26 @@ class GeoFit:
         self.mu_mean, self.mu_draws = predict_cells(self.fit, self.fut, n_draws, rng)
         self.fitted_hist, _ = predict_cells(self.fit, self.hist.assign(), 0, rng, damped=False)
         self.factor = np.ones(len(self.years_fc))   # reconciliation factor by forecast year
+        self.shock_sd = 0.0
+        if c["incidence"].get("period_shocks", True) and n_draws:
+            self._period_shocks()
+
+    def _period_shocks(self):
+        """Random walk on the log rate (common to all cells of a year): step SD = SD of the yearly log(observed/fitted)
+        residuals net of Poisson noise. Widens the bands for model error (trend changes) beyond coefficient noise."""
+        h = self.hist.assign(fit=self.fitted_hist).groupby("year")[["cases", "fit"]].sum()
+        h = h[(h["cases"] > 0) & (h["fit"] > 0)]
+        if len(h) < 6:
+            return
+        r = np.log(h["cases"] / h["fit"]).values
+        v = float(np.var(r, ddof=1) - np.mean(1.0 / h["cases"].values))
+        self.shock_sd = float(np.sqrt(max(v, 0.0)))
+        if self.shock_sd <= 0:
+            return
+        H = len(self.years_fc)
+        eps = np.cumsum(self.rng.normal(0.0, self.shock_sd, size=(self.n, H)), axis=1)
+        j = np.searchsorted(self.years_fc, self.fut["year"].values)
+        self.mu_draws = self.mu_draws * np.exp(eps[:, j])
 
     # -- helpers
     def _mask(self, frame: pd.DataFrame, sex: str, band: str) -> np.ndarray:

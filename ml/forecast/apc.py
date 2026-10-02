@@ -6,7 +6,11 @@ log E[cases] = log(population x completeness) + b0 + b_male + ns(age) + drift * 
 - ns_c(cohort): natural-spline curvature only (the linear cohort trend is not identifiable apart from age + period;
   it is carried by the drift, as in the age-drift-cohort parameterisation). Unobserved future cohorts are held at the
   boundary value;
-- the drift is attenuated in the projection years (Nordpred: 25%, 50%, 75% damping), config `drift_damping`;
+- a period hinge lets the drift change over the last `recent_years` (Nordpred's "recent trend"), when there is
+  enough history; the projection uses the recent slope, attenuated in the projection years (Nordpred: 25%, 50%,
+  75% damping), config `drift_damping`;
+- period shocks: a random walk on the log rate with the step SD estimated from the yearly residuals (net of Poisson
+  noise) widens the bands for model error that the coefficient covariance cannot see;
 - quasi-Poisson dispersion (Pearson chi2 / df, floored at 1) inflates the coefficient covariance and the predictive
   negative-binomial noise; intervals come from a parametric bootstrap (draws of beta, then counts).
 """
@@ -49,6 +53,7 @@ class APCFit:
     deviance: float
     col_mean: np.ndarray | None = None
     col_sd: np.ndarray | None = None
+    recent_knot: float | None = None      # period hinge: the drift may change over the last `recent_years` (Nordpred)
 
     def raw_design(self, age_index, year, male, eff_period=None) -> np.ndarray:
         age = 5 * np.asarray(age_index, float) + 2.5
@@ -57,6 +62,8 @@ class APCFit:
         per = (year - self.ref_year) if eff_period is None else np.asarray(eff_period, float)
         A = ns_basis(age / 100.0, self.age_knots / 100.0)
         cols = [np.ones_like(age), np.asarray(male, float), A, per / 10.0]
+        if self.recent_knot is not None:
+            cols.append(np.clip(per + (self.ref_year - self.recent_knot), 0, None) / 10.0)
         if len(self.coh_knots) >= 3:
             cols.append(ns_basis(coh / 100.0, self.coh_knots / 100.0)[:, 1:])  # curvature only
         return np.column_stack(cols)
@@ -80,11 +87,13 @@ class APCFit:
         cum = np.concatenate([[0.0], np.cumsum([self.damping[min(i, len(self.damping) - 1)] for i in range(hmax)])])
         return out + cum[h]
 
+    def _raw(self, j: int) -> float:
+        return float(self.beta[j] / (self.col_sd[j] if self.col_sd is not None else 1.0))
+
     @property
     def drift_pct(self) -> float:
-        """Annual drift in % (undamped)."""
-        j = self.drift_index
-        b = self.beta[j] / (self.col_sd[j] if self.col_sd is not None else 1.0)
+        """Annual drift in % over the projection base (overall drift + recent change; undamped)."""
+        b = self._raw(self.drift_index) + (self._raw(self.drift_index + 1) if self.recent_knot is not None else 0.0)
         return float(100 * (np.exp(b / 10.0) - 1))
 
 
@@ -127,8 +136,11 @@ def fit_apc(cells: pd.DataFrame, c: dict) -> APCFit:
     ak = np.unique(np.round(np.quantile(age, np.linspace(0.02, 0.98, age_df)), 3))
     ck = np.unique(np.round(np.quantile(coh, np.linspace(0.05, 0.95, coh_df)), 3)) if coh_df >= 3 else np.array([])
     ref = int(d["year"].max())
+    n_years = int(d["year"].nunique())
+    recent = int(ic.get("recent_years", 10))
+    knot = float(ref - recent) if (n_cases >= 2000 and n_years >= recent + 6) else None
     fit = APCFit(np.zeros(1), np.zeros((1, 1)), 1.0, ak, ck, (float(coh.min()), float(coh.max())), ref, ref,
-                 int(ic["age_min_index"]), list(ic["drift_damping"]), len(d), 0.0)
+                 int(ic["age_min_index"]), list(ic["drift_damping"]), len(d), 0.0, recent_knot=knot)
     Xr = fit.raw_design(d["age_index"].values, d["year"].values, (d["sex"] == "M").values)
     m, sd = Xr.mean(axis=0), Xr.std(axis=0)
     m[0], sd[0] = 0.0, 1.0
@@ -144,6 +156,8 @@ def fit_apc(cells: pd.DataFrame, c: dict) -> APCFit:
     j = fit.drift_index
     prec[j] = 1 / 2.0**2 if n_cases >= 2000 else 1 / 0.5**2   # drift (per SD of period): weakly informative on sparse data
     prec[j + 1:] = 1 / 0.5**2
+    if knot is not None:
+        prec[j + 1] = 1 / 1.0**2    # change of drift over the recent period
     beta, cov, mu = _penalised_poisson(X, y, off, prec)
     dof = max(1, len(y) - X.shape[1])
     scale = float(max(1.0, np.sum((y - mu) ** 2 / np.maximum(mu, 1e-9)) / dof))

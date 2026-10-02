@@ -262,6 +262,35 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
   synchronously and return a job id like the sim jobs.
 - `POST /models/retrain` returns `{job_id}`.
 
+### 7.1 Additive details (L3, backward compatible)
+
+- **Tables.** `mart_forecast` adds `metric` (`cases` | `asr`; monthly rows use the operational metric names) and
+  `cases_obs` (observed count on history rows, for suppression). Yearly series ids end in `REGISTRY` when the synthetic
+  registry (`ext_registry`) is the source, and in `CONFIRMED_PROBABLE` for the EMR fallback; monthly national totals
+  use `NATIONAL|ALL|ALL|OPS`. `mart_forecast_drivers` adds `geo_level`, `cases_from`, `cases_to`, `total_change`
+  (`pct` = component / cases_from x 100). `mart_risk_factor_forecast` adds `n`, `source`, `period`, `freq` (Y/M) and
+  the kind `fitted` (trend inside the survey years). `mart_operational_forecast` adds the metric `endoscopy_capacity`
+  (mean only) and `as_of`; national rows use `district_code = 'RW'`. `mart_forecast_tracking` adds `forecast_lo80`,
+  `forecast_hi80`, `abs_pct_error`, `in_band80`. `ml_forecast_backtest` adds `year`, `actual`, `forecast`, `model`;
+  `crps` is scaled by the actual. `ml_feedback_labels` adds `label_kind` (cancer/hp), `risk_at_landmark`,
+  `outcome_date`, `model_id`, `plan_id`. `mart_model_monitoring` adds `n`, `detail` and the metrics `high_count`,
+  `verified_outcomes`. `ml_retrain_runs` adds `n_feedback_labels`, `train_window`, `runtime_s`, `started_at`; decision is
+  `pending` (all gates pass) | `gates_failed` | `promoted` | `rolled_back` | `rolled_back_to`. New: `ml_model_audit`
+  (audit_at, sim_time, action, model_id, previous_model_id, tier, actor, reason), `ml_forecast_runs`,
+  `ml_forecast_coef`, `ml_forecast_scenario_base`, `ml_forecast_series`, `ml_forecast_hist`, `ml_monitoring_hist`.
+- **API.** `/forecast/series` also takes `metric=cases|asr` (default cases; with `freq=M`: gi_visits, high_flags,
+  endoscopy_demand, care_tasks, endoscopy_capacity) and `case_def`; history rows with fewer than 5 observed cases are
+  returned as `mean: null, cases_label: "<5"`. `/forecast/map` also takes `metric=cases`. The scenario response adds
+  `cases_averted_range`, `stage_shift.districts_gaining_access`, `coefficients` and `elapsed_ms`; `smoking_delta` and
+  `salt_delta` are relative changes (-0.2 = -20%), `hp_coverage_delta` is the share of infected people treated (0-1).
+  `GET /forecast/meta` returns the forecast run and the scenario coefficients. `POST /models/{id}/promote` takes an
+  optional `force` (a challenger whose run failed a gate returns 409 `GATES_FAILED` without it); rollback with the id
+  of the current champion restores the model it replaced. Job status: `GET /models/jobs/{id}`.
+- **Schedule.** `ml.retrain.maybe_retrain(sim_time)` retrains the challenger (+ adherence model) and refits the
+  forecasts every 30 sim days; the sim clock calls it after a tick (it opens the work DB and republishes itself).
+- **Adherence.** `ml.adherence.predict_p_adhere(rows)` returns P(on time) for worklist rows (pathway, channels,
+  distance_km, sex, age_band, risk_at_approval); the config prior is used until 50 outcomes exist.
+
 ## 8. Video (L4)
 
 - **Package:** `video/` (pnpm, ESM). Exports compositions `PatientCaseSummary` and `MinistryReel` (plus `MinistryReelVertical`).

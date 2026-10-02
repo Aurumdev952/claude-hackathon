@@ -9,9 +9,11 @@ incidence:
   age_min_index: 4          # model ages 20+ (WHO groups 4..17); younger groups have ~no cases and are held at 0
   age_df: 5                 # natural-spline knots on age
   cohort_df: 4              # natural-spline knots on birth cohort (curvature only; the linear part is the drift)
-  # Nordpred-style damping of the period drift: factor applied to the drift in projection years 1..n
-  # (h=1-2: 25% attenuation, h=3-4: 50%, h>=5: 75%)
-  drift_damping: [0.75, 0.75, 0.5, 0.5, 0.25]
+  # Nordpred damping of the period drift, by projection year (Moller et al. 2003): 5-year periods attenuated by
+  # 0%, 25%, 50% and 75% (years 1-5 full drift, 6-10: 25% less, 11-15: 50% less, 16+: 75% less)
+  drift_damping: [1, 1, 1, 1, 1, 0.75, 0.75, 0.75, 0.75, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5, 0.25]
+  recent_years: 10          # period hinge: the drift may change over the last n years (needs >= n + 6 years, >= 2000 cases)
+  period_shocks: true       # random-walk widening of the bands from the yearly residual SD
   ets_weight: 0.5           # ensemble weight of ETS (log ASR, damped trend) where it applies; APC gets 1 - w
   ets_min_years: 10
   completeness_hold_years: 3  # registry completeness used for the forecast = mean of the last n years
