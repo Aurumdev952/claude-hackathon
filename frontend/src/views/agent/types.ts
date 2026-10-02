@@ -27,7 +27,7 @@ export type ToolPartLike = { type: string; toolCallId: string; state: ToolState;
 export const isToolPart = (p: { type: string }): p is ToolPartLike => p.type.startsWith("tool-") || p.type === "dynamic-tool";
 export const toolNameOf = (p: ToolPartLike) => (p.type === "dynamic-tool" ? p.toolName ?? "tool" : p.type.slice(5));
 export const toolLabel = (name: string) => (TOOL_LABELS as Record<string, string>)[name] ?? name.replace(/_/g, " ");
-export const WIDGET_TOOLS = new Set<ToolName | string>(["make_chart", "make_patient_widget", "run_python"]);
+export const WIDGET_TOOLS = new Set<ToolName | string>(["make_chart", "make_patient_widget", "run_python", "create_video"]);
 
 /** Who answers: one agent per target user (the role switch in the top nav decides). */
 export const PERSONA: Record<AgentRole, { name: string; blurb: string; ask: string }> = {
