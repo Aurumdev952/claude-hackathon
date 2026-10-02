@@ -377,7 +377,7 @@ These are ministry only. Promote and rollback require `X-Role: ministry`, with a
 - **Role store:** `role: "ministry"|"doctor"|"patient"` plus `patientId`. `client.ts` sends `X-Patient-Id`.
 - **Routes:**
   - `/patient` (phone frame and demo picker), `/patient/app` (full-screen PWA scope)
-  - `/outlook`, `/care` (ministry)
+  - `/outlook`, `/programme` (ministry; the follow-up programme view, nav label "Follow-up")
 - **Nav:** the ministry gains "Outlook" and "Care programme". The doctor workspace gains the "Follow-ups" and "In recovery" tabs.
 
 ## 10. L1 implementation notes (additive, backward compatible)
