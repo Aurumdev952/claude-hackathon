@@ -13,6 +13,11 @@ const damp = THREE.MathUtils.damp;
 
 export type OrganInfo = { id: string; mesh: THREE.Mesh; center: THREE.Vector3; box: THREE.Box3; u: OrganUniforms };
 
+/** Set by the scene's CameraControls (controlstart / controlend): no hover while the user orbits, pans or zooms. */
+export const pointer = { orbiting: false };
+/** A press that moved further than this (px) was an orbit drag, not a click (R3F fires onClick after any drag). */
+const CLICK_SLOP_PX = 4;
+
 /** The anatomy model: every node is an organ id from config/body_map.yaml. Materials are custom shaders driven per
  *  frame from the BodyState (glow, flashes, lesion, vitals) and the UI state (hover, focus, layers, x-ray). */
 export function BodyModel({ state, anchors, reducedMotion, onOrgans }: {
@@ -75,6 +80,10 @@ export function BodyModel({ state, anchors, reducedMotion, onOrgans }: {
       const targetOp = visible ? (id === "muscles" ? 0.9 : 1) * (1 - 0.72 * ghost) : 0;
       u.uOpacity.value = damp(u.uOpacity.value, targetOp, 7, dt);
       o.mesh.visible = u.uOpacity.value > 0.01;
+      // fully opaque organs render in the opaque pass: in the transparent pass three.js re-sorts them by distance every
+      // frame, and overlapping organs swapping draw order while the camera moves is visible popping
+      const mat = o.mesh.material as THREE.ShaderMaterial;
+      mat.transparent = SHELLS.has(id) || id === "skeleton" || u.uOpacity.value < 0.999 || u.uDim.value > 0.001 || u.uXray.value > 0.001;
 
       // physiology
       const sc = u.uScale.value;
@@ -117,20 +126,24 @@ export function BodyModel({ state, anchors, reducedMotion, onOrgans }: {
   });
 
   const set = useCaseUI((s) => s.set);
-  const onOver = (e: ThreeEvent<PointerEvent>) => {
+  // hover follows the pointer (move, not over: after an orbit ends the organ under the cursor is picked up again), but
+  // never while the camera is being dragged - organs sliding under a still cursor would flip the focus dimming each frame
+  const onMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    if (pointer.orbiting) return;
     const id = (e.object as THREE.Mesh).userData.organId as string;
-    if (id) { set({ hoveredOrgan: id }); document.body.style.cursor = "pointer"; }
+    if (id && useCaseUI.getState().hoveredOrgan !== id) { set({ hoveredOrgan: id }); document.body.style.cursor = "pointer"; }
   };
-  const onOut = () => { set({ hoveredOrgan: null }); document.body.style.cursor = ""; };
+  const onOut = () => { if (useCaseUI.getState().hoveredOrgan) set({ hoveredOrgan: null }); document.body.style.cursor = ""; };
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    if (e.delta > CLICK_SLOP_PX) return;   // the end of an orbit drag, not a click
     const id = (e.object as THREE.Mesh).userData.organId as string;
     if (id) set({ selectedOrgan: useCaseUI.getState().selectedOrgan === id ? null : id });
   };
   useEffect(() => () => { document.body.style.cursor = ""; }, []);
 
-  return <primitive object={gltf.scene} onPointerOver={onOver} onPointerOut={onOut} onClick={onClick} />;
+  return <primitive object={gltf.scene} onPointerMove={onMove} onPointerOut={onOut} onClick={onClick} />;
 }
 
 export function anchorFor(region: string, anchors: Record<string, [number, number, number]>, organs: Record<string, OrganInfo>) {

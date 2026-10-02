@@ -5,7 +5,7 @@ import { CameraControls, Html } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import type { BodyState } from "@/views/case/types";
 import { useCaseUI } from "@/views/case/store";
-import { BodyModel, type OrganInfo } from "./BodyModel";
+import { BodyModel, pointer, type OrganInfo } from "./BodyModel";
 import { Pathology } from "./Pathology";
 import { shared } from "./organMaterial";
 import { labelOf } from "./util";
@@ -156,7 +156,8 @@ export function BodyScene({ state, anchors, reducedMotion, light = false }: {
       aria-label="Interactive 3D body"
     >
       <CameraControls ref={controls} makeDefault minDistance={0.12} maxDistance={4.5} dollySpeed={0.6} smoothTime={0.55}
-                      onStart={() => undefined} />
+                      onStart={() => { pointer.orbiting = true; if (useCaseUI.getState().hoveredOrgan) clearSel({ hoveredOrgan: null }); }}
+                      onEnd={() => { pointer.orbiting = false; }} />
       <Director reducedMotion={reducedMotion} controls={controls} />
       <ZoomListener controls={controls} />
       <Suspense fallback={<LoadingBody />}>
