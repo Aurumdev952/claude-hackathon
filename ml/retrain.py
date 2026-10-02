@@ -144,8 +144,9 @@ def train_weighted(Xtr: pd.DataFrame, ytr, wtr, Xva: pd.DataFrame, yva, seed: in
                             learning_rate=p["learning_rate"], subsample=p["subsample"], colsample_bytree=p["colsample_bytree"],
                             min_child_weight=p["min_child_weight"], scale_pos_weight=spw, eval_metric="aucpr",
                             early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed,
-                            n_jobs=os.cpu_count())
+                            n_jobs=os.cpu_count(), device=os.environ.get("XGB_DEVICE", "cpu"))
     clf.fit(Xtr, ytr, sample_weight=wtr, eval_set=[(Xva, yva)], verbose=False)
+    clf.set_params(device="cpu")  # same as the champion: CPU-only saved model (D-35)
     iso = fit_calibrator(clf.predict_proba(Xva)[:, 1], yva)  # same calibrator as the champion (D-58)
     return clf, iso
 
