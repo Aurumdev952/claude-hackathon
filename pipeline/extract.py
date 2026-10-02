@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-from shared.config import BULK_DIR
+from shared import config
 
 from .db import attach_mysql
 
@@ -30,7 +30,7 @@ def bootstrap_from_parquet(con, log=print):
     ensure_watermarks(con)
     t0 = time.time()
     for t in list(WATERMARKED) + REFERENCE:
-        src = (BULK_DIR / "parquet" / t).as_posix()
+        src = (config.BULK_DIR / "parquet" / t).as_posix()
         con.execute(f"CREATE OR REPLACE TABLE raw_{t} AS SELECT * FROM read_parquet('{src}/*.parquet')")
     con.execute("CREATE OR REPLACE TABLE raw_sim_tick_log (tick_id INTEGER, sim_time TIMESTAMP, wall_time TIMESTAMP, "
                 "encounters_added INTEGER, obs_added INTEGER)")
@@ -82,7 +82,8 @@ def local_extract(con, log=print) -> dict[str, int]:
     """MySQL-free extract (v3 contract §2): load write-back Parquet parts (data/bulk/writeback/<table>/part-*.parquet)
     not yet ingested. Only ids not already in raw_<t> are inserted (anti-join), so a part replayed twice or a row that
     also came through the bootstrap is never duplicated. sim_tick_log parts are appended to raw_sim_tick_log."""
-    root = BULK_DIR / "writeback"
+    bulk = config.BULK_DIR  # resolved at call time (tests and tools point DATA_DIR / BULK_DIR elsewhere)
+    root = bulk / "writeback"
     con.execute("CREATE TABLE IF NOT EXISTS etl_local_parts (part_path VARCHAR PRIMARY KEY, tbl VARCHAR, n_rows BIGINT, "
                 "ingested_at TIMESTAMP)")
     seen = {r[0] for r in con.execute("SELECT part_path FROM etl_local_parts").fetchall()}
@@ -90,12 +91,12 @@ def local_extract(con, log=print) -> dict[str, int]:
 
     def todo(name):
         parts = sorted((root / name).glob("part-*.parquet"))
-        return [p for p in parts if p.relative_to(BULK_DIR).as_posix() not in seen]
+        return [p for p in parts if p.relative_to(bulk).as_posix() not in seen]
 
     def mark(name, parts):
         for p in parts:
             con.execute("INSERT OR REPLACE INTO etl_local_parts VALUES (?, ?, ?, now())",
-                        [p.relative_to(BULK_DIR).as_posix(), name, None])
+                        [p.relative_to(bulk).as_posix(), name, None])
 
     for t, key in WATERMARKED.items():
         parts = todo(t)
