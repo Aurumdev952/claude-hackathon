@@ -12,8 +12,16 @@ router = APIRouter()
 VIEWS = ("overview", "geo", "trends", "warning", "quality", "models")
 
 
+def staff(r: Role = Depends(role)) -> Role:
+    """Ask the Data and the insight cards serve the ministry and doctors. The patient app has no analytics access, so the
+    patient role gets a clean 403 here instead of reaching the doctor/ministry code paths (which have no patient branch)."""
+    if r.role not in ("ministry", "doctor"):
+        raise APIError(403, "FORBIDDEN", "Ask the Data is available to the ministry and doctor roles only")
+    return r
+
+
 @router.post("/ask")
-def ask_endpoint(body: dict = Body(...), r: Role = Depends(role)):
+def ask_endpoint(body: dict = Body(...), r: Role = Depends(staff)):
     q = (body.get("question") or "").strip()
     if not q or len(q) > 500:
         raise APIError(400, "INVALID_QUESTION", "question must be 1-500 characters")
@@ -21,12 +29,12 @@ def ask_endpoint(body: dict = Body(...), r: Role = Depends(role)):
 
 
 @router.get("/ask/suggestions")
-def suggestions(r: Role = Depends(role)):
+def suggestions(r: Role = Depends(staff)):
     return envelope(SEMANTIC["suggested_questions"][r.role], provider=get_provider().name)
 
 
 @router.get("/insights")
-def insights_endpoint(view: str = "overview", r: Role = Depends(role)):
+def insights_endpoint(view: str = "overview", r: Role = Depends(staff)):
     if view not in VIEWS:
         raise APIError(400, "INVALID_FILTER", f"view must be one of {list(VIEWS)}")
     return envelope(SERVE.cached(("insights", view), lambda: insights(view)), provider=get_provider().name)
