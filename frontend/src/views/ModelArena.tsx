@@ -1,18 +1,22 @@
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Brain, Hourglass } from "lucide-react";
+import { Activity, Brain, Hourglass, Scale, Sparkles, Target, Users } from "lucide-react";
 import { ApiError, get } from "@/api/client";
-import { ErrorNote, Loading, Panel, Seg } from "@/components/ui/Panel";
+import { BentoGrid, Card, chartDetailTabs, DataTable, GridItem, Loading, PageHeader, Seg, StatusChip } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { date, fmt } from "@/lib/format";
 import { Empty } from "./quality/kit";
 import { ModelCards } from "./models/ModelCards";
 import { CurveChart, CurveLegend, CurveTable, withCumulative, type Kind, type ModelCurves } from "./models/Curves";
 import { ImportanceBars, ImportanceTable } from "./models/Importance";
 import { SubgroupTable } from "./models/Subgroups";
+import { LearningLoop } from "./models/LearningLoop";
+import { useRole } from "@/state/role";
 import { TIER_META, type Curves, type Importance, type Metrics, type RegistryModel, type Subgroup, type Thresholds } from "./models/types";
 
 /** V6 - Model Arena (SPEC §16.3, §13): three tiers compared on the same temporal test set. */
 export default function ModelArena() {
+  const role = useRole((s) => s.role);
   const reg = useQuery({
     queryKey: ["models", "list"], queryFn: () => get<RegistryModel[]>("/models"), retry: false,
     refetchInterval: (q) => ((q.state.error as ApiError | null)?.code === "NO_MODELS" ? 30_000 : false),
@@ -52,88 +56,84 @@ export default function ModelArena() {
     return <><CurveLegend models={ms} extra={extra} /><CurveChart kind={kind} models={ms} prevalence={prevalence} height={h} /></>;
   };
 
+  const card = (title: string, icon: React.ReactNode, about: string, method: string, kind: Kind | null, body: React.ReactNode, actions?: React.ReactNode) => (
+    <Card title={title} icon={icon} actions={actions} info={kind && curves.length ? undefined : { about, method }}
+          detail={kind && curves.length ? { tabs: chartDetailTabs({ table: <CurveTable kind={kind} models={curves} />, method: <><p>{about}</p><p className="mt-2">{method}</p></> }), defaultTab: "table" } : undefined} detailLabel={`${title}: view as table`}>
+      {body}
+    </Card>
+  );
   return (
-    <div className="flex flex-col gap-4 max-w-[1500px]">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-        <div className="min-w-0">
-          <div className="panel-title">V6 · Model arena</div>
-          <h1 className="text-2xl font-bold tracking-tight">Three ways to find cancer before diagnosis</h1>
-          <p className="text-sm text-fog max-w-3xl mt-0.5">Each model answers the same question at every monthly landmark — <i>will this GI-cohort patient be diagnosed with gastric cancer in the next 12 months?</i> — and is scored on a later, held-out time period.</p>
-        </div>
-        <div className="flex-1" />
-        {m0 && (
-          <dl className="text-[11px] text-fog grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 border-l border-line/60 pl-3 tabular">
-            <dt>Trained</dt><dd className="text-mist">{date(m0.trained_at)}</dd>
-            <dt>Train window</dt><dd className="text-mist">{m0.train_window}</dd>
-            <dt>Test set</dt><dd className="text-mist">{test ? `${test.n_pos.toLocaleString()} cases · ${fmt(100 * (prevalence ?? 0), 2)}% base rate` : "—"}</dd>
-          </dl>
-        )}
-      </div>
+    <div className="flex flex-col gap-5 min-w-0">
+      <PageHeader icon={<Brain size={18} />} title="Three ways to find cancer before diagnosis"
+        info={{ about: <>Each model answers the same question at every monthly landmark (will this GI-cohort patient be diagnosed with gastric cancer in the next 12 months?) and is scored on a later, held-out time period.</>,
+                notes: m0 ? `Train window ${m0.train_window}.` : undefined }}
+        eyebrow={m0 ? <span className="flex flex-wrap gap-x-4 tabular"><span>Trained {date(m0.trained_at)}</span>{test && <span>{test.n_pos.toLocaleString()} test cases</span>}{test && <span>{fmt(100 * (prevalence ?? 0), 2)}% base rate</span>}</span> : undefined} />
 
       <ModelCards models={models} ensemble={ensemble} thresholds={thresholds} />
 
-      <div className="grid gap-4 grid-cols-1 xl:grid-cols-2">
-        <Panel title="ROC curves" subtitle="Ranking: sensitivity against false-positive rate"
-          method="Receiver operating characteristic on the temporal test set. The area under it (AUROC) is the chance a random future case is ranked above a random non-case. Dashed diagonal = chance."
-          table={curves.length ? <CurveTable kind="roc" models={curves} /> : undefined}>
-          {chart("roc", 280, [{ label: "Chance", color: "rgb(var(--fog))", shape: "dash" }])}
-        </Panel>
-        <Panel title="Precision–recall curves" subtitle="The honest view for a rare outcome"
-          method="Precision (PPV) against recall (sensitivity). With cancer this rare, AUPRC is the most honest single number: the dashed line is the base rate a random list would achieve."
-          table={curves.length ? <CurveTable kind="pr" models={curves} /> : undefined}>
-          {chart("pr", 280, [{ label: "Base rate", color: "rgb(var(--fog))", shape: "dash" }])}
-        </Panel>
-        <Panel title="Calibration" subtitle="Do predicted risks match what happened?"
-          method="Test landmarks binned into predicted-risk deciles; each dot is the mean predicted risk vs the observed 12-month cancer rate in that decile. Dots on the dashed diagonal are perfectly calibrated. The points score is not a probability and is omitted."
-          table={curves.length ? <CurveTable kind="calibration" models={curves} /> : undefined}>
-          {chart("calibration", 280, [{ label: "Perfect calibration", color: "rgb(var(--fog))", shape: "dash" }])}
-        </Panel>
-        <Panel title="Lead time" subtitle={leadMode === "lead_cum" ? "Share of test-period cases flagged HIGH at least this long before diagnosis" : "When each test-period case was first flagged HIGH"}
-          method="For each test-period case, the earliest monthly landmark (up to 24 months before diagnosis) at which the model's score crossed its HIGH threshold (top 2%). Cumulative view: share of all test-period cases flagged at least m months ahead (the curve at 3 months is the '% flagged ≥ 3 months' metric). Distribution view: cases by month of first flag."
-          actions={<Seg label="Lead-time view" value={leadMode} onChange={setLeadMode} options={[{ value: "lead_cum", label: "Cumulative" }, { value: "lead_time", label: "Distribution" }]} />}
-          table={curves.length ? <CurveTable kind={leadMode} models={curves} /> : undefined}>
-          {chart(leadMode, 280)}
-        </Panel>
-        <Panel title="What drives the XGBoost model" subtitle={hiv?.rank ? <span className="tabular">Mean |SHAP| on test landmarks · HIV negative control ranks <b className="text-mist">#{hiv.rank}</b>{hiv.rank > 30 ? " (expected > 30 ✓)" : " (expected > 30)"}</span> : "Mean |SHAP| on test landmarks"}
-          method="Mean absolute SHAP value (contribution to the log-odds) of each feature over a sample of 5,000 test landmarks. HIV is included as a negative control: it has no effect in the data, so it should rank below 30."
-          table={imp.data?.data?.length ? <ImportanceTable rows={imp.data.data} /> : undefined}>
-          {imp.isLoading ? <Loading h={340} /> : imp.error ? <ErrorNote error={imp.error} /> : !imp.data?.data?.length ? <Empty h={340}>No feature importance for this run.</Empty> :
-            <ImportanceBars rows={imp.data.data} hiv={hiv} />}
-        </Panel>
-        <Panel title="Subgroup performance" subtitle="Is the model equally good for everyone?"
-          method="AUROC and sensitivity at the HIGH threshold within each subgroup of the test set. Subgroups with fewer than 20 cases are marked; their estimates are noisy. Vertical tick = overall AUROC.">
-          {sub.isLoading ? <Loading h={340} /> : sub.error ? <ErrorNote error={sub.error} /> :
-            <SubgroupTable rows={sub.data?.data ?? []} models={ids} overall={overall} />}
-        </Panel>
-      </div>
+      <BentoGrid>
+        <GridItem span={{ lg: 6, xl: 4 }}>
+          {card("ROC curves", <Activity size={16} />, "Ranking: sensitivity against the false-positive rate.",
+            "Receiver operating characteristic on the temporal test set. The area under it (AUROC) is the chance a random future case is ranked above a random non-case. Dashed diagonal = chance.",
+            "roc", chart("roc", 280, [{ label: "Chance", color: "rgb(var(--fg-muted))", shape: "dash" }]))}
+        </GridItem>
+        <GridItem span={{ lg: 6, xl: 4 }}>
+          {card("Precision–recall", <Target size={16} />, "The honest view for a rare outcome.",
+            "Precision (PPV) against recall (sensitivity). With cancer this rare, AUPRC is the most honest single number: the dashed line is the base rate a random list would achieve.",
+            "pr", chart("pr", 280, [{ label: "Base rate", color: "rgb(var(--fg-muted))", shape: "dash" }]))}
+        </GridItem>
+        <GridItem span={{ lg: 12, xl: 4 }}>
+          {card("Calibration", <Scale size={16} />, "Do predicted risks match what happened?",
+            "Test landmarks binned into predicted-risk deciles; each dot is the mean predicted risk vs the observed 12-month cancer rate in that decile. Dots on the dashed diagonal are perfectly calibrated. The points score is not a probability and is omitted.",
+            "calibration", chart("calibration", 280, [{ label: "Perfect", color: "rgb(var(--fg-muted))", shape: "dash" }]))}
+        </GridItem>
+        <GridItem span={{ lg: 6 }}>
+          {card("Lead time", <Hourglass size={16} />, leadMode === "lead_cum" ? "Share of test-period cases flagged HIGH at least this long before diagnosis." : "When each test-period case was first flagged HIGH.",
+            "For each test-period case, the earliest monthly landmark (up to 24 months before diagnosis) at which the model's score crossed its HIGH threshold (top 2%). Cumulative view: share of all test-period cases flagged at least m months ahead (the curve at 3 months is the '% flagged ≥ 3 months' metric). Distribution view: cases by month of first flag.",
+            leadMode, chart(leadMode, 330),
+            <Seg label="Lead-time view" value={leadMode} onChange={setLeadMode} options={[{ value: "lead_cum", label: "Cumulative" }, { value: "lead_time", label: "Distribution" }]} />)}
+        </GridItem>
+        <GridItem span={{ lg: 6 }}>
+          <Card title="What drives XGBoost" icon={<Sparkles size={16} />}
+            detail={imp.data?.data?.length ? { tabs: chartDetailTabs({ table: <ImportanceTable rows={imp.data.data} />, method: "Mean absolute SHAP value (contribution to the log-odds) of each feature over a sample of 5,000 test landmarks. HIV is included as a negative control: it has no effect in the data, so it should rank below 30." }), defaultTab: "table" } : undefined} detailLabel="Feature importance: view as table">
+            {hiv?.rank ? <p className="text-label font-normal text-muted -mt-1 mb-3 tabular">Mean |SHAP| on test landmarks. The HIV negative control ranks #{hiv.rank}{hiv.rank > 30 ? ", below 30 as expected" : "; it should rank below 30"}.</p> : null}
+            {imp.isLoading ? <Loading h={340} /> : imp.error ? <ErrorNote error={imp.error} /> : !imp.data?.data?.length ? <Empty h={340}>No feature importance for this run.</Empty> :
+              <ImportanceBars rows={imp.data.data} hiv={hiv} top={13} />}
+          </Card>
+        </GridItem>
+        <GridItem span={12}>
+          <Card title="Subgroup performance" icon={<Users size={16} />}
+            detail={sub.data?.data?.length ? { tabs: chartDetailTabs({ method: "Is the model equally good for everyone? AUROC and sensitivity at the HIGH threshold within each subgroup of the test set. Subgroups with fewer than 20 cases are marked; their estimates are noisy. The vertical tick is the overall AUROC.", table: <DataTable rows={sub.data.data} columns={[{ key: "model_id", label: "Model" }, { key: "subgroup_var", label: "Variable" }, { key: "subgroup_value", label: "Subgroup" },
+              { key: "auroc", label: "AUROC", num: true, fmt: (v) => fmt(v, 3) }, { key: "sens", label: "Sensitivity", num: true, fmt: (v) => `${fmt(100 * v, 1)}%` }, { key: "ppv", label: "PPV", num: true, fmt: (v) => (v === null ? "—" : `${fmt(100 * v, 1)}%`) },
+              { key: "n_pos", label: "Cases", num: true }, { key: "n", label: "n", num: true }]} /> }), defaultTab: "table" } : undefined} detailLabel="Subgroups: view as table">
+            {sub.isLoading ? <Loading h={340} /> : sub.error ? <ErrorNote error={sub.error} /> :
+              <SubgroupTable rows={sub.data?.data ?? []} models={ids} overall={overall} />}
+          </Card>
+        </GridItem>
+      </BentoGrid>
+      {/* v3: retraining on verified outcomes, gated promotion (ministry only: the endpoints are ministry-only) */}
+      {role === "ministry" && <LearningLoop />}
     </div>
   );
 }
 
 function Training() {
   return (
-    <div className="flex flex-col gap-4 max-w-[1100px]">
-      <div>
-        <div className="panel-title">V6 · Model arena</div>
-        <h1 className="text-2xl font-bold tracking-tight">Three ways to find cancer before diagnosis</h1>
-      </div>
-      <div className="panel p-6 flex gap-5 items-start">
-        <div className="w-11 h-11 rounded-xl bg-kivu/20 flex items-center justify-center shrink-0"><Hourglass size={20} className="text-kivu animate-pulse" /></div>
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold">Models are not trained for this run yet</h2>
-          <p className="text-sm text-fog mt-1 max-w-2xl">Run <code className="text-mist text-xs">make train</code> (or <code className="text-mist text-xs">python -m ml.train</code>) and re-publish. This page checks again every 30 seconds and will fill in on its own.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-            {[1, 2, 3].map((t) => (
-              <div key={t} className="rounded-lg border border-dashed border-line/70 p-3">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-fog font-semibold">Tier {t}</div>
-                <div className="font-semibold flex items-center gap-1.5"><Brain size={14} className="text-fog" />{TIER_META[t].name}</div>
-                <p className="text-[11px] text-fog mt-1 leading-snug">{TIER_META[t].blurb}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-fog mt-3">When ready: AUROC, AUPRC, Brier, sensitivity at 90% specificity, number needed to scope at the top 2%, lead time, calibration, SHAP importance with the HIV negative control, and subgroup performance.</p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4 min-w-0">
+      <PageHeader icon={<Brain size={18} />} title="Three ways to find cancer before diagnosis" />
+      <Card title="Models are not trained for this run yet" icon={<Hourglass size={16} className="animate-pulse" />} iconTone="warning"
+            info={<>Run <code>make train</code> (or <code>python -m ml.train</code>) and re-publish. This page checks again every 30 seconds and will fill in on its own. When ready: AUROC, AUPRC, Brier, sensitivity at 90% specificity, number needed to scope at the top 2%, lead time, calibration, SHAP importance with the HIV negative control, and subgroup performance.</>}
+            actions={<StatusChip status="warning" label="Checking every 30 s" />}>
+        <BentoGrid>
+          {[1, 2, 3].map((t) => (
+            <GridItem key={t} span={{ md: 4 }}>
+              <Card tone="tile" title={TIER_META[t].name} icon={<Brain size={15} />} iconTone="neutral" info={TIER_META[t].blurb}>
+                <StatusChip status="neutral" label={`Tier ${t}, pending`} />
+              </Card>
+            </GridItem>
+          ))}
+        </BentoGrid>
+      </Card>
     </div>
   );
 }

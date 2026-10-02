@@ -1,0 +1,1768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "early-signals/agent/widgets",
+  "title": "Early Signals agent widgets (generated from agent/src/widgets/specs.ts - do not edit)",
+  "$defs": {
+    "ChartWidget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "chart"
+        },
+        "id": {
+          "type": "string"
+        },
+        "spec": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "line"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "x": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Column in data used for the x axis (year, period, name, ...)"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "category",
+                        "time",
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "series": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Column in data holding the y value"
+                      },
+                      "label": {
+                        "description": "Legend label; defaults to key",
+                        "type": "string"
+                      },
+                      "lci": {
+                        "description": "Column holding the lower 95% CI (draws a band / error bar)",
+                        "type": "string"
+                      },
+                      "uci": {
+                        "description": "Column holding the upper 95% CI",
+                        "type": "string"
+                      },
+                      "dashed": {
+                        "type": "boolean"
+                      },
+                      "axis": {
+                        "type": "string",
+                        "enum": [
+                          "left",
+                          "right"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ]
+                  }
+                },
+                "data": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "annotations": {
+                  "description": "Vertical markers, e.g. joinpoints or policy events",
+                  "maxItems": 10,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": [
+                          "string",
+                          "number"
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "label"
+                    ]
+                  }
+                },
+                "referenceLines": {
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "y": {
+                        "type": "number"
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "required": [
+                      "y"
+                    ]
+                  }
+                },
+                "yLabel": {
+                  "type": "string"
+                },
+                "fan": {
+                  "description": "Forecast fan: 80% / 95% prediction bands (get_forecast rows)",
+                  "type": "object",
+                  "properties": {
+                    "lo95": {
+                      "type": "string",
+                      "description": "Column holding the lower 95% prediction bound"
+                    },
+                    "hi95": {
+                      "type": "string",
+                      "description": "Column holding the upper 95% prediction bound"
+                    },
+                    "lo80": {
+                      "description": "Column holding the lower 80% prediction bound",
+                      "type": "string"
+                    },
+                    "hi80": {
+                      "description": "Column holding the upper 80% prediction bound",
+                      "type": "string"
+                    },
+                    "start": {
+                      "description": "x value where the forecast starts (vertical marker)",
+                      "type": [
+                        "string",
+                        "number"
+                      ]
+                    },
+                    "label": {
+                      "description": "Band legend text, default 'Forecast interval (80% / 95%)'",
+                      "type": "string",
+                      "maxLength": 80
+                    }
+                  },
+                  "required": [
+                    "lo95",
+                    "hi95"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "x",
+                "series",
+                "data"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "area"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "x": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Column in data used for the x axis (year, period, name, ...)"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "category",
+                        "time",
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "series": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Column in data holding the y value"
+                      },
+                      "label": {
+                        "description": "Legend label; defaults to key",
+                        "type": "string"
+                      },
+                      "lci": {
+                        "description": "Column holding the lower 95% CI (draws a band / error bar)",
+                        "type": "string"
+                      },
+                      "uci": {
+                        "description": "Column holding the upper 95% CI",
+                        "type": "string"
+                      },
+                      "dashed": {
+                        "type": "boolean"
+                      },
+                      "axis": {
+                        "type": "string",
+                        "enum": [
+                          "left",
+                          "right"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ]
+                  }
+                },
+                "data": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "annotations": {
+                  "description": "Vertical markers, e.g. joinpoints or policy events",
+                  "maxItems": 10,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": [
+                          "string",
+                          "number"
+                        ]
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "label"
+                    ]
+                  }
+                },
+                "referenceLines": {
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "y": {
+                        "type": "number"
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "required": [
+                      "y"
+                    ]
+                  }
+                },
+                "yLabel": {
+                  "type": "string"
+                },
+                "fan": {
+                  "description": "Forecast fan: 80% / 95% prediction bands (get_forecast rows)",
+                  "type": "object",
+                  "properties": {
+                    "lo95": {
+                      "type": "string",
+                      "description": "Column holding the lower 95% prediction bound"
+                    },
+                    "hi95": {
+                      "type": "string",
+                      "description": "Column holding the upper 95% prediction bound"
+                    },
+                    "lo80": {
+                      "description": "Column holding the lower 80% prediction bound",
+                      "type": "string"
+                    },
+                    "hi80": {
+                      "description": "Column holding the upper 80% prediction bound",
+                      "type": "string"
+                    },
+                    "start": {
+                      "description": "x value where the forecast starts (vertical marker)",
+                      "type": [
+                        "string",
+                        "number"
+                      ]
+                    },
+                    "label": {
+                      "description": "Band legend text, default 'Forecast interval (80% / 95%)'",
+                      "type": "string",
+                      "maxLength": 80
+                    }
+                  },
+                  "required": [
+                    "lo95",
+                    "hi95"
+                  ]
+                },
+                "stacked": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "x",
+                "series",
+                "data"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "bar"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "x": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Column in data used for the x axis (year, period, name, ...)"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "category",
+                        "time",
+                        "value"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ]
+                },
+                "series": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Column in data holding the y value"
+                      },
+                      "label": {
+                        "description": "Legend label; defaults to key",
+                        "type": "string"
+                      },
+                      "lci": {
+                        "description": "Column holding the lower 95% CI (draws a band / error bar)",
+                        "type": "string"
+                      },
+                      "uci": {
+                        "description": "Column holding the upper 95% CI",
+                        "type": "string"
+                      },
+                      "dashed": {
+                        "type": "boolean"
+                      },
+                      "axis": {
+                        "type": "string",
+                        "enum": [
+                          "left",
+                          "right"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ]
+                  }
+                },
+                "data": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "orientation": {
+                  "description": "horizontal suits rankings of named items",
+                  "type": "string",
+                  "enum": [
+                    "vertical",
+                    "horizontal"
+                  ]
+                },
+                "stacked": {
+                  "type": "boolean"
+                },
+                "referenceLines": {
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "y": {
+                        "type": "number"
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    },
+                    "required": [
+                      "y"
+                    ]
+                  }
+                },
+                "yLabel": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "x",
+                "series",
+                "data"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "kpi"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "tiles": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "valueLabel": {
+                        "description": "Shown instead of value when value is null, e.g. '<5'",
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "unit": {
+                        "type": "string",
+                        "maxLength": 40
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "number",
+                          "integer",
+                          "percent",
+                          "fraction_percent",
+                          "rate",
+                          "days",
+                          "text"
+                        ]
+                      },
+                      "ci": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 2,
+                        "maxItems": 2
+                      },
+                      "delta": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "deltaLabel": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "trend": {
+                        "description": "Sparkline values, oldest first",
+                        "maxItems": 60,
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "value"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "tiles"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "table"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "columns": {
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "number",
+                          "integer",
+                          "percent",
+                          "fraction_percent",
+                          "rate",
+                          "days",
+                          "text"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ]
+                  }
+                },
+                "data": {
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "columns",
+                "data"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "choropleth"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "district",
+                    "province"
+                  ]
+                },
+                "geoKey": {
+                  "type": "string",
+                  "description": "Column with district codes (e.g. NOR-MUS) or province codes (KGL, NOR, SOU, EAS, WES)"
+                },
+                "valueKey": {
+                  "type": "string",
+                  "description": "Column with the value to colour by"
+                },
+                "labelKey": {
+                  "description": "Column with the display name",
+                  "type": "string"
+                },
+                "categorical": {
+                  "description": "true for categories such as lisa_quadrant (HH, LL, HL, LH, NS)",
+                  "type": "boolean"
+                },
+                "data": {
+                  "minItems": 1,
+                  "maxItems": 60,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "level",
+                "geoKey",
+                "valueKey",
+                "data"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "forest"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "subtitle": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "caption": {
+                  "description": "One-sentence takeaway shown under the chart",
+                  "type": "string",
+                  "maxLength": 400
+                },
+                "unit": {
+                  "description": "Unit of the y values, e.g. 'per 100,000' or '%'",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "caveats": {
+                  "maxItems": 6,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "source": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "description": "Tool that produced the data, e.g. get_rates_trend or query_marts",
+                      "type": "string"
+                    },
+                    "sql": {
+                      "description": "SQL actually executed (query_marts)",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "labelKey": {
+                  "type": "string"
+                },
+                "estimateKey": {
+                  "type": "string"
+                },
+                "lciKey": {
+                  "type": "string"
+                },
+                "uciKey": {
+                  "type": "string"
+                },
+                "reference": {
+                  "description": "Null-effect line: 1 for ratios, 0 for differences / APC",
+                  "type": "number"
+                },
+                "logScale": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "minItems": 1,
+                  "maxItems": 60,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "title",
+                "labelKey",
+                "estimateKey",
+                "lciKey",
+                "uciKey",
+                "data"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "spec"
+      ]
+    },
+    "PatientWidget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "patient"
+        },
+        "id": {
+          "type": "string"
+        },
+        "patient_id": {
+          "type": "number"
+        },
+        "display_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sex": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "age": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "district_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "home_facility_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "is_case": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "case_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dx_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_visit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "risk": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "band": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "probability": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "t1_score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "rank_in_facility": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "as_of": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "scoped_since_flag": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "first_high_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "top_reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "feature": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "contribution": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "feature"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "band",
+                "probability",
+                "top_reasons"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "risk_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "as_of": {
+                "type": "string"
+              },
+              "ensemble_prob": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "risk_band": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "as_of",
+              "ensemble_prob",
+              "risk_band"
+            ]
+          }
+        },
+        "timeline": {
+          "type": "object",
+          "properties": {
+            "window": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string"
+                },
+                "end": {
+                  "type": "string"
+                },
+                "months": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "months"
+              ]
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ts": {
+                    "type": "string"
+                  },
+                  "event_type": {
+                    "type": "string"
+                  },
+                  "concept_id": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "value_num": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "value_text": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "is_abnormal": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "facility": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "highlight": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "ts",
+                  "event_type",
+                  "label"
+                ]
+              }
+            },
+            "series": {
+              "type": "object",
+              "properties": {
+                "hb": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ts": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "ts",
+                      "value"
+                    ]
+                  }
+                },
+                "weight": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ts": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "ts",
+                      "value"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "hb",
+                "weight"
+              ]
+            }
+          },
+          "required": [
+            "window",
+            "events",
+            "series"
+          ]
+        },
+        "labs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "concept_id": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "latest": {
+                "type": [
+                  "number",
+                  "string",
+                  "null"
+                ]
+              },
+              "latest_ts": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "abnormal": {
+                "type": "boolean"
+              },
+              "change_pct_12m": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "n": {
+                "type": "number"
+              },
+              "coded": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "concept_id",
+              "name",
+              "latest",
+              "latest_ts",
+              "abnormal",
+              "n"
+            ]
+          }
+        },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "alert_id": {
+                "type": "string"
+              },
+              "trigger": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "suggested_action": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "alert_id",
+              "trigger",
+              "severity",
+              "status",
+              "summary",
+              "suggested_action",
+              "created_at"
+            ]
+          }
+        },
+        "suggested_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "focus": {
+          "description": "Why the agent is showing this patient (one line)",
+          "type": "string"
+        },
+        "links": {
+          "type": "object",
+          "properties": {
+            "case": {
+              "type": "string"
+            },
+            "api": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "case",
+            "api"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "patient_id",
+        "display_id",
+        "sex",
+        "age",
+        "is_case",
+        "risk",
+        "risk_history",
+        "timeline",
+        "labs",
+        "alerts",
+        "suggested_actions",
+        "links"
+      ]
+    },
+    "ArtifactSpec": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "artifact"
+        },
+        "id": {
+          "type": "string"
+        },
+        "run": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "description": "Relative URL served by the agent: /agent/artifacts/<run>/<file>"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "html",
+                  "csv",
+                  "json",
+                  "text"
+                ]
+              },
+              "bytes": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "url",
+              "mime",
+              "kind",
+              "bytes"
+            ]
+          }
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timed_out": {
+          "type": "boolean"
+        },
+        "duration_ms": {
+          "type": "number"
+        },
+        "rows_in": {
+          "type": "number",
+          "description": "Rows handed to the script as `df`"
+        },
+        "network_isolated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "run",
+        "ok",
+        "files",
+        "stdout",
+        "stderr",
+        "error",
+        "timed_out",
+        "duration_ms",
+        "rows_in",
+        "network_isolated"
+      ]
+    },
+    "VideoWidget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "video"
+        },
+        "id": {
+          "type": "string"
+        },
+        "job_id": {
+          "type": "string"
+        },
+        "video_kind": {
+          "type": "string",
+          "enum": [
+            "patient",
+            "ministry",
+            "ministry_vertical"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "rendering",
+            "done",
+            "error"
+          ]
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cached": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "poster_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "download_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status_url": {
+          "type": "string",
+          "description": "GET this for {status, progress, url, poster_url, download_url, error}"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "job_id",
+        "video_kind",
+        "title",
+        "status",
+        "url",
+        "poster_url",
+        "status_url"
+      ]
+    }
+  }
+}

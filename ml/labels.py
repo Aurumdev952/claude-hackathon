@@ -47,6 +47,9 @@ def build_landmarks(con, seed: int = 42) -> pd.DataFrame:
               AND g.patient_id NOT IN (SELECT patient_id FROM core_gc_prevalent)   -- known (prevalent) cancer: neither a negative nor a target
         """).df()
         con.unregister("_lm_dates")
+        # DuckDB returns rows in a thread-dependent order; the shuffle below is positional, so fix the order first or the
+        # sampled negatives (and every model trained on them) change from run to run.
+        df = df.sort_values(["patient_id", "L"], kind="mergesort").reset_index(drop=True)
         df["label"] = df["label"].fillna(False).astype(bool)
         df["split"] = [patient_split(int(p), sp["val_patient_frac"]) for p in df["patient_id"]]
         df = df[df["split"] == "test"] if split_set == "test" else df[df["split"] != "test"]

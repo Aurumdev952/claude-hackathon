@@ -1,11 +1,16 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Early Signals — gastric cancer trend and risk intelligence on a synthetic OpenMRS EMR (Rwanda)" />
+    <meta name="description" content="Early Signals: gastric cancer trend and risk intelligence on a synthetic OpenMRS EMR (Rwanda)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#F1F2F6" />
     <title>Early Signals</title>
+    <script>
+      // apply the saved theme before first paint (light is the default)
+      try { var t = localStorage.getItem("es-theme") === "dark" ? "dark" : "light"; document.documentElement.dataset.theme = t; document.documentElement.classList.toggle("dark", t === "dark"); } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

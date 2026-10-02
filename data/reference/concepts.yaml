@@ -10,6 +10,12 @@ questions:
   - {id: 1006, name: REFERRAL REASON, datatype: Text, class: Question}
   - {id: 1007, name: VISIT OUTCOME, datatype: Coded, class: Question, answers: [7020, 7021, 7022, 7023]}
   - {id: 1008, name: CAUSE OF DEATH, datatype: Coded, class: Question}
+  # v3 care coordination (D-45): written back to the EMR by care/emr.py
+  - {id: 1010, name: CARE PATHWAY, datatype: Coded, class: Question, answers: [7240, 7241, 7242, 7243, 7244, 7245]}
+  - {id: 1011, name: CARE TASK, datatype: Text, class: Question}
+  - {id: 1012, name: PATIENT NOTIFIED, datatype: Coded, class: Question, answers: [7250, 7251, 7252]}
+  - {id: 1013, name: PATIENT-CONFIRMED ACTION, datatype: Text, class: Question}
+  - {id: 1014, name: CARE TASK OUTCOME, datatype: Coded, class: Question, answers: [7255, 7256, 7257]}
 diagnoses:
   - {id: 2000, name: "Malignant neoplasm of stomach, unspecified", icd10: C16.9}
   - {id: 2001, name: "Malignant neoplasm of cardia", icd10: C16.0}
@@ -102,6 +108,9 @@ labs:
   - {id: 3122, name: H. pylori urea breath test, datatype: Coded, answers: [7001, 7002]}
   - {id: 3123, name: Faecal occult blood, datatype: Coded, answers: [7001, 7002]}
   - {id: 3124, name: Stool microscopy (ova/parasites), datatype: Coded, answers: [7001, 7002]}
+  - {id: 3125, name: Vitamin B12, datatype: Numeric, units: pg/mL, low_normal: 200, hi_normal: 900}
+  - {id: 3126, name: Vitamin D (25-OH), datatype: Numeric, units: ng/mL, low_normal: 30, hi_normal: 100}
+  - {id: 3127, name: Calcium, datatype: Numeric, units: mg/dL, low_normal: 8.5, hi_normal: 10.5}
 lifestyle:
   - {id: 4000, name: Tobacco use, datatype: Coded, answers: [7030, 7031, 7032]}
   - {id: 4001, name: Cigarettes per day, datatype: Numeric}
@@ -115,6 +124,13 @@ lifestyle:
   - {id: 4009, name: Water source, datatype: Coded, answers: [7060, 7061, 7062]}
   - {id: 4010, name: Occupation, datatype: Coded, answers: [7070, 7071, 7072, 7073, 7074]}
   - {id: 4011, name: NSAID use (regular), datatype: Coded, answers: [7000, 7005, 7006]}
+  # patient-reported outcomes (patient app check-ins, encounter type 16)
+  - {id: 4020, name: Appetite score (0-10), datatype: Numeric}
+  - {id: 4021, name: Pain score (0-10), datatype: Numeric}
+  - {id: 4022, name: Energy score (0-10), datatype: Numeric}
+  - {id: 4023, name: Dumping symptoms after meals, datatype: Coded, answers: [7000, 7005]}
+  - {id: 4024, name: Self-reported weight, datatype: Numeric, units: kg}
+  - {id: 4025, name: Medicine dose taken, datatype: Coded, answers: [7000, 7005]}
 oncology:
   - {id: 5000, name: ENDOSCOPY FINDINGS, datatype: N/A, class: ConvSet, is_set: 1}
   - {id: 5001, name: Endoscopy indication, datatype: Coded, answers: [7100, 7101, 7102, 7103, 7104]}
@@ -137,6 +153,10 @@ oncology:
   - {id: 5060, name: Treatment intent, datatype: Coded, answers: [7200, 7201, 7202]}
   - {id: 5061, name: Gastrectomy performed, datatype: Coded, answers: [7000, 7005]}
   - {id: 5062, name: Chemotherapy regimen, datatype: Coded, answers: [7210, 7211, 7212, 7213]}
+  - {id: 5063, name: Chemotherapy cycle number, datatype: Numeric}
+  - {id: 5064, name: Post-operative complication, datatype: Coded, answers: [7000, 7005]}
+  - {id: 5070, name: Recurrence, datatype: Coded, answers: [7220, 7221, 7222]}
+  - {id: 5071, name: Surveillance imaging result, datatype: Coded, answers: [7230, 7231]}
 drugs:
   - {id: 6000, drug_id: 1, name: Omeprazole 20 mg, strength: 20 mg}
   - {id: 6001, drug_id: 2, name: Amoxicillin 1 g, strength: 1 g}
@@ -155,6 +175,8 @@ drugs:
   - {id: 6014, drug_id: 15, name: Capecitabine 500 mg, strength: 500 mg}
   - {id: 6015, drug_id: 16, name: Oxaliplatin 100 mg, strength: 100 mg}
   - {id: 6016, drug_id: 17, name: Morphine oral solution, strength: 10 mg/5 mL}
+  - {id: 6017, drug_id: 18, name: Cyanocobalamin injection 1 mg, strength: 1 mg/mL}
+  - {id: 6018, drug_id: 19, name: Calcium + vitamin D, strength: 500 mg/400 IU}
 answers:
   - {id: 7000, name: "Yes"}
   - {id: 7001, name: Positive}
@@ -239,6 +261,23 @@ answers:
   - {id: 7211, name: CAPOX}
   - {id: 7212, name: FOLFOX}
   - {id: 7213, name: Other regimen}
+  - {id: 7220, name: No recurrence}
+  - {id: 7221, name: Local recurrence}
+  - {id: 7222, name: Distant recurrence}
+  - {id: 7230, name: No evidence of disease}
+  - {id: 7231, name: Suspicious for recurrence}
+  - {id: 7240, name: Endoscopy referral pathway}
+  - {id: 7241, name: H. pylori test-and-treat pathway}
+  - {id: 7242, name: Anaemia work-up pathway}
+  - {id: 7243, name: Oncology treatment pathway}
+  - {id: 7244, name: Survivorship pathway}
+  - {id: 7245, name: Palliative support pathway}
+  - {id: 7250, name: App notification}
+  - {id: 7251, name: SMS}
+  - {id: 7252, name: Community health worker visit}
+  - {id: 7255, name: Completed}
+  - {id: 7256, name: Declined}
+  - {id: 7257, name: Not reached}
 orders:
   - {id: 8000, name: Upper GI endoscopy request, order_type: 2}
   - {id: 8001, name: H. pylori test request, order_type: 2}
@@ -247,3 +286,6 @@ orders:
   - {id: 8004, name: Referral to oncology, order_type: 3}
   - {id: 8005, name: Abdominal ultrasound request, order_type: 2}
   - {id: 8006, name: CT abdomen request, order_type: 2}
+  - {id: 8007, name: Vitamin B12 test request, order_type: 2}
+  - {id: 8008, name: Follow-up appointment, order_type: 3}
+  - {id: 8009, name: Community health worker home visit, order_type: 3}

@@ -1,0 +1,20 @@
+/* Patient app (v3 §6): range sliders, safe areas and the phone frame. Colours come from the design v3 tokens. */
+.pa-range { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; cursor: pointer; touch-action: pan-y; }
+.pa-range:focus { outline: none; }
+.pa-range::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(to right, rgb(var(--ink)) 0 var(--pa-fill, 50%), rgb(var(--hairline)) var(--pa-fill, 50%) 100%); }
+.pa-range::-moz-range-track { height: 8px; border-radius: 999px; background: rgb(var(--hairline)); }
+.pa-range::-moz-range-progress { height: 8px; border-radius: 999px; background: rgb(var(--ink)); }
+.pa-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -10px; border-radius: 999px;
+  background: rgb(var(--surface)); border: 2px solid rgb(var(--ink)); box-shadow: 0 2px 8px rgb(21 23 28 / .18); }
+.pa-range::-moz-range-thumb { width: 26px; height: 26px; border-radius: 999px; background: rgb(var(--surface)); border: 2px solid rgb(var(--ink)); }
+.pa-range:focus-visible::-webkit-slider-thumb { outline: 2px solid rgb(var(--signal)); outline-offset: 2px; }
+.pa-range:focus-visible::-moz-range-thumb { outline: 2px solid rgb(var(--signal)); outline-offset: 2px; }
+
+.pa-safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
+.pa-safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 8px); }
+.pa-scroll { scrollbar-width: none; overscroll-behavior: contain; }
+.pa-scroll::-webkit-scrollbar { display: none; }
+
+/* The phone body: a dark aluminium bezel around a 390 x 844 screen (radius 48). */
+.pa-phone { background: #1A1C21; box-shadow: 0 0 0 1.5px #3A3D44, 0 28px 40px -28px rgb(21 23 28 / .45); }
+[data-theme="dark"] .pa-phone { box-shadow: 0 0 0 1.5px #4A4E57, 0 28px 40px -28px rgb(0 0 0 / .7); }

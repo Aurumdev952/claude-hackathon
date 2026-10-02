@@ -1,0 +1,50 @@
+# External synthetic sources (v3 plan §5a; generator/external, `make external-data`). ALL VALUES ARE SYNTHETIC
+# ASSUMPTIONS chosen to look like NISR / DHS / registry outputs. They are derived from the same latent model as the
+# EMR generator (config/generator.yaml: hazards, insights INS-1/INS-2, population prevalences) so the three sources are
+# coherent with the EMR. Nothing here is a real statistic.
+seed_offset: 77
+source_note: "(Synthetic)"
+
+population:
+  # national mid-year totals (NISR-style anchors; log-linear between anchors), the 2020 structure is the generator
+  # pyramid (shared.geo.PYRAMID), district shares are census weights (shared.geo.DISTRICTS) without the generator's
+  # insight enlargements; SOU-NYG keeps its older age structure (INS-1b decoy, x2.2 at 60+)
+  anchors: {2000: 8020000, 2012: 10520000, 2020: 12660000}
+  base_year: 2020
+  estimate_until: 2025          # kind = estimate up to this year, projection after
+  female_share: 0.515
+  sex_ratio_at_birth: 1.03      # males per female
+  # medium variant: crude birth rate (per 1000) falls linearly; background mortality is the generator's Gompertz
+  # hazard (generator/population.py) scaled by a factor that improves each year
+  cbr_per_1000: {2020: 30.5, 2035: 22.0}
+  mortality_multiplier_2020: 1.0
+  mortality_improvement_per_year: 0.015
+  # net internal migration, % of district population per year (sums to ~0 nationally): urbanisation towards Kigali
+  net_migration_pct: {KGL: 1.6, default: -0.25}
+  ins1b_age60plus_multiplier: 2.2
+
+registry:
+  years: [2000, 2026]
+  # share of incident cases the registry captures: ramps 40% (2000) -> 85% (2015), flat after (Poisson noise on top)
+  completeness: {2000: 0.40, 2015: 0.85}
+  dx_lag_years: 2.0              # onset -> diagnosis (sojourn + symptomatic phase): rates use hazard at (year-2, age-2)
+  diag_fraction: 0.85            # same as config/generator.yaml gastric_cancer.calibration
+  provisional_from: 2026         # last year still provisional (registration lag)
+  # stage mix of registered cases (%), I..IV: more stage IV early in the series (late presentation)
+  stage_mix: {2000: [6, 10, 24, 60], 2015: [8, 13, 29, 50], 2026: [9, 14, 29, 48]}
+  intestinal_share: {young: 0.38, older: 0.71}   # Lauren weights of generator/diseases/gastric_cancer.py
+
+surveys:
+  # DHS / STEPS-style rounds; indicators each round measures; per-cell n is the base sample split by province, sex, age
+  rounds:
+    - {survey: DHS-2005, year: 2005, n: 10000, indicators: [smoking_current, alcohol_any]}
+    - {survey: DHS-2010, year: 2010, n: 12000, indicators: [hp_seroprev, smoking_current, alcohol_any, smoked_food]}
+    - {survey: STEPS-2012, year: 2012, n: 7000, indicators: [smoking_current, alcohol_any, high_salt]}
+    - {survey: DHS-2015, year: 2015, n: 13000, indicators: [hp_seroprev, smoking_current, alcohol_any, smoked_food]}
+    - {survey: DHS-2020, year: 2020, n: 14000, indicators: [hp_seroprev, smoking_current, alcohol_any, smoked_food, high_salt]}
+    - {survey: STEPS-2022, year: 2022, n: 6500, indicators: [smoking_current, alcohol_any, high_salt]}
+    - {survey: DHS-2025, year: 2025, n: 14500, indicators: [hp_seroprev, smoking_current, alcohol_any, smoked_food, high_salt]}
+  design_effect: [1.5, 2.2]
+  # lifestyle prevalence drift relative to 2020 (the generator's static prevalences), logit change per year.
+  # H. pylori needs none: its decline comes from the generator's cohort gradient (+3 pp per 10 years of age in 2020).
+  logit_drift_per_year: {smoking: -0.035, alcohol: -0.005, salt: 0.006, smoked_food: -0.02}

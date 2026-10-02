@@ -1,0 +1,239 @@
+# Care pathways (docs/contracts/v3-loop.md §4, plan §2a). All schedules are synthetic-demo defaults built from the
+# guideline sources below; they are not clinical advice.
+#
+# Task fields
+#   type          one of the contract task types (care/evidence.py holds the evidence rule for each)
+#   title         doctor/patient-facing short title (no diagnosis words)
+#   opens_days    days after the anchor when the task window opens (evidence before this does not count)
+#   due_days      days after the anchor when the task is due
+#   start: true   created when the plan is approved (anchor = approval); other tasks are spawned by `next`
+#   next          {result: [task types]} spawned on completion (anchor = completion date); "*" matches any result
+#   repeat        recurring schedule relative to the plan start: [{from_days, to_days, every_days}]
+#   when          condition on the patient (gastrectomy | total_gastrectomy | advanced | alarm)
+#   patient_facing  false for clinician-only steps: no patient reminders, no escalation ladder
+#   max_spawns    cap on how often the task can be spawned by `next` in one plan (e.g. 2 eradication courses)
+
+version: 1
+
+sources:
+  survivorship: "NCCN/JGCA/CSCO post-gastrectomy follow-up: every 3-6 months in years 1-3, every 6-12 months in years 3-5 (PMC12699063; ESMO 2022)"
+  nutrition: "Monitor B12, iron, vitamin D and calcium after gastrectomy; lifelong B12 after total gastrectomy (PMC12989006)"
+  hp_test_of_cure: "Maastricht VI: test of cure at least 4 weeks after the end of eradication therapy"
+  chw: "Rwanda RapidSMS / CHW accompaniment model (Butaro, PIH)"
+
+# Reminder and escalation ladder, relative to each patient-facing task's due date (T).
+#   escalation_level: 0 none, 1 SMS, 2 CHW, 3 doctor
+ladder:
+  - {offset_days: -3, stage: reminder, channels: [APP]}
+  - {offset_days: 0, stage: due, channels: [APP, SMS], escalation_level: 1}
+  - {offset_days: 7, stage: overdue, channels: [CHW], escalation_level: 2, spawn: CHW_VISIT, chw_due_days: 7}
+  - {offset_days: 14, stage: overdue, channels: [], escalation_level: 3, doctor: true}
+
+channels: [APP, SMS, CHW]
+
+pathways:
+  ENDOSCOPY_REFERRAL:
+    name: Endoscopy referral
+    description: Book and attend an upper GI endoscopy, then review the biopsy and discuss the result with the patient.
+    concept: 7240
+    order: 8000
+    triggers: [RISK_BAND_HIGH, ALARM_NO_SCOPE_90D]
+    default_channels: [APP, SMS]
+    target: endoscopy          # default target facility = nearest endoscopy-capable facility
+    tasks:
+      - type: ENDOSCOPY
+        title: Upper GI endoscopy
+        start: true
+        opens_days: 0
+        due_days: 30
+        due_days_alarm: 14     # alarm symptoms -> 14 days (ALARM_NO_SCOPE_90D trigger)
+        next: {SUSPICIOUS: [PATHOLOGY_REVIEW], "*": [RESULT_DISCUSSED]}
+      - type: PATHOLOGY_REVIEW
+        title: Sample review by the lab
+        opens_days: 0
+        due_days: 14
+        patient_facing: false
+        next: {"*": [RESULT_DISCUSSED]}
+      - type: RESULT_DISCUSSED
+        title: Results visit with the doctor
+        opens_days: 0
+        due_days: 7
+
+  HP_TEST_AND_TREAT:
+    name: H. pylori test and treat
+    description: Test for H. pylori, give a 14-day eradication course if positive, then a test of cure at least 4 weeks after the course.
+    concept: 7241
+    order: 8001
+    triggers: [HP_POS_UNTREATED, RISK_BAND_HIGH]
+    start_by_trigger: {HP_POS_UNTREATED: HP_TREATMENT}
+    default_channels: [APP, SMS]
+    tasks:
+      - type: HP_TEST
+        title: H. pylori test
+        start: true
+        opens_days: 0
+        due_days: 21
+        next: {POSITIVE: [HP_TREATMENT]}
+      - type: HP_TREATMENT
+        title: 14-day stomach infection medicine course
+        opens_days: 0
+        due_days: 14
+        course_days: 14
+        max_spawns: 2           # first line + one second-line course after a positive test of cure
+        next: {"*": [HP_TEST_OF_CURE]}
+      - type: HP_TEST_OF_CURE
+        title: Follow-up stomach infection test
+        opens_days: 42          # 14-day course + at least 4 weeks after the end of therapy
+        due_days: 70
+        next: {POSITIVE: [HP_TREATMENT]}
+
+  ANAEMIA_WORKUP:
+    name: Anaemia work-up
+    description: Start iron, recheck haemoglobin at 4 weeks, and refer for endoscopy if it is still low or falling.
+    concept: 7242
+    order: 8002
+    triggers: [HB_DROP]
+    default_channels: [APP, SMS]
+    tasks:
+      - type: IRON_COURSE
+        title: Start iron tablets
+        start: true
+        opens_days: 0
+        due_days: 14
+      - type: HB_RECHECK
+        title: Blood count recheck
+        start: true
+        opens_days: 21
+        due_days: 35
+        next: {FALLING: [ENDOSCOPY], LOW: [ENDOSCOPY]}
+      - type: ENDOSCOPY
+        title: Upper GI endoscopy
+        opens_days: 0
+        due_days: 30
+        next: {SUSPICIOUS: [PATHOLOGY_REVIEW], "*": [RESULT_DISCUSSED]}
+      - type: PATHOLOGY_REVIEW
+        title: Sample review by the lab
+        opens_days: 0
+        due_days: 14
+        patient_facing: false
+        next: {"*": [RESULT_DISCUSSED]}
+      - type: RESULT_DISCUSSED
+        title: Results visit with the doctor
+        opens_days: 0
+        due_days: 7
+
+  ONCOLOGY_TREATMENT:
+    name: Specialist treatment
+    description: Specialist intake, staging scan, team treatment plan, then surgery and/or chemotherapy cycles.
+    concept: 7243
+    order: 8004
+    triggers: [CONFIRMED_DX]
+    default_channels: [APP, SMS, CHW]
+    target: oncology
+    tasks:
+      - type: ONCOLOGY_INTAKE
+        title: First specialist clinic visit
+        start: true
+        opens_days: 0
+        due_days: 14
+        next: {"*": [STAGING_CT]}
+      - type: STAGING_CT
+        title: Body scan
+        opens_days: 0
+        due_days: 21
+        next: {"*": [MDT_PLAN]}
+      - type: MDT_PLAN
+        title: Care team treatment plan
+        opens_days: 0
+        due_days: 14
+        patient_facing: false
+        next: {CURATIVE: [SURGERY, CHEMO_CYCLE], PALLIATIVE: [CHEMO_CYCLE], BSC: []}
+      - type: SURGERY
+        title: Planned operation
+        opens_days: 0
+        due_days: 42
+      - type: CHEMO_CYCLE
+        title: Treatment cycle
+        opens_days: 0
+        due_days: 21
+        max_spawns: 8           # CAPOX: 8 cycles every 3 weeks
+        next: {"*": [CHEMO_CYCLE]}
+
+  SURVIVORSHIP:
+    name: Survivorship follow-up
+    description: Regular check-ups for 5 years after treatment, with nutrition and vitamin checks.
+    concept: 7244
+    order: 8008
+    triggers: [CURATIVE_TREATMENT_DONE]
+    default_channels: [APP, SMS]
+    end_days: 1826             # no routine surveillance after 5 years
+    tasks:
+      - type: FOLLOWUP_VISIT
+        title: Follow-up check-up
+        start: true
+        repeat:
+          - {from_days: 91, to_days: 1092, every_days: 91}     # every 3 months in years 1-3
+          - {from_days: 1274, to_days: 1826, every_days: 182}  # every 6 months in years 3-5
+        window_days: 21         # opens 21 days before the due date
+      - type: B12_CHECK
+        title: Vitamin B12, iron and vitamin D blood tests
+        start: true
+        repeat:
+          - {from_days: 182, to_days: 1826, every_days: 182}   # every 6 months
+        window_days: 28
+      - type: NUTRITION_REVIEW
+        title: Weight and nutrition check
+        start: true
+        repeat:
+          - {from_days: 91, to_days: 1092, every_days: 91}
+          - {from_days: 1274, to_days: 1826, every_days: 182}
+        window_days: 21
+      - type: B12_INJECTION
+        title: Vitamin B12 injection
+        start: true
+        when: total_gastrectomy  # lifelong after total gastrectomy
+        repeat:
+          - {from_days: 30, to_days: 1826, every_days: 91}
+        window_days: 14
+      - type: SURVEILLANCE_IMAGING
+        title: Follow-up scan
+        start: true
+        when: advanced           # CT only for advanced disease (stage III/IV)
+        repeat:
+          - {from_days: 182, to_days: 1095, every_days: 365}
+        window_days: 28
+
+  PALLIATIVE_SUPPORT:
+    name: Comfort and support care
+    description: Pain review every 2 weeks with medicine refill, nutrition support, monthly home visits by the CHW and family support.
+    concept: 7245
+    order: 8009
+    triggers: [PALLIATIVE_INTENT]
+    default_channels: [APP, SMS, CHW]
+    end_days: 365
+    tasks:
+      - type: PAIN_REVIEW
+        title: Comfort and pain review
+        start: true
+        repeat:
+          - {from_days: 14, to_days: 365, every_days: 14}
+        window_days: 5
+      - type: NUTRITION_REVIEW
+        title: Eating and weight support
+        start: true
+        repeat:
+          - {from_days: 30, to_days: 365, every_days: 30}
+        window_days: 10
+      - type: CHW_VISIT
+        title: Home visit by the community health worker
+        start: true
+        patient_facing: false
+        repeat:
+          - {from_days: 30, to_days: 365, every_days: 30}
+        window_days: 10
+
+# Generic tasks spawned by the ladder (not part of a pathway list)
+extra_tasks:
+  CHW_VISIT:
+    title: Home visit by the community health worker
+    patient_facing: false

@@ -120,7 +120,11 @@ def main():
         "death_day": death, "district_code": [DISTRICT_CODES[i] for i in P["district_idx"]],
         "district2_code": [DISTRICT_CODES[i] for i in P["district2_idx"]], "move_day": P["move_day"],
         "emr_start": P["emr_start"], "home_facility": P["home"], "hp": P["hp"], "hiv": P["hiv"], "hot": P["hot"],
-        "micro": P["micro"], "tobacco": P["tobacco"], "family_hx": P["family_hx"], "salt": P["salt"], "smoked": P["smoked"]})
+        "micro": P["micro"], "tobacco": P["tobacco"], "family_hx": P["family_hx"], "salt": P["salt"], "smoked": P["smoked"],
+        # v3: what generator/intervention.py needs to rebuild a Patient (trajectories, follow-up site, death record)
+        "home2": P["home2"], "hb_base": P["hb_base"].astype(np.float32), "height": P["height"].astype(np.float32),
+        "bmi": P["bmi"].astype(np.float32), "alcohol_heavy": P["alcohol_heavy"], "nsaid": P["nsaid"],
+        "atrophy_day": P["atrophy_day"]})
     latent_persons.write_parquet(LATENT_DIR / "persons.parquet")
     noise = collections.Counter()
     dups = []

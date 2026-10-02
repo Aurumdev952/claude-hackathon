@@ -41,6 +41,22 @@ TIER_MULT = {"low": 0.45, "medium": 1.0, "high": 3.4}
 # D-23: cancer work-up is referred less readily than the general dyspepsia rate (stage I-II 15-25%, interval 7-10 m,
 # alarm features without endoscopy 55-65%), and least at low-testing-tier facilities (INS-4 stage IV 58-66% vs 34-42%)
 CANCER_REFER_MULT = {"low": 1.15, "medium": 1.5, "high": 1.4}
+# v3 survivorship (D-46): recurrence within 3 years after curative treatment (stage II-III 25-40%)
+RECUR_3Y = {"I": 0.10, "II": 0.30, "III": 0.40, "IV": 0.50}
+TOTAL_GASTRECTOMY_LOC = {"cardia", "body", "diffuse"}   # antrum -> distal (subtotal) gastrectomy
+
+
+P_CURATIVE = {"I": 0.85, "II": 0.70, "III": 0.45, "IV": 0.03}
+
+
+def p_curative(stage: str, tier: str) -> float:
+    """Probability of curative-intent treatment at diagnosis (INS-4: lower where the first GI visit was low tier)."""
+    return P_CURATIVE[stage] * TIER_CURATIVE[tier]
+
+
+def case_seed(cfg: dict, pid: int) -> int:
+    """Per-case seed for survivorship draws (stored in the latent record so a case can be re-simulated)."""
+    return (int(cfg.get("seed", 42)) * 1_000_003 + int(pid)) * 31 + 7
 
 
 # ----------------------------------------------------------------------------------- hazard
@@ -150,7 +166,8 @@ class CaseState:
     __slots__ = ("onset", "symptom_start", "young", "lauren", "location", "durs", "clinical_only", "ramp", "ppi_repeat",
                  "alarm_late", "dx_day", "status", "stage", "t", "n", "m", "first_gi_loc", "first_gi_day", "n_visits",
                  "misattrib", "death_ca", "treatment", "undiagnosed", "dx_loc", "dx_code", "hb_drop", "wt_loss",
-                 "referrals", "refused", "district_dx", "first_rec_gi_day", "route", "first_mis_day", "mis_prone")
+                 "referrals", "refused", "district_dx", "first_rec_gi_day", "route", "first_mis_day", "mis_prone",
+                 "seed", "sojourn_m", "bg_death", "surv")
 
     def stage_at(self, day: int) -> str:
         m = (day - self.symptom_start) / 30.44
@@ -192,6 +209,10 @@ def simulate_cancer(p: Patient, ctx: Ctx, rec: Recorder, onset: int, rnd: random
     speed = 0.72 if (cs.young or cs.lauren == "diffuse") else 1.0
     sojourn_m = rnd.gammavariate(2.0, gc["sojourn_mean_months"] / 2.0) * (0.8 if cs.young else 1.0)
     cs.symptom_start = onset + int(sojourn_m * 30.44)
+    cs.sojourn_m = sojourn_m
+    cs.seed = case_seed(ctx.cfg, p.pid)  # survivorship draws use their own stream: the case's rnd stream is unchanged
+    cs.bg_death = p.death
+    cs.surv = None
     sm = gc.get("stage_months", [5, 5, 6])
     cs.durs = [rnd.gammavariate(2.0, m / 2.0) * speed for m in sm]
     cs.clinical_only = rnd.random() < gc["pct_clinical_only"]
@@ -490,7 +511,7 @@ def _oncology(p, ctx, rec, cs: CaseState, day: int, T, N, M, rnd):
 def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None, t=None, loc=None):
     stage = cs.stage
     tier = ctx.tier(cs.first_gi_loc) if cs.first_gi_loc else "medium"
-    p_cur = {"I": 0.85, "II": 0.70, "III": 0.45, "IV": 0.03}[stage] * TIER_CURATIVE[tier] if curative_possible else 0.0
+    p_cur = p_curative(stage, tier) if curative_possible else 0.0
     if rnd.random() < p_cur:
         intent, hr = 7200, 0.6
     elif stage == "IV" and rnd.random() < TIER_BSC_IV[tier]:
@@ -498,15 +519,19 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
     else:
         intent, hr = 7201, 1.0
     cs.treatment = {7200: "curative", 7201: "palliative", 7202: "bsc"}[intent]
+    gastrectomy, regimen = None, None
     if enc is not None:
         rec.coded(enc, t + 5, loc, C.TX_INTENT, intent)
         if intent == 7200:
-            rec.coded(enc, t + 6, loc, C.GASTRECTOMY, C.YES if rnd.random() < 0.75 else C.NO)
-            rec.coded(enc, t + 7, loc, C.CHEMO, 7210 if rnd.random() < 0.7 else 7211)
+            gastrectomy = rnd.random() < 0.75
+            rec.coded(enc, t + 6, loc, C.GASTRECTOMY, C.YES if gastrectomy else C.NO)
+            regimen = 7210 if rnd.random() < 0.7 else 7211
+            rec.coded(enc, t + 7, loc, C.CHEMO, regimen)
             rec.drug(enc, t + 8, C.CAPECITABINE, 14, freq="BD")
             rec.drug(enc, t + 9, C.OXALIPLATIN, 1)
         elif intent == 7201:
-            rec.coded(enc, t + 7, loc, C.CHEMO, 7211 if rnd.random() < 0.6 else 7213)
+            regimen = 7211 if rnd.random() < 0.6 else 7213
+            rec.coded(enc, t + 7, loc, C.CHEMO, regimen)
             rec.drug(enc, t + 8, C.CAPECITABINE, 14, freq="BD")
             rec.drug(enc, t + 9, C.MORPHINE, 30, freq="QID")
         else:
@@ -516,12 +541,19 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
     lam = SURV_MEDIAN_M[stage] / (math.log(2) ** (1 / k))
     months = lam * ((-math.log(max(rnd.random(), 1e-12)) / hr) ** (1 / k))
     death_ca = cs.dx_day + int(months * 30.44)
+    # v3 survivorship plan (own random stream, so the rows above and every later rnd draw are unchanged)
+    srnd = random.Random(cs.seed if cs.seed is not None else case_seed(ctx.cfg, p.pid))
+    sv = _survivorship_plan(p, ctx, cs, srnd, intent, gastrectomy, regimen, tier, death_ca,
+                            onc_day=(t // MIN_PER_DAY) if t is not None else cs.dx_day)
+    cs.surv = sv
+    death_ca = sv["death_ca"]
     cs.death_ca = death_ca
     if death_ca < p.death:
         p.death = death_ca
         p.died_of = cs.dx_code if cs.dx_code != C.OES_CA else 2000
     # follow-up visits until death or loss to follow-up
     lost_at = cs.dx_day + int(rnd.expovariate(1 / 500)) if rnd.random() < 0.25 else 10**7
+    sv["lost_at"] = lost_at if lost_at < 10**7 else None
     fday = cs.dx_day + rnd.randint(30, 60)
     site = ctx.oncology_site(p.district_at(cs.dx_day))
     while fday < min(p.death, lost_at, SIM_END):
@@ -532,7 +564,10 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
             rec.num(fe, ft + 60, site, C.HB, p.hb(fday) - rnd.uniform(0, 1.5))
         if rnd.random() < 0.3:
             rec.dx(fe, ft + 10, site, cs.dx_code)
+        _survivorship_visit(p, rec, cs, sv, srnd, fe, ft, fday, site)
         fday += rnd.randint(30, 95)
+    if enc is not None:
+        _treatment_events(p, ctx, rec, cs, sv, srnd, site, min(p.death, lost_at, SIM_END))
     if p.death > lost_at:
         p.death_recorded = True  # lost to follow-up: death (if any) never reaches the EMR
     else:
@@ -541,7 +576,171 @@ def _survival(p, ctx, rec, cs: CaseState, rnd, curative_possible: bool, enc=None
         p.death_traced = True
 
 
+# ----------------------------------------------------------------------------------- survivorship (v3, D-46)
+def _survivorship_plan(p, ctx, cs: CaseState, srnd: random.Random, intent: int, gastrectomy, regimen, tier: str,
+                       death_ca: int, onc_day: int) -> dict:
+    """Treatment timeline (surgery, chemo cycles), recurrence and nutrition state for one case. Recurrence after
+    curative treatment: when the cancer death falls within 3 years it is preceded by the recurrence that causes it;
+    otherwise a recurrence (6-36 months) brings the death forward (median 10 months after recurrence)."""
+    stage, dx = cs.stage, cs.dx_day
+    sv = {"intent": intent, "gastrectomy": gastrectomy, "gastrectomy_type": None, "surgery_day": None,
+          "regimen": regimen, "cycles": [], "chemo_planned": 0, "chemo_done": 0, "recurrence_day": None,
+          "recurrence_type": None, "recurrence_recorded": False, "death_ca": death_ca, "tier": tier,
+          "b12": None, "b12_day": None, "b12_next": None, "b12_inj": False, "ct_next": None, "endo_next": None,
+          "onc_day": onc_day}
+    if gastrectomy:
+        sv["gastrectomy_type"] = "total" if cs.location in TOTAL_GASTRECTOMY_LOC else "subtotal"
+    # chemo schedule (planned cycle days) and surgery day
+    pre = 0
+    if intent == 7200 and regimen == 7210:      # FLOT: 4 pre-operative + 4 post-operative cycles, every 2 weeks
+        pre, n_cyc, gap = 4, 8, 14
+    elif intent == 7200:                         # CAPOX adjuvant: 8 cycles every 3 weeks after surgery
+        n_cyc, gap = 8, 21
+    elif intent == 7201 and regimen == 7211:     # palliative CAPOX: up to 6 cycles
+        n_cyc, gap = 6, 21
+    else:
+        n_cyc, gap = 0, 21
+    first = onc_day + srnd.randint(10, 21)
+    if gastrectomy:
+        sv["surgery_day"] = (first + pre * gap + srnd.randint(21, 35)) if pre else onc_day + srnd.randint(21, 42)
+    days = []
+    for i in range(n_cyc):
+        if i < pre or not gastrectomy:
+            d = first + i * gap
+        else:
+            d = sv["surgery_day"] + srnd.randint(35, 49) + (i - pre) * gap
+        days.append(d + srnd.randint(-2, 3))
+    sv["cycles"] = days
+    sv["chemo_planned"] = n_cyc
+    # recurrence
+    if intent == 7200 and srnd.random() < RECUR_3Y[stage]:
+        if death_ca - dx < 3 * 365:
+            r = max(dx + 120, death_ca - int(srnd.gammavariate(2.0, 3.5) * 30.44))
+            sv["recurrence_day"] = r if r < death_ca - 14 else None
+        else:
+            r = dx + int(srnd.uniform(6, 36) * 30.44)
+            post = 10 / (math.log(2) ** (1 / 1.2)) * (-math.log(max(srnd.random(), 1e-12))) ** (1 / 1.2)
+            sv["recurrence_day"] = r
+            sv["death_ca"] = min(death_ca, r + int(post * 30.44) + 14)
+        if sv["recurrence_day"] is not None:
+            sv["recurrence_type"] = C.DISTANT_RECURRENCE if srnd.random() < 0.7 else C.LOCAL_RECURRENCE
+    # treatment start: tumour bleeding and weight loss stop (curative / palliative chemo)
+    tx_start = sv["surgery_day"] or (days[0] if days else None)
+    if intent in (7200, 7201) and tx_start is not None:
+        p.hb_stop = tx_start if p.hb_stop is None else p.hb_stop
+        p.wt_stop = tx_start if intent == 7200 else None
+    if gastrectomy:
+        w = p.weight(sv["surgery_day"])
+        p.wt_post = (sv["surgery_day"], w * srnd.uniform(0.07, 0.15), srnd.uniform(0.2, 0.5))
+        # B12 stores deplete over 1-3 years after total gastrectomy (slower after distal gastrectomy)
+        sv["b12"] = srnd.lognormvariate(math.log(430), 0.25)
+        sv["b12_day"] = sv["surgery_day"]
+        sv["b12_k"] = srnd.uniform(0.035, 0.06) if sv["gastrectomy_type"] == "total" else srnd.uniform(0.008, 0.02)
+        sv["b12_next"] = sv["surgery_day"] + srnd.randint(90, 180)
+        p_proph = {"low": 0.15, "medium": 0.35, "high": 0.55}[tier] if sv["gastrectomy_type"] == "total" else 0.05
+        sv["b12_inj"] = srnd.random() < p_proph
+    if intent == 7200 and stage in ("II", "III"):
+        sv["ct_next"] = dx + srnd.randint(150, 200)
+    if gastrectomy and sv["gastrectomy_type"] == "subtotal":
+        sv["endo_next"] = sv["surgery_day"] + srnd.randint(330, 400)
+    return sv
+
+
+def _b12_at(sv: dict, day: int) -> float:
+    m = max(0.0, (day - sv["b12_day"]) / 30.44)
+    return sv["b12"] * math.exp(-sv["b12_k"] * m)
+
+
+def _survivorship_visit(p, rec, cs: CaseState, sv: dict, srnd: random.Random, fe, ft: int, fday: int, site: int):
+    """Oncology RETURN visit: ECOG, weight-related labs, B12 (+ injections), vitamin D/calcium, recurrence,
+    surveillance imaging. Uses only `srnd`."""
+    if fe is None:
+        return
+    stage = cs.stage
+    recurred = sv["recurrence_day"] is not None and fday >= sv["recurrence_day"]
+    to_death = p.death - fday
+    ecog = {"I": 0, "II": 1, "III": 1, "IV": 2}[stage]
+    if sv["intent"] == 7200 and fday - cs.dx_day > 180 and not recurred:
+        ecog = max(0, ecog - 1)
+    ecog += (1 if recurred else 0) + (1 if to_death < 120 else 0) + (1 if to_death < 45 else 0)
+    if srnd.random() < 0.2:
+        ecog += srnd.choice([-1, 1])
+    rec.num(fe, ft + 5, site, C.ECOG, float(min(4, max(0, ecog))), 0)
+    if srnd.random() < 0.35:
+        ms = (fday - (sv["surgery_day"] or cs.dx_day)) / 30.44
+        alb = 4.0 - (0.6 * math.exp(-max(ms, 0) / 3) if sv["surgery_day"] and ms >= 0 else 0.2) \
+            - (0.5 if recurred else 0) - (0.4 if to_death < 120 else 0) + srnd.gauss(0, 0.25)
+        rec.num(fe, ft + 70, site, C.ALB, min(5.2, max(1.8, alb)))
+    if sv["gastrectomy"] and fday >= sv["surgery_day"]:
+        if sv["b12_next"] is not None and fday >= sv["b12_next"]:
+            b12 = _b12_at(sv, fday) * srnd.uniform(0.9, 1.1)
+            o = rec.order(fe, ft + 15, C.ORD_B12)
+            rec.obs(fe, ft + 80, site, C.B12, num=round(b12, 0), order=o)
+            sv["b12_next"] = fday + srnd.randint(90, 180)
+            if b12 < 250 and not sv["b12_inj"] and srnd.random() < 0.75:
+                sv["b12_inj"] = True
+        if sv["b12_inj"] and srnd.random() < 0.85:   # cyanocobalamin 1 mg IM at the visit (some visits missed)
+            rec.drug(fe, ft + 20, C.CYANOCOBALAMIN, 1, qty=1.0)
+            sv["b12"] = min(950.0, _b12_at(sv, fday) + srnd.uniform(200, 320))
+            sv["b12_day"] = fday
+            sv["b12_k"] = max(sv["b12_k"], 0.03)
+        if srnd.random() < 0.12:
+            vitd = min(60.0, max(5.0, srnd.gauss(19 if sv["gastrectomy_type"] == "total" else 23, 6)))
+            rec.num(fe, ft + 85, site, C.VIT_D, vitd)
+            rec.num(fe, ft + 85, site, C.CALCIUM, srnd.gauss(8.9 if vitd >= 20 else 8.5, 0.45))
+            if vitd < 20 and srnd.random() < 0.5:
+                rec.drug(fe, ft + 21, C.CALCIUM_VITD, 90)
+    if recurred and not sv["recurrence_recorded"] and fday >= sv["recurrence_day"] + srnd.randint(0, 45):
+        rec.coded(fe, ft + 30, site, C.RECURRENCE, sv["recurrence_type"])
+        rec.dx(fe, ft + 31, site, cs.dx_code)
+        sv["recurrence_recorded"] = True
+    if sv["ct_next"] is not None and fday >= sv["ct_next"] and fday - cs.dx_day < 3 * 365 + 60:
+        o = rec.order(fe, ft + 12, C.ORD_CT)
+        found = recurred and srnd.random() < 0.85
+        res = C.SUSPICIOUS if (found or (not recurred and srnd.random() < 0.05)) else C.NED
+        rec.obs(fe, ft + 90, site, C.SURV_IMAGING, coded=res, order=o)
+        if res == C.NED:
+            rec.coded(fe, ft + 91, site, C.RECURRENCE, C.NO_RECURRENCE)
+        if found and not sv["recurrence_recorded"]:
+            rec.coded(fe, ft + 91, site, C.RECURRENCE, sv["recurrence_type"])
+            sv["recurrence_recorded"] = True
+        sv["ct_next"] = fday + (srnd.randint(150, 210) if fday - cs.dx_day < 2 * 365 else srnd.randint(330, 400))
+
+
+def _treatment_events(p, ctx, rec, cs: CaseState, sv: dict, srnd: random.Random, site: int, horizon: int):
+    """Surgery admission (post-op complication) and chemotherapy cycle visits (obs 5063 = cycle number, some missed)."""
+    sd = sv["surgery_day"]
+    if sd is not None and sd < horizon:
+        t = clinic_time(sd, srnd)
+        adm = rec.encounter(t, "ADMISSION", site, vtype=2)
+        comp = srnd.random() < (0.18 + (0.07 if sv["tier"] == "low" else 0.0))
+        rec.coded(adm, t + 600, site, C.POSTOP_COMPLICATION, C.YES if comp else C.NO)
+        los = srnd.randint(7, 14) + (srnd.randint(5, 12) if comp else 0)
+        if sd + los < horizon:
+            dt_ = clinic_time(sd + los, srnd)
+            de = rec.encounter(dt_, "DISCHARGE", site)
+            vitals(p, rec, de, dt_, site, srnd, full=True)
+    p_miss = 0.10 + (0.06 if sv["tier"] == "low" else 0.0)
+    for k, day in enumerate(sv["cycles"], start=1):
+        if day >= horizon or (sv["recurrence_day"] is not None and day >= sv["recurrence_day"]):
+            break
+        if srnd.random() < p_miss:
+            continue
+        t = clinic_time(day, srnd)
+        e = rec.encounter(t, "RETURN", site)
+        if e is None:
+            continue
+        rec.num(e, t + 30, site, C.CHEMO_CYCLE, float(k), 0)
+        rec.coded(e, t + 31, site, C.CHEMO, sv["regimen"])
+        rec.drug(e, t + 40, C.OXALIPLATIN, 1)
+        if sv["regimen"] == 7211:
+            rec.drug(e, t + 41, C.CAPECITABINE, 14, freq="BD")
+        vitals(p, rec, e, t, site, srnd, full=False)
+        sv["chemo_done"] += 1
+
+
 def _latent_record(p: Patient, cs: CaseState) -> dict:
+    sv = cs.surv or {}
     return {
         "person_id": p.pid, "onset_day": cs.onset, "symptom_start_day": cs.symptom_start, "dx_day": cs.dx_day,
         "status": cs.status, "stage": cs.stage, "stage_if_dx_now": None, "lauren": cs.lauren, "location": cs.location,
@@ -552,4 +751,14 @@ def _latent_record(p: Patient, cs: CaseState) -> dict:
         "refused": cs.refused, "death_day": p.death if p.death < 10**6 else None, "death_ca_day": cs.death_ca,
         "treatment": cs.treatment, "clinical_only": cs.clinical_only, "birth_day": p.birth, "dx_code": cs.dx_code,
         "route": cs.route if cs.dx_day is not None else None, "first_mis_day": cs.first_mis_day, "hb_drop": cs.hb_drop, "wt_loss": cs.wt_loss, "alarm_late": cs.alarm_late, "emr_start": p.emr_start,
+        # v3: enough to re-simulate the case from a later intervention (generator/intervention.py)
+        "case_seed": cs.seed, "sojourn_months": cs.sojourn_m, "stage_months": list(cs.durs),
+        "bg_death_day": cs.bg_death if cs.bg_death is not None and cs.bg_death < 10**6 else None,
+        "hb_decline_start": p.hb_decline[0] if p.hb_decline else None,
+        "hb_decline_rate": p.hb_decline[1] if p.hb_decline else None,
+        "wt_loss_start": p.wt_loss[0] if p.wt_loss else None, "wt_loss_rate": p.wt_loss[1] if p.wt_loss else None,
+        "intent": sv.get("intent"), "gastrectomy": sv.get("gastrectomy"), "gastrectomy_type": sv.get("gastrectomy_type"),
+        "surgery_day": sv.get("surgery_day"), "regimen": sv.get("regimen"), "chemo_planned": sv.get("chemo_planned"),
+        "chemo_done": sv.get("chemo_done"), "recurrence_day": sv.get("recurrence_day"),
+        "recurrence_type": sv.get("recurrence_type"), "lost_to_fu_day": sv.get("lost_at"),
     }

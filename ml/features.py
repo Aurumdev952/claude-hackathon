@@ -30,23 +30,28 @@ CATEGORICAL = {"province_code": ["KGL", "NOR", "SOU", "EAS", "WES"], "home_facil
 
 
 def prepare_sources(con):
-    """Cohort-restricted, leakage-filtered fact tables (built once per training/scoring run)."""
+    """Cohort-restricted, leakage-filtered fact tables (built once per training/scoring run).
+
+    A fact is available from the later of its own time and its encounter's time: a few encounters carry a header date
+    years after their observations (planted data-entry noise), and such an encounter is not in the record before its
+    header date. Without this a landmark between the two dates would see the encounter early (caught by
+    tests/ml/test_leakage.py::test_features_ignore_data_after_landmark)."""
     ex_enc = ",".join(map(str, EXCLUDED_ENC_TYPES))
     con.execute(f"""
     CREATE OR REPLACE TEMP TABLE ml_ok_enc AS
     SELECT e.encounter_id, e.patient_id, e.encounter_datetime AS t, e.encounter_type, e.location_id
     FROM core_fact_encounter e SEMI JOIN core_gi_cohort g USING (patient_id) WHERE e.encounter_type NOT IN ({ex_enc});
-    CREATE OR REPLACE TEMP TABLE ml_gi AS SELECT g.* FROM core_gi_encounter g SEMI JOIN ml_ok_enc e USING (encounter_id);
-    CREATE OR REPLACE TEMP TABLE ml_sym AS SELECT s.* FROM core_fact_symptom s SEMI JOIN ml_ok_enc e USING (encounter_id);
-    CREATE OR REPLACE TEMP TABLE ml_dx AS SELECT d.* FROM core_fact_diagnosis d SEMI JOIN ml_ok_enc e USING (encounter_id)
+    CREATE OR REPLACE TEMP TABLE ml_gi AS SELECT g.* REPLACE (greatest(g.datetime, e.t) AS datetime) FROM core_gi_encounter g JOIN ml_ok_enc e USING (encounter_id);
+    CREATE OR REPLACE TEMP TABLE ml_sym AS SELECT s.* REPLACE (greatest(s.datetime, e.t) AS datetime) FROM core_fact_symptom s JOIN ml_ok_enc e USING (encounter_id);
+    CREATE OR REPLACE TEMP TABLE ml_dx AS SELECT d.* REPLACE (greatest(d.dx_datetime, e.t) AS dx_datetime) FROM core_fact_diagnosis d JOIN ml_ok_enc e USING (encounter_id)
         WHERE d.concept_id NOT IN ({",".join(map(str, EXCLUDED_DX))});
-    CREATE OR REPLACE TEMP TABLE ml_lab AS SELECT l.* FROM core_fact_lab l SEMI JOIN ml_ok_enc e USING (encounter_id)
+    CREATE OR REPLACE TEMP TABLE ml_lab AS SELECT l.* REPLACE (greatest(l.datetime, e.t) AS datetime) FROM core_fact_lab l JOIN ml_ok_enc e USING (encounter_id)
         WHERE l.concept_id NOT IN ({",".join(map(str, EXCLUDED_LABS))});
-    CREATE OR REPLACE TEMP TABLE ml_vit AS SELECT v.* FROM core_fact_vital v SEMI JOIN ml_ok_enc e USING (encounter_id);
-    CREATE OR REPLACE TEMP TABLE ml_drug AS SELECT d.* FROM core_fact_drug d SEMI JOIN ml_ok_enc e USING (encounter_id)
+    CREATE OR REPLACE TEMP TABLE ml_vit AS SELECT v.* REPLACE (greatest(v.datetime, e.t) AS datetime) FROM core_fact_vital v JOIN ml_ok_enc e USING (encounter_id);
+    CREATE OR REPLACE TEMP TABLE ml_drug AS SELECT d.* REPLACE (greatest(d.datetime, e.t) AS datetime) FROM core_fact_drug d JOIN ml_ok_enc e USING (encounter_id)
         WHERE d.drug_concept_id NOT IN ({",".join(map(str, EXCLUDED_DRUGS))});
-    CREATE OR REPLACE TEMP TABLE ml_life AS SELECT o.person_id AS patient_id, o.concept_id, o.value_coded, o.obs_datetime AS t
-        FROM stg_obs o SEMI JOIN ml_ok_enc e USING (encounter_id) WHERE o.concept_id IN (4000, 4002, 4004, 4005, 4006, 4011);
+    CREATE OR REPLACE TEMP TABLE ml_life AS SELECT o.person_id AS patient_id, o.concept_id, o.value_coded, greatest(o.obs_datetime, e.t) AS t
+        FROM stg_obs o JOIN ml_ok_enc e USING (encounter_id) WHERE o.concept_id IN (4000, 4002, 4004, 4005, 4006, 4011);
     """)
 
 

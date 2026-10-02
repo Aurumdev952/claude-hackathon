@@ -20,7 +20,8 @@ from .features import build_feature_table, design_matrix, prepare_sources
 ACTIONS = {"RISK_BAND_HIGH": "Consider upper GI endoscopy referral",
            "ALARM_NO_SCOPE_90D": "Alarm features without endoscopy for 90+ days: refer for endoscopy",
            "HB_DROP": "Investigate falling haemoglobin: FBC, iron studies, consider GI work-up",
-           "HP_POS_UNTREATED": "Start H. pylori eradication therapy per national guideline"}
+           "HP_POS_UNTREATED": "Start H. pylori eradication therapy per national guideline",
+           "CARE_OVERDUE": "Care step overdue after reminders, SMS and a CHW visit: contact the patient"}  # v3 (L2)
 
 
 def score_in_pipeline(con, sim_time: dt.datetime, log=print):
@@ -41,13 +42,16 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     con.execute(f"ALTER TABLE pt_features ADD COLUMN as_of DATE DEFAULT DATE '{L}'")
     X = design_matrix(feats)
     clf, iso, meta = tier2_xgb.load(Path(act[2]["path"]))
+    if any(f not in X.columns for f in meta["features"]):  # v3 learning-loop features of a promoted challenger (L3)
+        from .feedback import add_loop_features
+        X = add_loop_features(con, feats, X)
     X = X[meta["features"]]
     t1 = tier1_score.points(feats)
     t2 = tier2_xgb.predict(clf, iso, X)
     contrib = tier2_xgb.shap_values(clf, X)
     reasons = tier2_xgb.top_reasons(meta["features"], contrib, X, feats)
     t3, attn = _tier3(con, act.get(3), feats, X, log)
-    ens = np.nanmean(np.vstack([t2, t3]), axis=0) if t3 is not None else t2
+    ens = ensemble(t2, t3)
     params = act[2]["params"]
     hi, med = params["high_cut"], params["medium_cut"]
     band = np.where(ens >= hi, "HIGH", np.where(ens >= med, "MEDIUM", "LOW"))
@@ -78,11 +82,10 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     log(f"    scored {len(risk):,} patients: HIGH={n_hi:,} MEDIUM={int((band == 'MEDIUM').sum()):,}")
 
 
-def _tier3(con, m, feats, X, log=print):
-    if not m:
-        return None, None
+def _tier3_inputs(con, m, feats, X) -> dict:
+    """Load the Tier 3 model and its inputs for (patient_id, L) rows of `feats` (any landmarks); `prob` is the
+    calibrated probability."""
     from .tier3_seq import dataset as D
-    from .tier3_seq import model as M3
     from .tier3_seq import train as T3
     from .tier3_seq.tokenizer import Tokenizer
     path = Path(m["path"])
@@ -98,7 +101,29 @@ def _tier3(con, m, feats, X, log=print):
     S = (X.reindex(columns=D.STATIC_COLS).fillna(0).values.astype(np.float32) - np.array(meta["static_mean"])) / np.array(meta["static_std"])
     S = S.astype(np.float32)
     z = T3.predict_logits(p, cfg, ids, days, age, S)
-    prob = T3.calibrated(z, meta["temperature"], iso)
+    return {"p": p, "cfg": cfg, "tok": tok, "path": path, "lm": lm, "ids": ids, "days": days, "age": age, "S": S,
+            "prob": T3.calibrated(z, meta["temperature"], iso)}
+
+
+def tier3_probs(con, m, feats, X) -> np.ndarray | None:
+    """Calibrated Tier 3 probabilities for (patient_id, L) rows (None without an active Tier 3 model)."""
+    if not m:
+        return None
+    return _tier3_inputs(con, m, feats, X)["prob"]
+
+
+def ensemble(t2: np.ndarray, t3: np.ndarray | None) -> np.ndarray:
+    """The production risk: mean of Tier 2 and Tier 3 where Tier 3 exists, else Tier 2 (bands are cut on this)."""
+    return np.nanmean(np.vstack([t2, t3]), axis=0) if t3 is not None else np.asarray(t2)
+
+
+def _tier3(con, m, feats, X, log=print):
+    if not m:
+        return None, None
+    from .tier3_seq import model as M3
+    t = _tier3_inputs(con, m, feats, X)
+    p, cfg, tok, path, lm = t["p"], t["cfg"], t["tok"], t["path"], t["lm"]
+    ids, days, age, S, prob = t["ids"], t["days"], t["age"], t["S"], t["prob"]
     # Integrated Gradients for the top-scoring 10% (shown in the Doctor timeline). IG is the costliest scoring step, so
     # attributions are cached per patient and recomputed only when the event history, the model, or 28 days have passed
     attn = [[] for _ in range(len(lm))]
@@ -185,7 +210,32 @@ def _alerts(con, sim_time, feats: pd.DataFrame, risk: pd.DataFrame):
             new.append({"alert_id": str(uuid.uuid4()), "patient_id": int(r.patient_id), "facility_id": fac.get(r.patient_id),
                         "created_at": pd.Timestamp(sim_time), "trigger": t, "severity": sev, "status": "NEW", "summary": text,
                         "reasons": r.top_reasons, "suggested_action": ACTIONS[t]})
+    new += _care_overdue(con, sim_time, existing | {(a["patient_id"], a["trigger"]) for a in new})
     if new:
         con.register("_new", pd.DataFrame(new))
         con.execute("INSERT INTO pt_alerts SELECT * FROM _new")
         con.unregister("_new")
+
+
+def _care_overdue(con, sim_time, existing: set) -> list[dict]:
+    """v3 (docs/contracts/v3-loop.md, track L2): CARE_OVERDUE when the care engine escalated a task to the doctor
+    (care_tasks snapshot, escalation_level >= 3) on an open plan. Same 180-day (patient, trigger) dedupe as above."""
+    if not con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name IN ('care_tasks', 'care_plans')").fetchone()[0] == 2:
+        return []
+    rows = con.execute("""SELECT t.patient_id, p.facility_id, t.title, t.due_at, p.pathway
+                          FROM care_tasks t JOIN care_plans p ON p.id = t.plan_id
+                          WHERE t.escalation_level >= 3 AND t.status IN ('ESCALATED', 'OVERDUE')
+                            AND p.status IN ('ACTIVE', 'ESCALATED')
+                          ORDER BY t.due_at""").fetchall()
+    out, seen = [], set()
+    for pid, fac, title, due, pathway in rows:
+        key = (int(pid), "CARE_OVERDUE")
+        if key in existing or key in seen:
+            continue
+        seen.add(key)
+        days = (pd.Timestamp(sim_time) - pd.Timestamp(due)).days if due is not None else 0
+        out.append({"alert_id": str(uuid.uuid4()), "patient_id": int(pid), "facility_id": int(fac) if fac is not None else None,
+                    "created_at": pd.Timestamp(sim_time), "trigger": "CARE_OVERDUE", "severity": "HIGH",
+                    "status": "NEW", "summary": f"Care step '{title}' is {days} days overdue after reminders, SMS and a CHW visit.",
+                    "reasons": json.dumps([]), "suggested_action": ACTIONS["CARE_OVERDUE"]})
+    return out

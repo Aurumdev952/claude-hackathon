@@ -1,0 +1,168 @@
+# Patient and CHW message catalogue (docs/contracts/v3-loop.md §4.1). English only; one file so translations can be
+# added later. Keys resolve most-specific first:
+#   <PATHWAY>.<TASK>.<stage>  ->  default.<TASK>.<stage>  ->  default.default.<stage>
+# Stages: approved | reminder | due | overdue | completed. Each entry has `title` and `body` (in-app) and `sms`.
+# CHW messages live under `chw`.
+#
+# Wording rules (enforced by tests/v3/test_care_messages.py):
+#   - plain, kind advice to visit or take a step; never a diagnosis
+#   - never: cancer, malignant, tumour, tumor, carcinoma, oncology, biopsy result
+#   - no names in any body: the app adds `greeting` on screen; SMS bodies carry no name at all
+# Placeholders: {facility} {date} {task} {days}
+
+greeting: "Hi {first_name},"
+
+default:
+  default:
+    approved:
+      title: Your next health step
+      body: "Your doctor would like you to have a {task}. Please visit {facility} by {date}. If you have questions, the care team is happy to help."
+      sms: "Your doctor asks you to have a {task} at {facility} by {date}. Questions? Ask your CHW."
+    reminder:
+      title: A friendly reminder
+      body: "Your {task} is due by {date}. Please plan your visit to {facility} if you have not booked yet."
+      sms: "Reminder: your {task} is due by {date} at {facility}."
+    due:
+      title: Due today
+      body: "Today is the date for your {task}. Please visit {facility}. If you cannot come today, tell your health centre so they can find another day."
+      sms: "Today is the date for your {task} at {facility}. Cannot come? Please tell your health centre."
+    overdue:
+      title: We have not seen you yet
+      body: "Your {task} was due on {date}. It is not too late. Please visit {facility} as soon as you can, or ask your community health worker for help."
+      sms: "Your {task} was due on {date}. Please visit {facility} soon. Your CHW can help."
+    completed:
+      title: Thank you
+      body: "Thank you for completing your {task}. Your care team will tell you about any next step."
+      sms: "Thank you for completing your {task}. Your care team will be in touch about next steps."
+
+  ENDOSCOPY:
+    approved:
+      title: Please book a check-up
+      body: "Your doctor would like you to have a stomach check-up (a camera test called an endoscopy). Please visit {facility} by {date}. Do not eat for 6 hours before the test."
+      sms: "Your doctor asks you to have a stomach check-up (endoscopy) at {facility} by {date}. Do not eat for 6 hours before."
+    reminder:
+      title: Your stomach check-up is coming up
+      body: "Your stomach check-up is due by {date} at {facility}. Remember not to eat for 6 hours before the test, and bring someone to take you home."
+      sms: "Reminder: stomach check-up at {facility} by {date}. No food for 6 hours before."
+    completed:
+      title: Thank you for coming
+      body: "Thank you for having your stomach check-up. Your doctor will talk with you about the next step."
+      sms: "Thank you for your stomach check-up. Your doctor will contact you about next steps."
+
+  RESULT_DISCUSSED:
+    approved:
+      title: Please see your doctor
+      body: "Your doctor would like to see you to talk about your recent tests. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} to talk with your doctor about your recent tests."
+
+  HP_TEST:
+    approved:
+      title: A simple stomach infection test
+      body: "Your doctor would like you to have a simple test for a common stomach infection. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for a simple stomach infection test."
+
+  HP_TREATMENT:
+    approved:
+      title: Your 14-day medicine course
+      body: "Your doctor has advised a 14-day course of medicines for a stomach infection. Please collect them at {facility} by {date} and take every dose, even when you feel better."
+      sms: "Please collect your 14-day stomach medicine course at {facility} by {date}. Take every dose."
+    reminder:
+      title: Collect your medicines
+      body: "Please remember to collect your 14-day medicine course at {facility} by {date}. Taking every dose helps it work."
+      sms: "Reminder: collect your 14-day medicine course at {facility} by {date}."
+
+  HP_TEST_OF_CURE:
+    approved:
+      title: A follow-up test
+      body: "Now that your medicine course is finished, a follow-up test checks that it worked. Please visit {facility} by {date}. Avoid acid medicines for 2 weeks before the test if you can."
+      sms: "Please visit {facility} by {date} for a follow-up test to check your medicines worked."
+
+  HB_RECHECK:
+    approved:
+      title: A blood count recheck
+      body: "Your doctor would like to recheck your blood count. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for a blood count recheck."
+
+  IRON_COURSE:
+    approved:
+      title: Start your iron tablets
+      body: "Your doctor has advised iron tablets to help your blood. Please collect them at {facility} by {date}. Taking them with orange juice or fruit helps."
+      sms: "Please collect your iron tablets at {facility} by {date}."
+
+  ONCOLOGY_INTAKE:
+    approved:
+      title: Your specialist clinic visit
+      body: "Your doctor has arranged a visit with a specialist team at {facility}. Please go by {date}. Bring your health card and someone to support you if you can."
+      sms: "Please visit the specialist clinic at {facility} by {date}. Bring your health card."
+
+  STAGING_CT:
+    approved:
+      title: A body scan
+      body: "Your care team would like you to have a scan. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for a scan."
+
+  SURGERY:
+    approved:
+      title: Your planned operation
+      body: "Your care team has planned an operation for you. Please come to {facility} by {date}. The team will explain how to prepare."
+      sms: "Please come to {facility} by {date} for your planned operation."
+
+  CHEMO_CYCLE:
+    approved:
+      title: Your next treatment cycle
+      body: "Your next treatment cycle is planned by {date} at {facility}. Rest well and drink plenty of water before you come."
+      sms: "Your next treatment cycle is planned at {facility} by {date}."
+    reminder:
+      title: Treatment cycle coming up
+      body: "Your next treatment cycle is due by {date} at {facility}. Tell the team if you have felt unwell since the last cycle."
+      sms: "Reminder: treatment cycle at {facility} by {date}."
+
+  FOLLOWUP_VISIT:
+    approved:
+      title: Your regular check-up
+      body: "It is time for your regular check-up. Please visit {facility} by {date}. Your care team will check your weight, energy and eating."
+      sms: "Please visit {facility} by {date} for your regular check-up."
+    reminder:
+      title: Check-up coming up
+      body: "Your regular check-up is due by {date} at {facility}. Write down any questions or changes you have noticed."
+      sms: "Reminder: regular check-up at {facility} by {date}."
+
+  B12_CHECK:
+    approved:
+      title: Vitamin blood tests
+      body: "It is time for your vitamin blood tests (B12, iron and vitamin D). Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for your vitamin blood tests."
+
+  B12_INJECTION:
+    approved:
+      title: Your vitamin B12 injection
+      body: "It is time for your vitamin B12 injection. It keeps your energy and nerves healthy. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for your vitamin B12 injection."
+
+  NUTRITION_REVIEW:
+    approved:
+      title: Eating and weight check
+      body: "Your care team would like to check your weight and eating. Please visit {facility} by {date}. Small, frequent meals can help."
+      sms: "Please visit {facility} by {date} for a weight and eating check."
+
+  SURVEILLANCE_IMAGING:
+    approved:
+      title: A follow-up scan
+      body: "Your care team would like you to have a follow-up scan. Please visit {facility} by {date}."
+      sms: "Please visit {facility} by {date} for a follow-up scan."
+
+  PAIN_REVIEW:
+    approved:
+      title: Comfort check
+      body: "Your care team would like to check how you are feeling and refill your medicines. Please visit {facility} by {date}, or ask your community health worker to help."
+      sms: "Please visit {facility} by {date} for a comfort check and medicine refill. Your CHW can help."
+
+chw:
+  approved:
+    title: New household to support
+    body: "Please visit patient {display_id} at home by {date}. Kindly encourage them to attend their {task} at {facility}."
+    sms: "CHW: please visit patient {display_id} by {date} and encourage their {task} at {facility}."
+  overdue:
+    title: Home visit needed
+    body: "Patient {display_id} has not yet attended their {task} at {facility}. Please visit them at home by {date} and help them plan the trip."
+    sms: "CHW: patient {display_id} missed their {task}. Please visit by {date}."

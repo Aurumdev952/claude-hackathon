@@ -4,7 +4,8 @@ from __future__ import annotations
 import time
 
 
-def build_all(con, sim_time, log=print):
+def build_all(con, sim_time, log=print, skip=()):
+    """`skip`: mart names reused from the last full build (v3 fast sim tick, pipeline/run.py --fast)."""
     from . import clinical, cohort, facility, patient, points, rates, surfaces, warning
     steps = [
         ("rates", rates.build_rates), ("joinpoint", rates.build_joinpoint), ("spatial", rates.build_spatial),
@@ -17,7 +18,13 @@ def build_all(con, sim_time, log=print):
         ("rate_surface", surfaces.build_rate_surface), ("journey", surfaces.build_journey),
         ("kpis", cohort.build_kpis),
     ]
+    # v3 hooks (docs/contracts/v3-loop.md): care marts (L2) and forecasting/monitoring marts (L3)
+    from . import care as care_marts, forecast as forecast_marts
+    steps += [("care", care_marts.build_care), ("forecast", forecast_marts.build_forecast)]
     for name, fn in steps:
+        if name in skip:
+            log(f"    - {name:16s} reused")
+            continue
         t = time.time()
         fn(con, sim_time, log)
         log(f"    - {name:16s} {time.time() - t:5.1f}s")

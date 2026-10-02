@@ -1,0 +1,776 @@
+{
+ "date": "2026-10-02",
+ "generated_at": "2026-10-02T03:32:30Z",
+ "source": "live",
+ "run_id": 4,
+ "sim_time": "2026-06-30T23:59:59",
+ "published_at": "2026-10-02T03:32:28Z",
+ "snapshot_generated_at": "2026-10-02T03:32:30Z",
+ "models": {
+  "1": "tier1-points-202610020331",
+  "2": "tier2-xgb-202610020331"
+ },
+ "risk_model_id": "tier2-xgb-202610020331",
+ "kpis": {
+  "high_patients": 18,
+  "high_awaiting_endoscopy": 18,
+  "new_high_patients_7d": 18,
+  "national_asr": 39.24626371419494,
+  "national_asr_lci": 23.45184713550767,
+  "national_asr_uci": 66.57013115574316,
+  "asr_year": 2026,
+  "asr_partial_year": true,
+  "asr_delta": 6.839267006767592,
+  "last_full_year": 2025,
+  "last_full_year_asr": 32.406996707427346,
+  "cases_annualised": 38.341162672726284,
+  "new_high_alerts": 24,
+  "open_alerts": 129,
+  "agreement_pct": 66.7,
+  "validated": 6,
+  "care_overdue_tasks": 5,
+  "care_new_plans_7d": 0,
+  "care_completion_rate_pct": 50.0,
+  "forecast_horizon_mean": 4186.4
+ },
+ "deltas": {
+  "high_patients": 12,
+  "high_awaiting_endoscopy": 12,
+  "new_high_alerts": 12,
+  "agreement_pct": -33.3,
+  "national_asr": 0.001986666001521087,
+  "care_overdue_tasks": null,
+  "care_new_plans_7d": null,
+  "care_completion_rate_pct": null
+ },
+ "previous_report": "2026-10-01",
+ "bands": {
+  "HIGH": 18,
+  "MEDIUM": 882,
+  "LOW": 3535
+ },
+ "cases_by_year": [
+  {
+   "year": 2016,
+   "cases": 7,
+   "cases_annualised": 7.0,
+   "asr": 26.221160698750605,
+   "partial": false
+  },
+  {
+   "year": 2017,
+   "cases": 8,
+   "cases_annualised": 8.0,
+   "asr": 23.171327081191922,
+   "partial": false
+  },
+  {
+   "year": 2018,
+   "cases": 11,
+   "cases_annualised": 11.0,
+   "asr": 22.00160555369481,
+   "partial": false
+  },
+  {
+   "year": 2019,
+   "cases": 22,
+   "cases_annualised": 22.0,
+   "asr": 35.070897292610915,
+   "partial": false
+  },
+  {
+   "year": 2020,
+   "cases": 14,
+   "cases_annualised": 14.0,
+   "asr": 17.464300574022104,
+   "partial": false
+  },
+  {
+   "year": 2021,
+   "cases": 18,
+   "cases_annualised": 18.0,
+   "asr": 27.5716554614956,
+   "partial": false
+  },
+  {
+   "year": 2022,
+   "cases": 31,
+   "cases_annualised": 31.0,
+   "asr": 37.936483939370646,
+   "partial": false
+  },
+  {
+   "year": 2023,
+   "cases": 17,
+   "cases_annualised": 17.0,
+   "asr": 24.635670899890833,
+   "partial": false
+  },
+  {
+   "year": 2024,
+   "cases": 34,
+   "cases_annualised": 34.0,
+   "asr": 38.34001572776195,
+   "partial": false
+  },
+  {
+   "year": 2025,
+   "cases": 28,
+   "cases_annualised": 28.0,
+   "asr": 32.406996707427346,
+   "partial": false
+  },
+  {
+   "year": 2026,
+   "cases": 19,
+   "cases_annualised": 38.3,
+   "asr": 39.24626371419494,
+   "partial": true
+  }
+ ],
+ "high_history": [
+  {
+   "date": "2026-06-30",
+   "high": 18,
+   "scored": 4435
+  }
+ ],
+ "alerts_by_trigger": [
+  {
+   "trigger": "RISK_BAND_HIGH",
+   "label": "High risk band",
+   "new": 16,
+   "earlier": 0,
+   "open": 16,
+   "total": 18
+  },
+  {
+   "trigger": "ALARM_NO_SCOPE_90D",
+   "label": "Alarm, no scope 90 d",
+   "new": 6,
+   "earlier": 0,
+   "open": 6,
+   "total": 6
+  },
+  {
+   "trigger": "HB_DROP",
+   "label": "Haemoglobin drop",
+   "new": 5,
+   "earlier": 0,
+   "open": 5,
+   "total": 6
+  },
+  {
+   "trigger": "HP_POS_UNTREATED",
+   "label": "H. pylori untreated",
+   "new": 100,
+   "earlier": 0,
+   "open": 100,
+   "total": 102
+  },
+  {
+   "trigger": "CARE_OVERDUE",
+   "label": "Care task overdue",
+   "new": 2,
+   "earlier": 0,
+   "open": 2,
+   "total": 2
+  }
+ ],
+ "top_cases": [
+  {
+   "patient_id": "NYA-00896376",
+   "sex": "F",
+   "age": 30,
+   "district_code": "EAS-NYA",
+   "district": "Nyagatare",
+   "facility": "Rwimiyaga Health Centre",
+   "facility_id": 2144,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.3943,
+   "t1_score": 8,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 45 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "1 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "sx_epigastric",
+     "label": "Epigastric pain recorded 1 time(s)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "KIR-01256131",
+   "sex": "M",
+   "age": 31,
+   "district_code": "EAS-KIR",
+   "district": "Kirehe",
+   "facility": "Mushikiri Health Centre",
+   "facility_id": 2131,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.3943,
+   "t1_score": 6,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 18 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "4 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "sx_epigastric",
+     "label": "Epigastric pain recorded 1 time(s)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "RUB-0080650W",
+   "sex": "F",
+   "age": 68,
+   "district_code": "WES-RUB",
+   "district": "Rubavu",
+   "facility": "Busasamana Health Centre",
+   "facility_id": 2181,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.3943,
+   "t1_score": 3,
+   "top_reasons": [
+    {
+     "feature": "age",
+     "label": "Age 68"
+    },
+    {
+     "feature": "weight_change_pct_6m",
+     "label": "Weight changed -1.5% in 6 months"
+    },
+    {
+     "feature": "district_asr_prior",
+     "label": "Lives in a district with a high gastric cancer rate (46 per 100,000)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "KAY-0098898R",
+   "sex": "F",
+   "age": 41,
+   "district_code": "EAS-KAY",
+   "district": "Kayonza",
+   "facility": "Murama Health Centre",
+   "facility_id": 2123,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.3943,
+   "t1_score": 1,
+   "top_reasons": [
+    {
+     "feature": "district_asr_prior",
+     "label": "Lives in a district with a high gastric cancer rate (35 per 100,000)"
+    },
+    {
+     "feature": "n_ppi_courses_12m",
+     "label": "0 acid-suppressant courses in 12 months"
+    },
+    {
+     "feature": "weight_change_pct_12m",
+     "label": "Weight changed +0.0% in 12 months"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "GAT-0080911R",
+   "sex": "M",
+   "age": 89,
+   "district_code": "EAS-GAT",
+   "district": "Gatsibo",
+   "facility": "Rwimbogo Health Centre",
+   "facility_id": 2111,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 16,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 25 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "4 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "age",
+     "label": "Age 89"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.93
+  },
+  {
+   "patient_id": "KAY-0093665C",
+   "sex": "M",
+   "age": 59,
+   "district_code": "EAS-KAY",
+   "district": "Kayonza",
+   "facility": "Rukara Health Centre",
+   "facility_id": 2119,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 15,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 28 days ago"
+    },
+    {
+     "feature": "age",
+     "label": "Age 59"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "10 visits with stomach complaints in 6 months"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "MUS-00769648",
+   "sex": "M",
+   "age": 65,
+   "district_code": "NOR-MUS",
+   "district": "Musanze",
+   "facility": "Gashaki Health Centre",
+   "facility_id": 2050,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 13,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 44 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "3 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "age",
+     "label": "Age 65"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  },
+  {
+   "patient_id": "NYA-0119453Y",
+   "sex": "M",
+   "age": 54,
+   "district_code": "EAS-NYA",
+   "district": "Nyagatare",
+   "facility": "Matimba Health Centre",
+   "facility_id": 2142,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 13,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 18 days ago"
+    },
+    {
+     "feature": "age",
+     "label": "Age 54"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "5 visits with stomach complaints in 6 months"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.8
+  },
+  {
+   "patient_id": "KIR-0055000G",
+   "sex": "F",
+   "age": 62,
+   "district_code": "EAS-KIR",
+   "district": "Kirehe",
+   "facility": "Mpanga Health Centre",
+   "facility_id": 2128,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 11,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 79 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "2 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "age",
+     "label": "Age 62"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.88
+  },
+  {
+   "patient_id": "RWA-0015239X",
+   "sex": "M",
+   "age": 46,
+   "district_code": "EAS-RWA",
+   "district": "Rwamagana",
+   "facility": "Rubona Health Centre",
+   "facility_id": 2152,
+   "risk_band": "HIGH",
+   "ensemble_prob": 0.2827,
+   "t1_score": 11,
+   "top_reasons": [
+    {
+     "feature": "days_since_last_gi_visit",
+     "label": "Last stomach-complaint visit 6 days ago"
+    },
+    {
+     "feature": "n_gi_visits_6m",
+     "label": "6 visits with stomach complaints in 6 months"
+    },
+    {
+     "feature": "sx_epigastric",
+     "label": "Epigastric pain recorded 5 time(s)"
+    }
+   ],
+   "scoped": false,
+   "first_high_at": "2026-06-30T23:59:59",
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
+  }
+ ],
+ "validation": {
+  "n": 6,
+  "agree": 4,
+  "disagree": 0,
+  "uncertain": 2,
+  "agreement_pct": 66.7,
+  "agreement_pct_decided": 100.0,
+  "mean_confidence": 0.727,
+  "most_disputed": [
+   {
+    "feature": "days_since_last_gi_visit",
+    "times": 6
+   },
+   {
+    "feature": "n_gi_visits_6m",
+    "times": 3
+   },
+   {
+    "feature": "hb_drop_12m",
+    "times": 1
+   },
+   {
+    "feature": "weight_change_pct_6m",
+    "times": 1
+   }
+  ],
+  "most_supported": [
+   {
+    "feature": "age",
+    "times": 6
+   },
+   {
+    "feature": "n_gi_visits_6m",
+    "times": 3
+   },
+   {
+    "feature": "sx_early_satiety",
+    "times": 3
+   },
+   {
+    "feature": "hb_min_12m",
+    "times": 3
+   },
+   {
+    "feature": "sx_epigastric",
+    "times": 1
+   }
+  ],
+  "last_run_at": "2026-10-01T19:43:30Z",
+  "by_model": {
+   "tier2-xgb-202610011831": 6
+  }
+ },
+ "data_quality": {
+  "checks_ok": 32,
+  "checks_low": 64,
+  "checks_warn": 5,
+  "freshness_days": 0.3,
+  "hp_tested_pct": 31.6,
+  "completeness_smoking_pct": 45.9,
+  "completeness_family_hx_pct": 20.7,
+  "duplicates_merged": 660.0,
+  "raw_checks_failing": [],
+  "mart_checks": {
+   "OK": 3
+  }
+ },
+ "care": {
+  "plans_total": 8,
+  "plans_active": 8,
+  "new_plans_7d": 0,
+  "facilities": 2,
+  "open_tasks": 14,
+  "overdue_tasks": 5,
+  "chw_escalations": 2,
+  "completed_tasks": 5,
+  "due_or_done_tasks": 10,
+  "completion_rate_pct": 50.0,
+  "endoscopies_completed": 1,
+  "median_days_to_endoscopy": 1.0,
+  "by_pathway": [
+   {
+    "pathway": "ENDOSCOPY_REFERRAL",
+    "plans": 2
+   },
+   {
+    "pathway": "HP_TEST_AND_TREAT",
+    "plans": 2
+   },
+   {
+    "pathway": "ANAEMIA_WORKUP",
+    "plans": 1
+   },
+   {
+    "pathway": "ONCOLOGY_TREATMENT",
+    "plans": 1
+   },
+   {
+    "pathway": "PALLIATIVE_SUPPORT",
+    "plans": 1
+   },
+   {
+    "pathway": "SURVIVORSHIP",
+    "plans": 1
+   }
+  ],
+  "window_days": 7
+ },
+ "forecast": {
+  "series_id": "NATIONAL|ALL|ALL|REGISTRY",
+  "horizon_year": 2031,
+  "mean": 4186.4,
+  "lo80": 3666.6,
+  "hi80": 4573.2,
+  "lo95": 3371.9,
+  "hi95": 4876.0,
+  "model": "ensemble(apc+ets)",
+  "run_id": "fc-20260630-033130",
+  "base_year": 2025,
+  "base_cases": 2771.0,
+  "change_pct": 51.1,
+  "series": [
+   {
+    "year": 2015,
+    "kind": "history",
+    "mean": 1383.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2016,
+    "kind": "history",
+    "mean": 1421.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2017,
+    "kind": "history",
+    "mean": 1519.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2018,
+    "kind": "history",
+    "mean": 1735.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2019,
+    "kind": "history",
+    "mean": 1793.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2020,
+    "kind": "history",
+    "mean": 1948.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2021,
+    "kind": "history",
+    "mean": 2074.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2022,
+    "kind": "history",
+    "mean": 2198.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2023,
+    "kind": "history",
+    "mean": 2381.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2024,
+    "kind": "history",
+    "mean": 2615.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2025,
+    "kind": "history",
+    "mean": 2771.0,
+    "lo80": null,
+    "hi80": null,
+    "lo95": null,
+    "hi95": null
+   },
+   {
+    "year": 2026,
+    "kind": "forecast",
+    "mean": 2964.2,
+    "lo80": 2791.4,
+    "hi80": 3110.6,
+    "lo95": 2703.9,
+    "hi95": 3189.1
+   },
+   {
+    "year": 2027,
+    "kind": "forecast",
+    "mean": 3191.2,
+    "lo80": 3019.5,
+    "hi80": 3371.0,
+    "lo95": 2908.6,
+    "hi95": 3460.0
+   },
+   {
+    "year": 2028,
+    "kind": "forecast",
+    "mean": 3421.5,
+    "lo80": 3177.6,
+    "hi80": 3634.1,
+    "lo95": 3023.2,
+    "hi95": 3770.7
+   },
+   {
+    "year": 2029,
+    "kind": "forecast",
+    "mean": 3658.8,
+    "lo80": 3347.9,
+    "hi80": 3909.1,
+    "lo95": 3165.6,
+    "hi95": 4025.5
+   },
+   {
+    "year": 2030,
+    "kind": "forecast",
+    "mean": 3906.2,
+    "lo80": 3511.2,
+    "hi80": 4206.2,
+    "lo95": 3244.8,
+    "hi95": 4373.1
+   },
+   {
+    "year": 2031,
+    "kind": "forecast",
+    "mean": 4186.4,
+    "lo80": 3666.6,
+    "hi80": 4573.2,
+    "lo95": 3371.9,
+    "hi95": 4876.0
+   }
+  ]
+ },
+ "highlights": [
+  "18 patients in the HIGH band out of 4,435 scored (+12 vs previous report); 18 not yet scoped.",
+  "24 new HIGH-severity alerts in the last 7 sim days; largest open queue: H. pylori untreated (100).",
+  "Care coordination: 8 active plans, 0 approved in the last 7 sim days; 5 tasks overdue, 50% of due tasks completed.",
+  "Claude reviewed 3 of 18 HIGH cases: 4 agree, 0 disagree, 2 uncertain; most disputed reason: days since last GI visit."
+ ],
+ "highlights_source": "auto"
+}

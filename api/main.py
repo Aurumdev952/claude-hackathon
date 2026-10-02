@@ -15,14 +15,25 @@ from fastapi.responses import JSONResponse
 from shared.config import SIM_STATE_DIR
 
 from .deps import SERVE
-from .routers import admin, ai, epi, meta, models, patients
+from .routers import admin, ai, care, epi, forecast, meta, models, patient_app, patients
 from .ws import HUB, endpoint
 
 PREFIX = "/api/v1"
 
 
+def _drain_care_outbox() -> list[dict]:
+    """Queued care events (care.sqlite outbox, written by the API and the simulator process). v3 contract §4.3."""
+    try:
+        from care.store import get_store
+        return get_store().drain()
+    except Exception as e:  # noqa: BLE001
+        print(f"care outbox error: {e}")
+        return []
+
+
 async def _watch():
-    """Poll current.json every 2 s (SPEC §10.2); on change reopen the serve file and broadcast `refresh`."""
+    """Poll current.json every 2 s (SPEC §10.2); on change reopen the serve file and broadcast `refresh`.
+    Also drains the care outbox and dispatches targeted care events (v3)."""
     last_tick = None
     seen_alerts: set[str] = set()
     first = True
@@ -47,6 +58,8 @@ async def _watch():
                 last_tick = tick
             except (FileNotFoundError, json.JSONDecodeError):
                 pass
+            for msg in await asyncio.to_thread(_drain_care_outbox):
+                await HUB.dispatch(msg)
         except Exception as e:  # never let the watcher die
             print(f"watcher error: {e}")
         await asyncio.sleep(2)
@@ -56,6 +69,7 @@ async def _watch():
 async def lifespan(app: FastAPI):
     SERVE.refresh()
     task = asyncio.create_task(_watch())
+    admin.resume_auto_on_startup()   # v3 in-API auto clock (control.json api_auto), see api/routers/admin.py
     yield
     task.cancel()
 
@@ -79,6 +93,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
                                                             "details": {"errors": json.loads(json.dumps(exc.errors(), default=str))}}})
 
 
-for r in (meta.router, epi.router, models.router, patients.router, ai.router, admin.router):
+for r in (meta.router, epi.router, models.router, patients.router, ai.router, admin.router,
+          care.router, patient_app.router, forecast.router):  # v3 routers (docs/contracts/v3-loop.md)
     app.include_router(r, prefix=PREFIX)
 app.add_api_websocket_route(f"{PREFIX}/ws", endpoint)

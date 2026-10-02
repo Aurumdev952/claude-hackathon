@@ -5,6 +5,8 @@ export const shared = {
   uTime: { value: 0 },
   /** world Y of the intro scan plane: above it the body is "revealed" (skin -> glass shell, organs visible) */
   uScanY: { value: 2.2 },
+  /** 1 on the light stage: raised ambient, steel-blue glass shell and darker x-ray rims so the body reads on white */
+  uLight: { value: 0 },
 };
 
 export type OrganUniforms = {
@@ -13,7 +15,7 @@ export type OrganUniforms = {
   uPulse: { value: number }; uCenter: { value: THREE.Vector3 }; uScale: { value: THREE.Vector3 };
   uLesionPos: { value: THREE.Vector3 }; uLesionR: { value: number }; uLesionAmt: { value: number }; uSuspect: { value: number };
   uFlow: { value: number }; uFlowSpeed: { value: number }; uBlood: { value: THREE.Color }; uRim: { value: THREE.Color }; uHeat: { value: number };
-  uTime: { value: number }; uScanY: { value: number };
+  uTime: { value: number }; uScanY: { value: number }; uLight: { value: number };
 };
 
 const vertex = /* glsl */ `
@@ -38,7 +40,7 @@ const fragment = /* glsl */ `
   uniform float uScore; uniform float uFlash; uniform float uHover; uniform float uDim; uniform float uOpacity;
   uniform float uXray; uniform float uShell; uniform float uPulse; uniform float uTime; uniform float uScanY;
   uniform vec3 uLesionPos; uniform float uLesionR; uniform float uLesionAmt; uniform float uSuspect;
-  uniform float uFlow; uniform float uFlowSpeed; uniform float uHeat;
+  uniform float uFlow; uniform float uFlowSpeed; uniform float uHeat; uniform float uLight;
   varying vec3 vWorld; varying vec3 vNormal; varying vec3 vView;
 
   float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -70,7 +72,7 @@ const fragment = /* glsl */ `
       float band = smoothstep(0.55, 1.0, sin(vWorld.y * 70.0 + vWorld.x * 20.0 - uTime * uFlowSpeed * 6.0));
       base = mix(uBlood * 0.75, uBlood * 1.5, band);
     }
-    vec3 lit = base * (0.22 + 0.7 * k1 + 0.18 * k2) * mix(vec3(0.75, 0.8, 0.9), vec3(1.0), hemi) + spec;
+    vec3 lit = base * (0.22 + 0.14 * uLight + 0.7 * k1 + 0.18 * k2) * mix(vec3(0.75, 0.8, 0.9), vec3(1.0), hemi) + spec;
 
     // severity glow: pulsing fresnel rim + inner emissive; flash spikes when a replayed event lands
     float beat = 0.72 + 0.28 * sin(uTime * 2.4 + vWorld.y * 8.0);
@@ -101,11 +103,14 @@ const fragment = /* glsl */ `
     float alpha = uOpacity;
     if (uShell > 0.0) {
       // glass shell: mostly rim, faintly filled
-      alpha = mix(uOpacity, clamp(fres * 0.65 + 0.025, 0.0, 1.0) * uOpacity, uShell);
-      col = mix(col, mix(uColor * 0.6, vec3(0.8, 0.9, 1.0), fres) + uGlow * g * fres, uShell * 0.85);
+      // light stage: a cool steel-blue glass (darker than the white stage) instead of the pale rim used on the lightbox
+      vec3 rimCol = mix(vec3(0.8, 0.9, 1.0), vec3(0.22, 0.36, 0.56), uLight);
+      vec3 fillCol = mix(uColor * 0.6, mix(uColor, vec3(0.56, 0.67, 0.80), 0.75), uLight);
+      alpha = mix(uOpacity, clamp(fres * mix(0.65, 0.92, uLight) + mix(0.025, 0.11, uLight), 0.0, 1.0) * uOpacity, uShell);
+      col = mix(col, mix(fillCol, rimCol, fres) + uGlow * g * fres, uShell * 0.85);
     }
     if (uXray > 0.0) {
-      vec3 xr = vec3(0.55, 0.78, 1.0) * (fres * 1.3 + 0.08) + uGlow * g * (fres * 2.0 + 0.4);
+      vec3 xr = mix(vec3(0.55, 0.78, 1.0), vec3(0.16, 0.36, 0.72), uLight) * (fres * 1.3 + 0.08) + uGlow * g * (fres * 2.0 + 0.4);
       col = mix(col, xr, uXray);
       alpha = mix(alpha, clamp(fres * 0.85 + 0.06 + g * 0.35, 0.0, 1.0), uXray);
     }
@@ -138,7 +143,7 @@ export function makeOrganMaterial(color: string, opts: { shell?: number; opacity
     uLesionPos: { value: new THREE.Vector3() }, uLesionR: { value: 0.02 }, uLesionAmt: { value: 0 }, uSuspect: { value: 0 },
     uFlow: { value: opts.flow ? 1 : 0 }, uFlowSpeed: { value: 1.2 }, uBlood: { value: new THREE.Color("#b3261e") },
     uRim: { value: new THREE.Color("#8fd3ff") }, uHeat: { value: 0 },
-    uTime: shared.uTime, uScanY: shared.uScanY,
+    uTime: shared.uTime, uScanY: shared.uScanY, uLight: shared.uLight,
   };
   const m = new THREE.ShaderMaterial({
     uniforms: uniforms as unknown as Record<string, THREE.IUniform>,

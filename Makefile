@@ -14,11 +14,11 @@ PY := PYTHONPATH=. uv run python
 SNAP := data/snapshots/latest
 MYSQL_CLI = mysql -h $(MYSQL_HOST) -P $(MYSQL_PORT) -u $(MYSQL_USER) -p$(MYSQL_ROOT_PASSWORD)
 .PHONY: setup seed seed-full load snapshot restore bootstrap pipeline-once train up down up-docker down-docker demo \
-        reset-demo test test-insights test-fast e2e frontend api sim lint generate doctor reproduce reproduce-no-mysql verify serve
+        reset-demo test test-insights test-fast e2e frontend api sim lint generate doctor reproduce reproduce-no-mysql verify serve dev-data agent-setup agent-dev agent-build agent-test agent-smoke eval-agent report validate-cases
 
 setup:                      ## toolchains + deps (run before the event, on good internet)
 	uv sync --all-extras
-	cd frontend && npm ci
+	cd frontend && pnpm install --frozen-lockfile
 	-command -v ollama >/dev/null && ollama pull qwen2.5-coder:7b && ollama pull llama3.1:8b
 
 doctor:                     ## check this machine (tools, RAM, disk, MySQL) before a full build
@@ -48,6 +48,11 @@ verify:                     ## published results vs the reference run (docs/refe
 	$(PY) scripts/verify_results.py
 	PYTHONPATH=. uv run pytest
 
+dev-data:                   ## small MySQL-free dev dataset: generate (SCALE, default 0.1) -> bootstrap -> train (~15 min on 4 cores)
+	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1)
+	$(MAKE) bootstrap
+	$(MAKE) train
+
 generate:                   ## synthetic EMR at SCALE -> data/bulk (Parquet) + data/ground_truth.json, no MySQL
 	$(PY) -m generator --scale $(SCALE)
 
@@ -68,9 +73,10 @@ bootstrap:                  ## initial DuckDB load from Parquet + watermarks, fu
 pipeline-once:              ## one incremental batch (extract -> marts -> score -> publish)
 	$(PY) -m pipeline.run
 
-train:                      ## train the 3 model tiers, then re-score + publish
+train:                      ## train the 3 model tiers, then re-score + publish (+ forecasts, v3 L3)
 	$(PY) -m ml.train
 	$(PY) -m pipeline.run --no-extract --from score
+	$(MAKE) forecast
 
 snapshot:                   ## save Parquet + DuckDB + MySQL dump
 	mkdir -p $(SNAP)
@@ -87,7 +93,7 @@ api:
 	PYTHONPATH=. uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && pnpm dev
 
 sim:
 	$(PY) -m simulator.tick $(if $(filter true,$(DEMO_MODE)),--demo,)
@@ -96,7 +102,9 @@ serve:                      ## API + dashboard only (no MySQL needed; logs in lo
 	mkdir -p logs
 	setsid nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
 	setsid nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
-	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs"
+	-test -d agent/node_modules && (setsid nohup $(MAKE) agent-dev > logs/agent.log 2>&1 & echo $$! > logs/agent.pid)
+	-test -d video/node_modules && (setsid nohup $(MAKE) video-serve > logs/video.log 2>&1 & echo $$! > logs/video.pid)
+	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs   agent: http://localhost:8787/agent/health"
 
 up:                         ## simulator + pipeline scheduler + API + frontend (native, background, logs in logs/); stop with make down
 	mkdir -p logs
@@ -133,5 +141,97 @@ test-insights:              ## ground-truth recovery only
 test-fast:
 	PYTHONPATH=. uv run pytest tests/pipeline tests/api
 
+agent-setup:                ## install the AI agent (agent/) and its Python sandbox venv
+	cd agent && pnpm install
+	uv sync --project agent/sandbox
+
+agent-dev:                  ## run the AI agent (Hono :8787) with reload
+	cd agent && pnpm dev
+
+agent-build:
+	cd agent && pnpm build
+
+agent-test:                 ## agent unit tests (guardrails, tools, repo, sandbox)
+	cd agent && pnpm test
+
+agent-smoke:                ## one doctor + one ministry question against a running agent (AGENT_URL)
+	cd agent && pnpm smoke
+
+eval-agent:                 ## DeepEval gate against a running agent (AGENT_URL=http://localhost:8787)
+	EVAL_REQUIRE_AGENT=1 PYTHONPATH=. uv run --extra eval pytest evals/agent -q -p no:cacheprovider
+
+report:                     ## today's 1-page PDF (reports/daily/<date>.pdf)
+	$(PY) scripts/daily_report.py --check
+
+validate-cases:             ## newest HIGH-risk cases not yet validated, as JSON (used by /validate-risk)
+	$(PY) scripts/risk_validation.py cases --limit $(or $(N),5)
+
 e2e:                        ## Playwright journeys (API on :8000 and Vite on :5173 must be running)
 	cd frontend && npx playwright test
+
+# ---- v3 L1: closed-loop simulation, external sources (docs/contracts/v3-loop.md §2, §3, §6) ----
+.PHONY: external-data sim-local advance dev-data-next swap-next
+external-data:              ## external synthetic sources -> $(DATA_DIR)/external (registry 2000-2026, surveys, population 2000-2035)
+	$(PY) -m generator.external --out $(or $(DATA_DIR),data)/external
+
+sim-local:                  ## MySQL-free auto sim clock (paced by data/sim_state/control.json); stop with Ctrl-C
+	EMR_MODE=local $(PY) -m simulator.local --auto
+
+advance:                    ## advance the MySQL-free sim clock by DAYS (default 7): replay, care world, pipeline, publish
+	EMR_MODE=local $(PY) -m simulator.local --days $(or $(DAYS),7)
+
+NEXT ?= data/v3
+dev-data-next:              ## regenerate the dev dataset into $(NEXT) (default data/v3) (generate -> bootstrap -> train -> external), data/ untouched
+	rm -rf $(NEXT)/bulk $(NEXT)/analytics $(NEXT)/models $(NEXT)/sim_state $(NEXT)/external
+	mkdir -p $(NEXT) && rm -rf $(NEXT)/reference && cp -r data/reference $(NEXT)/reference
+	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1) DATA_DIR=$(NEXT)
+	$(MAKE) external-data DATA_DIR=$(NEXT)
+	$(MAKE) bootstrap DATA_DIR=$(NEXT)
+	$(MAKE) train DATA_DIR=$(NEXT)
+	$(MAKE) care-seed DATA_DIR=$(NEXT)
+	DATA_DIR=$(NEXT) $(PY) -m pipeline.run --no-extract --from marts   # publish the seeded care state (care_* snapshot, care marts)
+
+swap-next:                  ## put $(NEXT) in place of data/ (stop servers first); the old dataset is kept in $(NEXT)
+	test -f $(NEXT)/ground_truth.json && test -d $(NEXT)/analytics
+	rm -rf data/.swap && mkdir -p data/.swap
+	for p in bulk analytics models external ground_truth.json; do if [ -e $(NEXT)/$$p ]; then mv $(NEXT)/$$p data/.swap/; fi; done
+	for p in bulk analytics models external sim_state ground_truth.json; do if [ -e data/$$p ]; then mv data/$$p $(NEXT)/; fi; done
+	cp data/reference/district_population.csv $(NEXT)/district_population.csv.prev
+	cp $(NEXT)/reference/district_population.csv data/reference/district_population.csv
+	mv data/.swap/* data/ && rmdir data/.swap
+	$(PY) -c "import duckdb; c = duckdb.connect('data/analytics/work.duckdb'); c.execute(\"UPDATE ml_model_registry SET artefact_path = regexp_replace(artefact_path, '^.*/models/', '$(CURDIR)/data/models/')\"); print(c.execute('SELECT model_id, artefact_path FROM ml_model_registry WHERE is_active').fetchall())"
+	$(PY) -m pipeline.run --no-extract --from score
+
+# ---- v3 L3: learning loop and forecasting (docs/contracts/v3-loop.md §5, §7) ----
+.PHONY: forecast retrain
+forecast:                   ## fit incidence/risk-factor/scenario forecasts + backtests (ml_forecast_*), rebuild forecast marts, publish
+	$(PY) -m ml.forecast
+	$(PY) -m pipeline.run --no-extract --from publish
+
+retrain:                    ## train a Tier 2 challenger on feedback labels (IPW), gate it vs the champion, register inactive, publish
+	$(PY) -m ml.retrain
+	$(PY) -m pipeline.run --no-extract --from publish
+
+# ---- v3 L2: care coordination (docs/contracts/v3-loop.md §4, §5) ----
+.PHONY: care-seed care-test
+care-seed:                  ## seed ~8 demo care plans across all six pathways at two busy facilities (idempotent)
+	$(PY) -m care.seed_demo
+
+care-test:                  ## care engine, patient-app API, access guards and WS filter tests
+	$(PY) -m pytest tests/v3/test_care_pathways.py tests/v3/test_care_messages.py tests/v3/test_care_engine.py tests/v3/test_care_ws.py tests/v3/test_patient_api_access.py -q
+
+# ---- v3 L4: data videos (video/, Remotion + Hono render server on VIDEO_PORT=8790) --------------------------------
+.PHONY: video-setup video-dev video-render video-serve
+video-setup:                ## install the video package (copies the 3D body model into video/public)
+	cd video && pnpm install
+
+video-dev:                  ## Remotion Studio for the compositions (http://localhost:3010)
+	cd video && pnpm studio
+
+video-render:               ## render one MP4: KIND=patient ID=<patient_id> [FACILITY=<location_id>] | KIND=ministry|ministry_vertical FROM= TO=
+	cd video && pnpm render --kind $(or $(KIND),patient) $(if $(ID),--id $(ID),) $(if $(FACILITY),--facility $(FACILITY),) \
+	  $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(SEX),--sex $(SEX),) $(if $(AGE),--age $(AGE),) $(if $(DEF),--def $(DEF),)
+
+video-serve:                ## render server (Hono :8790): /video/props, /video/jobs, /video/files (needs the API on API_URL)
+	cd video && pnpm serve
+
