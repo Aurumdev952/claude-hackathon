@@ -72,7 +72,7 @@ function TitleScene({ p, scenes, index }: SP) {
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 170, borderTop: `1px solid ${C.hairline}`, display: "flex", ...rise(progressAt(frame, 54, 30)) }}>
           {(p.risk.ensemble_prob === null && p.tumour ? [
-            { k: "Stage at diagnosis", v: <span>{p.tumour.stage_group && p.tumour.stage_group !== "Unknown" ? p.tumour.stage_group : "Not staged"}</span> },
+            { k: "Stage at diagnosis", v: <span>{p.tumour.stage_group && p.tumour.stage_group !== "Unknown" ? (/^[IV]+[ABC]?$/.test(p.tumour.stage_group) ? `Stage ${p.tumour.stage_group}` : p.tumour.stage_group) : "Not staged"}</span> },
             { k: "Diagnosed", v: <span style={{ ...T.title, fontWeight: 600 }}>{fmtDate(p.tumour.dx_date)}</span>, wide: false },
             { k: "Open alerts", v: <CountUp value={openAlerts} delay={60} duration={30} /> },
             { k: "Tumour site", v: <span style={{ ...T.title, fontWeight: 600 }}>{p.tumour.lesion_location ? sentence(p.tumour.lesion_location) : "Not recorded"}</span>, wide: true },
@@ -511,7 +511,7 @@ function SummaryScene({ p, scenes, index }: SP) {
         ) : (
           <div>
             <div style={{ ...T.label, color: C.muted }}>Stage at diagnosis</div>
-            <div style={{ ...T.hero, color: C.ink, marginTop: 6 }}>{p.tumour.stage_group && p.tumour.stage_group !== "Unknown" ? p.tumour.stage_group : "–"}</div>
+            <div style={{ ...T.hero, color: C.ink, marginTop: 6 }}>{p.tumour.stage_group && p.tumour.stage_group !== "Unknown" ? (/^[IV]+[ABC]?$/.test(p.tumour.stage_group) ? `Stage ${p.tumour.stage_group}` : p.tumour.stage_group) : "–"}</div>
             <div style={{ ...T.label, color: C.muted, marginTop: 18 }}>Diagnosed {fmtDate(p.tumour.dx_date)}{p.tumour.lesion_location ? `, ${p.tumour.lesion_location}` : ""}</div>
           </div>
         )}
