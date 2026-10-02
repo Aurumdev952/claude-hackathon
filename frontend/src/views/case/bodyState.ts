@@ -82,7 +82,22 @@ export function bodyStateAt(c: CaseData, t: number | null): BodyState {
     const s = organScores.stomach ?? 0;
     if (s > 0.15) lesion = { region: c.suspected?.region ?? tm?.spread.region ?? "body", level: s, nodes: 0, mets: [], suspected: true, sizeMm: null };
   }
-  return { organScores, flashes, pulse: vital(VITAL.pulse), rr: vital(VITAL.rr), sbp: vital(VITAL.sbp), temp: vital(VITAL.temp), hb, weightChangePct, lesion };
+  // post-gastrectomy (v3): after the operation the resected stomach is ghosted, the tumour is gone and organ glow from the
+  // pre-operative picture decays during recovery (half-life about 4 months; findings after surgery keep their own score).
+  let resected = 0;
+  let recoveryMonths: number | null = null;
+  const sx = c.surgery ? ts(c.surgery.date.length <= 10 ? `${c.surgery.date}T12:00:00` : c.surgery.date) : NaN;
+  if (Number.isFinite(sx) && at >= sx) {
+    recoveryMonths = (at - sx) / MONTH;
+    resected = Math.min(1, (at - sx) / (5 * 86400_000));
+    const decay = 0.3 + 0.7 * Math.exp(-recoveryMonths / 6);
+    const fresh = t === null ? {} : scoreAt(ev.filter((e) => ts(e.ts) >= sx), at);
+    for (const o of Object.keys(organScores)) organScores[o] = Math.max(organScores[o] * decay, fresh[o] ?? 0);
+    organScores.stomach = 0;
+    if (lesion && !lesion.suspected) lesion = null;
+  }
+  return { organScores, flashes, pulse: vital(VITAL.pulse), rr: vital(VITAL.rr), sbp: vital(VITAL.sbp), temp: vital(VITAL.temp), hb, weightChangePct, lesion,
+           resected, recoveryMonths };
 }
 
 export const windowMs = (c: CaseData) => [ts(c.window.start), ts(c.window.end)] as const;

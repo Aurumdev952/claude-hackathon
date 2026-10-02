@@ -4,8 +4,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Input } from "@heroui/react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  Activity, BellRing, Box, ChevronLeft, ChevronRight, Droplet, FlaskConical, Gauge, History, Hospital, ListChecks, MessageSquareText,
-  RefreshCw, Search, Sparkles, UserRound, Weight,
+  Activity, BellRing, Box, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Droplet, FlaskConical, Gauge, HeartHandshake, History, Hospital, ListChecks,
+  ListTodo, MessageSquareText, RefreshCw, Search, Sparkles, UserRound, Weight,
 } from "lucide-react";
 import { get, post, qs } from "@/api/client";
 import type { Alert, PatientRow } from "@/api/types";
@@ -18,14 +18,19 @@ import { itemEnter, stagger } from "@/lib/motion";
 import { FacilityPicker } from "./doctor/FacilityPicker";
 import { RISK_METHOD, ReasonBars, RiskSummary, SHAP_NOTE, TIERS_NOTE, Track } from "./doctor/RiskCard";
 import { MiniSeries, Timeline } from "./doctor/Timeline";
-import { AlertActions, SeverityMark, triggerLabel } from "./doctor/AlertActions";
+import { AlertActions, PLANNABLE, SeverityMark, triggerLabel } from "./doctor/AlertActions";
+import { ApprovePlanModal, type ApproveTarget } from "./doctor/ApprovePlanModal";
+import { FollowUps } from "./doctor/FollowUps";
+import { InRecovery } from "./doctor/InRecovery";
+import { type WorkItem, isOpenPlan, nextTask, pathwayName, PLAN_STATUS, sortPlans, usePatientCare } from "./doctor/care";
+import { CarePlanView, StepGlyph } from "./case/CarePlanView";
 import { PatientAvatar } from "./doctor/PatientAvatar";
 import { BandMark, Dot } from "./doctor/BandMark";
 
 export { AlertActions } from "./doctor/AlertActions";
 
-type Tab = "flagged" | "diagnosed" | "alerts";
-const ABOUT = "Patients of this facility ranked by their 12-month gastric-cancer risk, diagnosed cases, and the alerts inbox. Decision support only, synthetic data.";
+type Tab = "flagged" | "diagnosed" | "followups" | "recovery" | "alerts";
+const ABOUT = "Patients of this facility ranked by their 12-month gastric-cancer risk, diagnosed cases, care-plan follow-ups, patients in recovery and the alerts inbox. Decision support only, synthetic data.";
 const cap = (s: unknown) => { const t = String(s ?? "").toLowerCase().replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 /** Doctor workspace (design v3): a plain patient list on the left (span 4), the selected patient's cards on the right. */
@@ -34,8 +39,11 @@ export default function DoctorWorkspace() {
   const [tab, setTab] = useState<Tab>("flagged");
   const [selected, setSelected] = useState<number | null>(null);
   const newAlerts = useQuery({ queryKey: ["alerts", "inbox", "NEW", ""], queryFn: () => get<Alert[]>(`/alerts${qs({ status: "NEW" })}`), enabled: role === "doctor" && !!facilityId });
+  const work = useQuery({ queryKey: ["care", "worklist"], queryFn: () => get<WorkItem[]>("/care/worklist"), enabled: role === "doctor" && !!facilityId });
   if (role !== "doctor" || !facilityId) return <FacilityPicker />;
   const nNew = newAlerts.data?.data?.length;
+  const nLate = (work.data?.data ?? []).filter((w) => w.task.overdue_days > 0).length;
+  const openPatient = (id: number) => { setSelected(id); setTab("flagged"); };
   return (
     <div className="flex flex-col gap-5">
       <PageHeader eyebrow="Doctor workspace" title={facilityName?.replace(" (Synthetic)", "")} icon={<Hospital size={18} />} info={ABOUT}
@@ -44,6 +52,8 @@ export default function DoctorWorkspace() {
                               items={[
                                 { key: "flagged", label: "Risk-ranked patients", icon: <Gauge size={15} aria-hidden /> },
                                 { key: "diagnosed", label: "Diagnosed cases", icon: <Activity size={15} aria-hidden /> },
+                                { key: "followups", label: "Follow-ups", icon: <ListTodo size={15} aria-hidden />, count: nLate || undefined },
+                                { key: "recovery", label: "In recovery", icon: <HeartHandshake size={15} aria-hidden /> },
                                 { key: "alerts", label: "Alerts inbox", icon: <BellRing size={15} aria-hidden />, count: nNew || undefined },
                               ]} />
                   }
@@ -52,12 +62,14 @@ export default function DoctorWorkspace() {
                             startContent={<RefreshCw size={14} aria-hidden />}
                             onPress={() => useRole.setState({ facilityId: null, facilityName: null })}>Change facility</Button>
                   } />
+      {tab === "followups" ? <FollowUps onOpenPatient={openPatient} /> : tab === "recovery" ? <InRecovery onOpenPatient={openPatient} /> : (
       <div className="grid grid-cols-12 gap-5 items-start">
         <div className="col-span-12 lg:col-span-5 xl:col-span-4 lg:sticky lg:top-0 flex flex-col lg:h-[calc(100vh-180px)] min-h-[560px]">
           {tab === "alerts" ? <AlertsInbox onOpen={setSelected} selected={selected} /> : <PatientList status={tab} selected={selected} onSelect={setSelected} />}
         </div>
         <div className="col-span-12 lg:col-span-7 xl:col-span-8 min-w-0">{selected ? <PatientPanel key={selected} patientId={selected} /> : <Empty />}</div>
       </div>
+      )}
     </div>
   );
 }
@@ -221,6 +233,7 @@ function PatientPanel({ patientId }: { patientId: number }) {
   const explainModal = useDetailModal();
   const chart = useDetailModal();
   const [chartKey, setChartKey] = useState<"hb" | "weight">("hb");
+  const [planFor, setPlanFor] = useState<ApproveTarget | null>(null);
   const h = p.data?.data;
   const events: any[] = tl.data?.data?.events ?? [];
   const recent = useMemo(() => {
@@ -245,6 +258,8 @@ function PatientPanel({ patientId }: { patientId: number }) {
   const risk = h.risk;
   const band = risk?.risk_band as string | undefined;
   const nNew = myAlerts.filter((a) => a.status === "NEW").length;
+  // "Start care plan" when no open alert can be approved into a plan (e.g. a diagnosed patient starting treatment support)
+  const canApprove = myAlerts.some((a) => PLANNABLE.has(a.trigger) && a.status !== "DISMISSED" && a.status !== "REFERRED");
   return (
     <BentoGrid step={0.04}>
       <GridItem span={12}>
@@ -260,9 +275,14 @@ function PatientPanel({ patientId }: { patientId: number }) {
               </div>
               <div className="text-label font-normal text-muted tabular mt-0.5">{h.display_id}</div>
             </div>
-            <div className="flex items-center gap-2 max-sm:w-full">
+            <div className="flex items-center gap-2 max-sm:w-full flex-wrap">
               <Button radius="full" variant="flat" className="bg-tile text-ink h-11 px-5 text-[14px] font-medium data-[hover=true]:bg-tile-hover max-sm:flex-1"
                       startContent={<MessageSquareText size={16} aria-hidden />} onPress={explain}>Explain</Button>
+              {!canApprove && (
+                <Button radius="full" variant="flat" className="bg-tile text-ink h-11 px-5 text-[14px] font-medium data-[hover=true]:bg-tile-hover max-sm:flex-1"
+                        startContent={<ClipboardCheck size={16} aria-hidden />}
+                        onPress={() => setPlanFor({ patientId, isCase: !!h.is_case, label: <>{h.name} <span className="tabular">{h.display_id}</span></> })}>Start care plan</Button>
+              )}
               <Button radius="full" className="bg-signal-strong text-signal-on font-semibold h-11 px-5 text-[14px] data-[hover=true]:bg-signal-text max-sm:flex-[2]"
                       startContent={<Box size={16} aria-hidden />} onPress={() => nav(`/doctor/case/${patientId}`)}>Analyse case in 3D</Button>
             </div>
@@ -303,12 +323,15 @@ function PatientPanel({ patientId }: { patientId: number }) {
 
       <GridItem span={{ md: 6 }}>
         <Card title="Alerts" icon={<BellRing size={16} />} info="Open alerts for this patient. Acknowledge, mark as referred, or dismiss with a reason; every action is logged.">
-          {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} variant="rows" />}
+          {alerts.isLoading ? <Skeleton variant="list" rows={3} /> : <AlertActions alerts={myAlerts} variant="rows" isCase={!!h.is_case} />}
         </Card>
       </GridItem>
       <GridItem span={{ md: 6 }}>
+        <CarePlanCard patientId={patientId} subtitle={h.name} onStart={() => setPlanFor({ patientId, isCase: !!h.is_case, label: <>{h.name} <span className="tabular">{h.display_id}</span></> })} />
+      </GridItem>
+      <GridItem span={12}>
         <Card title="Latest measurements" icon={<FlaskConical size={16} />} info="Latest values with their trend over the window. Haemoglobin is compared with the WHO anaemia threshold for the patient's sex.">
-          <motion.div className="grid grid-cols-2 gap-2.5" variants={stagger(0.04)} initial="hidden" animate="show">
+          <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-2.5" variants={stagger(0.04)} initial="hidden" animate="show">
             <MeasureTile label="Haemoglobin" value={hbLast} unit="g/dL" spark={hb.map((x) => x.value)} onPress={() => openChart("hb")}
                          alert={hbLast !== null && hbLast < hbThr} note={hbLast === null ? "Not measured" : hbLast < hbThr ? `Below ${hbThr}` : "Normal"} />
             <MeasureTile label="Weight" value={wLast} unit="kg" spark={wt.map((x) => x.value)} onPress={() => openChart("weight")}
@@ -341,7 +364,50 @@ function PatientPanel({ patientId }: { patientId: number }) {
           </div>
         ) : null}
       </DetailModal>
+      <ApprovePlanModal target={planFor} isOpen={!!planFor} onOpenChange={(o) => { if (!o) setPlanFor(null); }} />
     </BentoGrid>
+  );
+}
+
+/** Compact care plan card for the patient panel: the active plan, its next step and a status chip; the arrow opens every
+ * plan with its steps and messages. */
+function CarePlanCard({ patientId, subtitle, onStart }: { patientId: number; subtitle?: ReactNode; onStart: () => void }) {
+  const care = usePatientCare(patientId);
+  const plans = sortPlans(care.data?.data?.plans ?? []);
+  const simNow = (care.data?.meta?.sim_time as string | undefined) ?? null;
+  const plan = plans.find(isOpenPlan) ?? plans[0] ?? null;
+  const next = plan ? nextTask(plan) : null;
+  const done = plan ? plan.tasks.filter((t) => t.status === "COMPLETED").length : 0;
+  const sent = plan ? plan.events.filter((e) => e.kind === "NOTIFIED").length : 0;
+  return (
+    <Card className="h-full" title="Care plan" icon={<ClipboardList size={16} />} detailLabel="Open care plans"
+          info="The care plan approved for this patient: its steps close automatically when the EMR shows them done (an endoscopy, a test, a visit). Reminders go out by app, SMS and community health worker."
+          detail={plans.length ? { title: "Care plans", icon: <ClipboardList size={18} />, size: "3xl", subtitle, children: <CarePlanView plans={plans} simNow={simNow} /> } : undefined}
+          actions={plan ? <span className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-micro ${plan.status === "ESCALATED" ? "bg-signal-soft text-signal-text" : "bg-tile text-muted"}`}>
+            {plan.status === "ESCALATED" && <Dot level="high" />}{PLAN_STATUS[plan.status] ?? plan.status}</span> : undefined}>
+      {care.isLoading ? <Skeleton variant="list" rows={2} /> : !plan ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-5 text-label text-muted text-center">
+          No care plan yet
+          <Button size="sm" radius="full" className="h-9 px-4 bg-ink text-ink-on text-[13px] font-semibold" startContent={<ClipboardCheck size={14} aria-hidden />} onPress={onStart}>Start care plan</Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div>
+            <div className="text-label font-normal text-muted">{pathwayName(plan)}</div>
+            <div className="text-[13px] text-muted tabular mt-0.5">{done} of {plan.tasks.length} steps done, {sent} message{sent === 1 ? "" : "s"} sent</div>
+          </div>
+          {next ? (
+            <div className="rounded-tile bg-tile px-4 py-3 flex items-center gap-3">
+              <StepGlyph status={next.status} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-semibold text-ink truncate">{next.title}</div>
+                <div className="text-micro text-muted tabular">Next step, due {date(next.due_at)}</div>
+              </div>
+            </div>
+          ) : <div className="text-label text-muted">All steps closed {plan.closed_sim ? date(plan.closed_sim) : ""}</div>}
+        </div>
+      )}
+    </Card>
   );
 }
 

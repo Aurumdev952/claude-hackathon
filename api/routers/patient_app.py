@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body, Depends
 from care import engine, journey as journey_mod, messages, pathways
 from care.store import get_store
 
-from ..deps import SERVE, APIError, Role, envelope, patient, role
+from ..deps import SERVE, APIError, Role, envelope, parse_json, patient, role
 from .care import build_journey
 
 router = APIRouter()
@@ -88,6 +88,9 @@ def patient_plans(pid: int) -> list[dict]:
     for pl in engine.plans_for(pid):
         q = {k: v for k, v in pl.items() if k not in HIDDEN_PLAN}
         q["pathway_name"] = names.get(pl["pathway"], pl["pathway"])
+        fid = pl.get("target_facility_id") or pl.get("facility_id")
+        loc = SERVE.one("SELECT name FROM core_dim_location WHERE location_id = ?", [fid]) if fid else None
+        q["target_facility_name"] = (loc or {}).get("name")   # additive (U1): the next-step card names the facility
         q["tasks"] = [{k: t[k] for k in ("id", "plan_id", "seq", "type", "title", "status", "opens_at", "due_at",
                                          "completed_at", "reminders")} | {"patient_facing": pathways.patient_facing(pl["pathway"], t["type"])}
                       for t in pl["tasks"]]
@@ -125,6 +128,19 @@ def dose(body: dict = Body(...), r: Role = Depends(p)):
         return envelope(engine.record_dose(r.patient_id, body.get("course"), body.get("taken")))
     except engine.CareError as e:
         _care_error(e)
+
+
+@router.get("/me/doses")
+def my_doses(r: Role = Depends(p)):
+    """The patient's own dose taps (newest first), for the medicines course tracker (additive, U1)."""
+    _me_row(r.patient_id)
+    rows = get_store().rows("""SELECT id, payload, created_sim FROM patient_reports WHERE patient_id = ? AND kind = 'DOSE'
+                               ORDER BY created_sim DESC, id DESC""", [r.patient_id])
+    out = []
+    for x in rows:
+        pl = parse_json(x["payload"]) or {}
+        out.append({"id": x["id"], "course": pl.get("course"), "taken": bool(pl.get("taken")), "created_sim": x["created_sim"]})
+    return envelope(out)
 
 
 @router.post("/me/tasks/{task_id}/confirm", status_code=201)

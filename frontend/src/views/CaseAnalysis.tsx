@@ -27,6 +27,8 @@ import { organsIn, scoresOf, systemMeta, useActiveSystem } from "./case/SystemRa
 import { HB, VITAL } from "./case/bodyState";
 import { useCaseUI } from "./case/store";
 import type { CaseData } from "./case/types";
+import { VideoButton } from "@/components/video";
+import { gastrectomyDate, useJourney } from "./doctor/care";
 
 /** Doctor case analysis (design v3): the 3D body is the page's hero on the left; the active body system's risk, concerns
  * and care strategy sit on the right. Explanations sit behind ⓘ, details open in modals. */
@@ -40,10 +42,15 @@ export default function CaseAnalysis() {
     queryFn: () => get<CaseData>(`/patients/${patientId}/case`),
     enabled: role === "doctor" && !!facilityId && !!patientId,
   });
+  // v3: the journey carries the gastrectomy date for the post-gastrectomy body (diagnosed patients only)
+  const isCase = !!q.data?.data?.header?.is_case;
+  const j = useJourney(Number(patientId), isCase && role === "doctor" && !!facilityId);
+  const surgeryAt = gastrectomyDate(j.data?.data);
+  const merged = useMemo(() => (q.data ? { ...q.data.data, surgery: surgeryAt ? { date: surgeryAt, kind: "gastrectomy" as const } : null } : null), [q.data, surgeryAt]);
   if (role !== "doctor" || !facilityId) return <FacilityPicker />;
   if (q.isLoading) return <Loading h={480} label="Aggregating the case" />;
   if (q.error) return <div className="p-4"><ErrorNote error={q.error} /></div>;
-  const data = q.data!.data;
+  const data = merged!;
   return (
     <div className="grid gap-5 xl:h-full min-h-[720px] grid-cols-1 xl:grid-cols-2" data-testid="case-analysis">
       <section className="min-h-0 min-w-0 xl:h-full h-[760px]" aria-label="3D body"><BodyStage data={data} aside={<CaseInsights data={data} />} /></section>
@@ -91,6 +98,8 @@ function CasePanel({ data }: { data: CaseData }) {
           <div className="flex-1 min-w-[220px] max-w-[320px] ml-auto">
             {data.tumour ? <StageTrack stage={data.tumour.stage_group} /> : <RiskReadout data={data} onOpen={risk.open} />}
           </div>
+          <VideoButton kind="patient" params={{ patient_id: data.header.patient_id }} className="h-10 px-4 bg-surface"
+                       title={<>Case summary video <span className="text-muted font-normal tabular">{data.header.display_id}</span></>} />
         </div>
       </GridItem>
 

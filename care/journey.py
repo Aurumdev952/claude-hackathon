@@ -259,9 +259,13 @@ def for_patient_app(journey: dict) -> dict:
     rec = journey.get("recovery") or None
     out_rec = None
     if rec:
-        out_rec = {"next_visit": rec.get("next_visit_due"), "treatment_cycles": {"done": rec.get("chemo_done"),
-                                                                                  "planned": rec.get("chemo_planned")},
-                   "weight": rec.get("series", {}).get("weight", [])[-12:], "missed_visits": rec.get("missed_visits_12m")}
+        # accepts both the pt_recovery row (next_visit_due, chemo_done, ...) and the API shape (next_visit, chemo{...})
+        chemo = rec.get("chemo") or {}
+        out_rec = {"next_visit": rec.get("next_visit_due", rec.get("next_visit")),
+                   "treatment_cycles": {"done": rec.get("chemo_done", chemo.get("done")),
+                                        "planned": rec.get("chemo_planned", chemo.get("planned"))},
+                   "weight": (rec.get("series") or {}).get("weight", [])[-12:],
+                   "missed_visits": rec.get("missed_visits_12m", rec.get("missed_visits"))}
     return {"phases": phases, "recovery": out_rec}
 
 

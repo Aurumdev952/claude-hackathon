@@ -5,7 +5,7 @@ import { AnimatedNumber, DetailModal, useDetailModal, type StatusKind } from "@/
 import { BandMark, type MarkLevel } from "@/views/doctor/BandMark";
 import { Track } from "@/views/doctor/RiskCard";
 import { labelOf } from "@/components/three/body/util";
-import { monthYear } from "@/lib/format";
+import { date, monthYear } from "@/lib/format";
 import type { CaseCondition, CaseData } from "./types";
 import { useCaseUI } from "./store";
 import { bodyStateAt } from "./bodyState";
@@ -44,11 +44,13 @@ export function ConditionList({ conditions, onFocus }: { conditions: CaseConditi
 
 /** One concern (reference "Prady Lhambel 89%" tile): grey tile, organ name + round open button, a big score /100, status as
  * dot + text, a thin sky track (one hue for every tile; the status dot carries attention). Hover / focus lights the organ on the body. */
-function ConcernTile({ id, score, now, conditions, selected, onFocus }: {
+function ConcernTile({ id, score, now, conditions, selected, onFocus, removed }: {
   id: string; score: number; now: number; conditions: CaseCondition[]; selected: boolean; onFocus: (o: string[] | null, label?: string | null) => void;
+  /** v3 post-gastrectomy: the organ was resected (shown ghosted on the body) */
+  removed?: string | null;
 }) {
   const label = labelOf(id);
-  const st = concernStatus(score);
+  const st: { status: StatusKind | string; label: string; level: MarkLevel } = removed ? { status: "optimal", label: `Removed ${removed}`, level: "none" } : concernStatus(score);
   const d = useDetailModal();
   return (
     <div onMouseEnter={() => onFocus([id], label)} onMouseLeave={() => onFocus(null)} onFocus={() => onFocus([id], label)} onBlur={() => onFocus(null)}
@@ -83,7 +85,9 @@ export function ConcernCards({ data, system }: { data: CaseData; system: string 
   const set = useCaseUI((s) => s.set);
   const replayT = useCaseUI((s) => s.replayT);
   const selected = useCaseUI((s) => s.selectedOrgan);
-  const scores = useMemo(() => bodyStateAt(data, replayT).organScores, [data, replayT]);
+  const state = useMemo(() => bodyStateAt(data, replayT), [data, replayT]);
+  const scores = state.organScores;
+  const removedOn = data.surgery && (state.resected ?? 0) > 0.5 ? date(data.surgery.date) : null;
   const now = useMemo(() => Object.fromEntries(data.organs.map((o) => [o.organ_id, o.score])) as Record<string, number>, [data]);
   const organs = useMemo(() => {
     const ids = organsIn(data, system);
@@ -96,7 +100,7 @@ export function ConcernCards({ data, system }: { data: CaseData; system: string 
     <div className={`grid gap-2.5 ${organs.length >= 3 ? "grid-cols-1 sm:grid-cols-3" : organs.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
       {organs.map((id) => (
         <ConcernTile key={id} id={id} score={scores[id] ?? 0} now={now[id] ?? 0} conditions={data.conditions.filter((c) => c.organ_ids.includes(id))}
-                     selected={selected === id} onFocus={focus} />
+                     selected={selected === id} onFocus={focus} removed={id === "stomach" ? removedOn : null} />
       ))}
     </div>
   );

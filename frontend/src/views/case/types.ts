@@ -43,6 +43,8 @@ export type CaseData = {
   events: ReplayEvent[]; window: { start: string; end: string; months: number };
   notes: { note_id?: number; note: string; created_at: string }[];
   body_map: { organs: Record<string, { label: string; system: string }>; stomach_regions: string[] };
+  /** v3: curative surgery from the journey (GET /patients/{id}/journey), merged in by CaseAnalysis. */
+  surgery?: { date: string; kind: "gastrectomy" } | null;
 };
 
 /** What the 3D scene renders at one moment in time (current state or a replay frame). */
@@ -52,4 +54,8 @@ export type BodyState = {
   pulse: number | null; rr: number | null; sbp: number | null; temp: number | null; hb: number | null;
   weightChangePct: number | null;               // vs the start of the window -> body thinning
   lesion: { region: string; level: number; nodes: number; mets: string[]; suspected: boolean; sizeMm: number | null } | null;
+  /** v3 post-gastrectomy: 0 before surgery, ramps to 1 over the days after it (the stomach is ghosted). */
+  resected?: number;
+  /** months since the surgery (null before or without surgery) */
+  recoveryMonths?: number | null;
 };

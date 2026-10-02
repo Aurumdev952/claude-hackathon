@@ -2,17 +2,21 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Input } from "@heroui/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { BellOff, Check, Send, X } from "lucide-react";
+import { BellOff, Check, ClipboardCheck, Send, X } from "lucide-react";
 import { patch } from "@/api/client";
 import type { Alert } from "@/api/types";
 import { InfoHint } from "@/components/ui";
 import { date } from "@/lib/format";
 import { itemEnter, stagger } from "@/lib/motion";
 import { BandMark } from "./BandMark";
+import { ApprovePlanModal, type ApproveTarget } from "./ApprovePlanModal";
 
 const TRIGGER: Record<string, string> = {
   RISK_BAND_HIGH: "High risk band", ALARM_NO_SCOPE_90D: "Alarm sign, no scope in 90 days", HB_DROP: "Haemoglobin drop", HP_POS_UNTREATED: "H. pylori untreated",
+  CARE_OVERDUE: "Care plan step overdue",
 };
+/** Alert triggers that map to a care pathway (CARE_OVERDUE is about an existing plan, so it has none). */
+export const PLANNABLE = new Set(["RISK_BAND_HIGH", "ALARM_NO_SCOPE_90D", "HB_DROP", "HP_POS_UNTREATED"]);
 export const triggerLabel = (t: string) => TRIGGER[t] ?? t.charAt(0) + t.slice(1).toLowerCase().replace(/_/g, " ");
 
 const statusLabel = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
@@ -27,8 +31,9 @@ const btn = "h-8 min-w-0 px-3 gap-1.5 text-[13px] font-medium text-ink bg-transp
 /** Alerts with the doctor's actions (Acknowledge / Mark referred / Dismiss with a reason). `variant` rows = plain rows
  * split by hairlines (a card body); tiles = grey nested tiles (a two-column grid, `columns` = 2). Summary and notes live
  * behind ⓘ; the suggested action stays as one muted line. */
-export function AlertActions({ alerts, columns = 1, variant }: { alerts: Alert[]; columns?: 1 | 2; variant?: "rows" | "tiles" }) {
+export function AlertActions({ alerts, columns = 1, variant, isCase }: { alerts: Alert[]; columns?: 1 | 2; variant?: "rows" | "tiles"; isCase?: boolean }) {
   const qc = useQueryClient();
+  const [planFor, setPlanFor] = useState<ApproveTarget | null>(null);
   const reduce = useReducedMotion();
   const look = variant ?? (columns === 2 ? "tiles" : "rows");
   const [dismissing, setDismissing] = useState<string | null>(null);
@@ -43,9 +48,12 @@ export function AlertActions({ alerts, columns = 1, variant }: { alerts: Alert[]
       No alerts for this patient
     </div>
   );
+  const approve = (a: Alert) => setPlanFor({ patientId: a.patient_id, alertId: a.alert_id, trigger: a.trigger, isCase,
+                                             label: <>{a.name} <span className="tabular">{a.display_id}</span>, {triggerLabel(a.trigger).toLowerCase()}</> });
   const listCls = look === "tiles" ? `grid gap-2.5 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}` : "flex flex-col divide-y divide-hairline -my-1";
   const itemCls = look === "tiles" ? "rounded-tile bg-tile p-4 min-w-0" : "py-4 first:pt-1 last:pb-1 min-w-0";
   return (
+    <>
     <motion.ul className={listCls} variants={stagger(0.05)} initial={reduce ? false : "hidden"} animate="show">
       {alerts.map((a) => {
         const open = a.status !== "DISMISSED" && a.status !== "REFERRED";
@@ -64,7 +72,11 @@ export function AlertActions({ alerts, columns = 1, variant }: { alerts: Alert[]
             <p className="text-label font-normal text-muted mt-0.5 line-clamp-1" title={a.suggested_action}>{a.suggested_action}</p>
             <div className="flex items-center gap-1 mt-2.5 min-h-8">
               {open && (
-                <div className="flex flex-wrap gap-1 -ml-3">
+                <div className={`flex flex-wrap items-center gap-1 ${PLANNABLE.has(a.trigger) ? "" : "-ml-3"}`}>
+                  {PLANNABLE.has(a.trigger) && (
+                    <Button size="sm" radius="full" className="h-8 min-w-0 px-3.5 gap-1.5 text-[13px] font-semibold bg-ink text-ink-on mr-1"
+                            startContent={<ClipboardCheck size={14} aria-hidden />} onPress={() => approve(a)}>Approve & plan</Button>
+                  )}
                   {a.status === "NEW" && <Button size="sm" radius="full" variant="light" className={btn} startContent={<Check size={14} aria-hidden />}
                                                  isDisabled={m.isPending} onPress={() => m.mutate({ id: a.alert_id, status: "ACKNOWLEDGED" })}>Acknowledge</Button>}
                   <Button size="sm" radius="full" variant="light" className={btn} startContent={<Send size={13} aria-hidden />}
@@ -90,5 +102,7 @@ export function AlertActions({ alerts, columns = 1, variant }: { alerts: Alert[]
         );
       })}
     </motion.ul>
+    <ApprovePlanModal target={planFor} isOpen={!!planFor} onOpenChange={(o) => { if (!o) setPlanFor(null); }} />
+    </>
   );
 }
