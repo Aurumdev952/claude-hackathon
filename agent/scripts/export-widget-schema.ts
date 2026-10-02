@@ -1,13 +1,13 @@
 /**
  * Exports the widget zod schemas (src/widgets/specs.ts) as JSON Schema for the DeepEval widget gate
  * (evals/agent/metrics.py). Run after changing specs.ts:  pnpm export:widget-schema
- * Output: ../evals/agent/schemas/widgets.schema.json  ({ChartWidget, PatientWidget, ArtifactSpec} under $defs).
+ * Output: ../evals/agent/schemas/widgets.schema.json  ({ChartWidget, PatientWidget, ArtifactSpec, VideoWidget} under $defs).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { ArtifactSpec, ChartWidget, PatientWidget } from "../src/widgets/specs.js";
+import { ArtifactSpec, ChartWidget, PatientWidget, VideoWidget } from "../src/widgets/specs.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = resolve(here, "../../evals/agent/schemas/widgets.schema.json");
@@ -18,6 +18,7 @@ const defs = {
   ChartWidget: z.toJSONSchema(ChartWidget, opts),
   PatientWidget: z.toJSONSchema(PatientWidget, opts),
   ArtifactSpec: z.toJSONSchema(ArtifactSpec, opts),
+  VideoWidget: z.toJSONSchema(VideoWidget, opts),
 };
 for (const d of Object.values(defs)) delete (d as Record<string, unknown>).$schema;
 

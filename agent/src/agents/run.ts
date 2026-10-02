@@ -32,6 +32,7 @@ export const generateMessageId = createIdGenerator({ prefix: "msg", size: 16 });
 const DATA_TOOLS = new Set([
   "get_kpis", "get_rates_trend", "get_district_ranking", "get_care_cascade", "get_stage_mix", "get_survival",
   "get_facility_quality", "get_model_metrics", "query_marts", "list_high_risk_patients", "get_patient_risk",
+  "get_care_funnel", "get_forecast", "run_forecast_scenario", "get_model_monitoring", "list_followups", "get_patient_journey",
 ]);
 
 export async function systemPrompt(ctx: AgentContext): Promise<string> {

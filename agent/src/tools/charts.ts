@@ -40,6 +40,10 @@ export const ChartInput = z.object({
   stacked: z.boolean().optional(),
   annotations: z.array(z.object({ x: z.union([z.string(), z.number()]), label: z.string().max(80) })).max(10).optional(),
   reference_lines: z.array(z.object({ y: z.number(), label: z.string().max(80).optional() })).max(4).optional(),
+  fan: z.object({
+    lo95: z.string(), hi95: z.string(), lo80: z.string().optional(), hi80: z.string().optional(),
+    start: z.union([z.string(), z.number()]).optional(), label: z.string().max(80).optional(),
+  }).optional().describe("line/area forecast fan from get_forecast rows: {lo80:'lo80', hi80:'hi80', lo95:'lo95', hi95:'hi95'}"),
   tiles: z.array(z.object({
     label: z.string(), key: z.string().optional().describe("column read from the last row of the (filtered/sorted) data"),
     value: z.number().nullable().optional(), unit: z.string().optional(), format: Fmt.optional(),
@@ -136,10 +140,19 @@ export function buildChart(i: ChartInput, t: ToolCtx): ChartResult {
     if (e) errs.push(e);
     if (!series.length) errs.push("series (or y) is required");
     for (const s of series) for (const k of [s.key, s.lci, s.uci]) if (k && !cols.has(k)) errs.push(`column '${k}' (series) is not in the data`);
+    let fan = i.fan;
+    if (fan && i.type === "bar") errs.push("fan is only available for line and area charts");
+    if (fan) for (const k of [fan.lo95, fan.hi95, fan.lo80, fan.hi80]) if (k && !cols.has(k)) errs.push(`column '${k}' (fan) is not in the data`);
+    if (fan && (!!fan.lo80 !== !!fan.hi80)) errs.push("fan needs both lo80 and hi80 (or neither)");
+    if (fan && fan.start === undefined && x) {
+      // default marker: the first x with a band value (the first projection year)
+      const first = data.find((r) => typeof r[fan!.lo95] === "number");
+      if (first && first[x] !== null && first[x] !== undefined) fan = { ...fan, start: first[x] as string | number };
+    }
     spec = {
       type: i.type, ...base, x: { key: x ?? "", label: i.x_label, kind: x === "year" || x === "period" ? "category" : undefined },
       series, data,
-      ...(i.type === "bar" ? { orientation: i.orientation, stacked: i.stacked } : { annotations: i.annotations, ...(i.type === "area" ? { stacked: i.stacked } : {}) }),
+      ...(i.type === "bar" ? { orientation: i.orientation, stacked: i.stacked } : { annotations: i.annotations, ...(i.type === "area" ? { stacked: i.stacked } : {}), ...(fan ? { fan } : {}) }),
       referenceLines: i.reference_lines,
     };
   } else if (i.type === "kpi") {
@@ -198,7 +211,8 @@ export const makeChart = defineTool({
   description:
     "Renders a chart for the user. REQUIRED for trend, comparison, distribution and ranking answers. Reference the rows of a " +
     "previous data tool with dataset_id (preferred) and name the columns: line/area {x:'year', series:[{key:'asr', lci:'asr_lci', " +
-    "uci:'asr_uci'}]}, bar {x:'name', y:'asr', orientation:'horizontal'} for rankings, kpi {tiles:[{label, key}]}, choropleth " +
+    "uci:'asr_uci'}]}, forecasts {x:'year', series:[{key:'observed'},{key:'forecast', dashed:true}], fan:{lo80:'lo80', hi80:'hi80', " +
+    "lo95:'lo95', hi95:'hi95'}}, bar {x:'name', y:'asr', orientation:'horizontal'} for rankings, kpi {tiles:[{label, key}]}, choropleth " +
     "{geo_key:'geo_code', value_key:'asr', level:'district'}, forest {label_key, estimate_key, lci_key, uci_key, reference}, table. " +
     "Optional filter/sort/limit select rows. Returns {ok, chart_id} or an error listing available columns.",
   roles: ["ministry", "doctor"],

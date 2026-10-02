@@ -215,11 +215,149 @@ export async function buildFixture(file = FIXTURE_DB): Promise<string> {
   await run(`CREATE TABLE pt_tumour (patient_id INTEGER, case_status VARCHAR, dx_date DATE, stage_group VARCHAR, lauren VARCHAR, lesion_location VARCHAR,
              lesion_size_mm DOUBLE, t_stage VARCHAR, n_stage VARCHAR, m_stage VARCHAR, grade VARCHAR, treatment_intent VARCHAR)`);
   await run(`INSERT INTO pt_tumour VALUES (3,'CONFIRMED','2025-11-03','III','Diffuse','antrum',32,'T3','N1','M0','Poor','Curative'),(6,'CONFIRMED','2024-08-08','IV','Intestinal','body',45,'T4a','N2','M1','Moderate','Palliative')`);
+  await buildV3(run);
   await run(`CREATE TABLE serve_meta AS SELECT 7 AS run_id, TIMESTAMP '2026-06-30 23:59:59' AS sim_time, now() AS published_at, '[]' AS changed`);
   con.closeSync();
   inst.closeSync();
   writeFileSync(`${file}.meta.json`, JSON.stringify(FIXTURE_META));
   return file;
+}
+
+/**
+ * v3 tables (docs/contracts/v3-loop.md §4.4, §5, §7.1): care snapshot (care_*, pt_care_plan / pt_care_task), journey and
+ * recovery, ministry care marts (with small cells), forecasts with 80/95% bands, drivers, backtests and the learning loop.
+ * Facility 101 owns patients 1-3, facility 102 owns 4-6 (same split as the v1 fixture).
+ */
+async function buildV3(run: (sql: string) => Promise<unknown>): Promise<void> {
+  // ------------------------------------------------------------------ care snapshot
+  await run(`CREATE TABLE care_plans (id VARCHAR, patient_id BIGINT, display_id VARCHAR, facility_id BIGINT, pathway VARCHAR, status VARCHAR,
+             source_alert_id VARCHAR, "trigger" VARCHAR, approved_by VARCHAR, approved_at TIMESTAMP, channels VARCHAR, model_id VARCHAR,
+             risk_at_approval DOUBLE, band_at_approval VARCHAR, propensity DOUBLE, due_override TIMESTAMP, target_facility_id BIGINT,
+             note VARCHAR, emr_encounter_id BIGINT, created_sim TIMESTAMP, closed_sim TIMESTAMP, context VARCHAR)`);
+  await run(`INSERT INTO care_plans VALUES ${values([
+    ["CP-0000A001", 1, "ES-0001-A", 101, "ENDOSCOPY_REFERRAL", "ACTIVE", "a-001", "RISK_BAND_HIGH", "doctor", "2026-05-20 10:00:00", '["APP","SMS"]', "t2_xgb",
+      0.131, "HIGH", 0.6, null, 201, "Called the family; prefers Tuesday appointments", 1900000001, "2026-05-20 10:00:00", null, '{"alarm": true, "distance_km": 12.5, "sex": "F"}'],
+    ["CP-0000A002", 3, "ES-0003-C", 101, "SURVIVORSHIP", "ACTIVE", null, null, "doctor", "2026-01-10 09:00:00", '["APP","CHW"]', "t2_xgb",
+      null, null, null, null, 101, null, 1900000002, "2026-01-10 09:00:00", null, "{}"],
+    ["CP-0000B001", 4, "ES-0004-D", 102, "HP_TEST_AND_TREAT", "ACTIVE", "a-004", "RISK_BAND_HIGH", "doctor", "2026-06-01 09:00:00", '["APP"]', "t2_xgb",
+      0.095, "HIGH", 0.5, null, 102, null, 1900000003, "2026-06-01 09:00:00", null, "{}"],
+  ])}`);
+  await run(`CREATE TABLE care_tasks (id VARCHAR, plan_id VARCHAR, patient_id BIGINT, seq BIGINT, type VARCHAR, title VARCHAR, status VARCHAR,
+             opens_at TIMESTAMP, due_at TIMESTAMP, completed_at TIMESTAMP, evidence VARCHAR, result VARCHAR, reminders BIGINT,
+             last_reminder_sim TIMESTAMP, escalation_level BIGINT, created_sim TIMESTAMP, occurrence BIGINT)`);
+  await run(`INSERT INTO care_tasks VALUES ${values([
+    ["CT-A001-1", "CP-0000A001", 1, 1, "ENDOSCOPY", "Upper GI endoscopy", "ESCALATED", "2026-05-20 10:00:00", "2026-06-03 23:59:59", null, null, null, 3, "2026-06-17 00:00:00", 2, "2026-05-20 10:00:00", null],
+    ["CT-A001-2", "CP-0000A001", 1, 2, "PATHOLOGY_REVIEW", "Pathology review", "SCHEDULED", "2026-06-03 23:59:59", "2026-06-24 23:59:59", null, null, null, 0, null, 0, "2026-05-20 10:00:00", null],
+    ["CT-A002-1", "CP-0000A002", 3, 1, "B12_CHECK", "Vitamin B12 check", "COMPLETED", "2026-01-10 09:00:00", "2026-02-10 23:59:59", "2026-02-01 11:00:00",
+      '{"table": "obs", "id": 501, "concept_id": 3125, "value": 310, "date": "2026-02-01"}', "NORMAL", 1, "2026-01-30 00:00:00", 0, "2026-01-10 09:00:00", 1],
+    ["CT-A002-2", "CP-0000A002", 3, 2, "FOLLOWUP_VISIT", "Survivorship visit", "DUE", "2026-06-20 00:00:00", "2026-07-10 23:59:59", null, null, null, 0, null, 0, "2026-01-10 09:00:00", 2],
+    ["CT-B001-1", "CP-0000B001", 4, 1, "HP_TEST", "H. pylori test", "OVERDUE", "2026-06-01 09:00:00", "2026-06-15 23:59:59", null, null, null, 2, "2026-06-15 00:00:00", 1, "2026-06-01 09:00:00", null],
+  ])}`);
+  await run(`CREATE TABLE care_events (id BIGINT, plan_id VARCHAR, task_id VARCHAR, patient_id BIGINT, kind VARCHAR, detail VARCHAR, actor VARCHAR,
+             sim_time TIMESTAMP, wall_time VARCHAR, created_sim TIMESTAMP)`);
+  await run(`INSERT INTO care_events VALUES ${values([
+    [1, "CP-0000A001", null, 1, "PLAN_CREATED", '{"pathway": "ENDOSCOPY_REFERRAL"}', "doctor", "2026-05-20 10:00:00", "2026-10-01T10:00:00Z", "2026-05-20 10:00:00"],
+    [2, "CP-0000A001", "CT-A001-1", 1, "NOTIFIED", '{"channel": "APP"}', "system", "2026-05-20 10:00:00", "2026-10-01T10:00:00Z", "2026-05-20 10:00:00"],
+    [3, "CP-0000A001", "CT-A001-1", 1, "ESCALATED", '{"level": 2, "channel": "CHW"}', "system", "2026-06-10 00:00:00", "2026-10-01T10:05:00Z", "2026-06-10 00:00:00"],
+    [4, "CP-0000A002", "CT-A002-1", 3, "TASK_COMPLETED", '{"evidence": "obs 501"}', "system", "2026-02-01 11:00:00", "2026-10-01T10:06:00Z", "2026-02-01 11:00:00"],
+  ])}`);
+  await run(`CREATE TABLE care_notifications (id VARCHAR, patient_id BIGINT, plan_id VARCHAR, task_id VARCHAR, channel VARCHAR, template_key VARCHAR,
+             title VARCHAR, body VARCHAR, created_sim TIMESTAMP, delivered_sim TIMESTAMP, read_sim TIMESTAMP, acted_sim TIMESTAMP)`);
+  await run(`INSERT INTO care_notifications VALUES ('N-1', 1, 'CP-0000A001', 'CT-A001-1', 'APP', 'ENDOSCOPY_REFERRAL.ENDOSCOPY.approved',
+             'Check-up advised', 'Please visit Ruhengeri District Hospital for a check-up by 3 June 2026.', '2026-05-20 10:00:00', '2026-05-20 10:00:00', NULL, NULL)`);
+  await run(`CREATE TABLE care_recommendation_outcomes (plan_id VARCHAR, patient_id BIGINT, pathway VARCHAR, approved_sim TIMESTAMP, adhered BIGINT, days_to_completion BIGINT)`);
+  await run(`INSERT INTO care_recommendation_outcomes VALUES ('CP-0000A002', 3, 'SURVIVORSHIP', '2026-01-10 09:00:00', 1, 22)`);
+  await run(`CREATE TABLE pt_care_plan AS SELECT c.*, CAST(NULL AS VARCHAR) AS district_code, CAST(NULL AS DOUBLE) AS distance_km,
+             (SELECT count(*) FROM care_tasks t WHERE t.plan_id = c.id) AS n_tasks FROM care_plans c`);
+  await run(`CREATE TABLE pt_care_task AS SELECT t.*, p.pathway, p.facility_id, p.target_facility_id, p.display_id,
+             CAST(NULL AS VARCHAR) AS district_code, 0 AS days_open, 0 AS overdue_days,
+             t.status IN ('SCHEDULED','DUE','NOTIFIED','OVERDUE','ESCALATED') AS is_open
+             FROM care_tasks t JOIN care_plans p ON p.id = t.plan_id`);
+
+  // ------------------------------------------------------------------ journey + recovery
+  await run(`CREATE TABLE pt_journey (patient_id BIGINT, seq INTEGER, phase VARCHAR, start_date DATE, end_date DATE, status VARCHAR, milestones VARCHAR)`);
+  await run(`INSERT INTO pt_journey VALUES ${values([
+    [3, 1, "Endoscopy", "2025-10-20", "2025-10-20", "done", '[{"date": "2025-10-20", "label": "Endoscopy: suspicious lesion", "kind": "procedure"}]'],
+    [3, 2, "Diagnosis", "2025-11-03", "2025-11-03", "done", '[{"date": "2025-11-03", "label": "Diagnosis confirmed (stage III)", "kind": "diagnosis"}]'],
+    [3, 3, "Treatment", "2025-11-20", "2026-01-05", "done", '[{"date": "2025-12-01", "label": "Gastrectomy", "kind": "surgery"}]'],
+    [3, 4, "Survivorship", "2026-01-10", null, "current", '[{"date": "2026-02-01", "label": "B12 check", "kind": "lab"}]'],
+    [1, 1, "Flagged", "2026-03-31", "2026-05-20", "done", "[]"],
+    [1, 2, "Approved", "2026-05-20", null, "current", '[{"date": "2026-05-20", "label": "Endoscopy referral approved", "kind": "plan"}]'],
+    [4, 1, "Flagged", "2026-01-31", null, "current", "[]"],
+  ])}`);
+  await run(`CREATE TABLE pt_recovery (patient_id BIGINT, as_of DATE, dx_date DATE, intent VARCHAR, gastrectomy BOOLEAN, weight_base DOUBLE, weight_last DOUBLE,
+             weight_change_pct DOUBLE, hb_last DOUBLE, b12_last DOUBLE, albumin_last DOUBLE, ecog_last DOUBLE, chemo_done INTEGER, chemo_planned INTEGER,
+             missed_visits_12m INTEGER, recurrence VARCHAR, next_visit_due DATE, series VARCHAR)`);
+  await run(`INSERT INTO pt_recovery VALUES (3, '2026-06-30', '2025-11-03', 'Curative', TRUE, 61.0, 55.4, -9.18, 11.9, 310, 3.6, 1, 6, 8, 1, 'none', '2026-07-10',
+             '${JSON.stringify({ weight: [{ date: "2025-11-20", value: 61.0 }, { date: "2026-03-01", value: 56.2 }, { date: "2026-06-01", value: 55.4 }], b12: [{ date: "2026-02-01", value: 310 }], hb: [{ date: "2026-06-01", value: 11.9 }] })}')`);
+  await run(`CREATE TABLE pt_treatment (patient_id BIGINT, date TIMESTAMP, kind VARCHAR, value VARCHAR, value_coded INTEGER, value_numeric DOUBLE)`);
+  await run(`INSERT INTO pt_treatment VALUES (3, '2025-12-01 08:00:00', 'GASTRECTOMY', 'Total gastrectomy', 7000, NULL), (6, '2024-09-01 08:00:00', 'INTENT', 'Palliative', NULL, NULL)`);
+
+  // ------------------------------------------------------------------ ministry care marts (small cells on purpose)
+  await run(`CREATE TABLE mart_care_funnel (period DATE, district_code VARCHAR, pathway VARCHAR, flagged INTEGER, approved INTEGER, notified INTEGER,
+             attended INTEGER, endoscopy INTEGER, cancer_found INTEGER, early_stage INTEGER)`);
+  await run(`INSERT INTO mart_care_funnel VALUES ${values([
+    ["2026-04-01", "NOR-MUS", "ENDOSCOPY_REFERRAL", 40, 22, 20, 14, 12, 3, 2],
+    ["2026-05-01", "NOR-MUS", "ENDOSCOPY_REFERRAL", 35, 18, 18, 11, 9, 2, 1],
+    ["2026-05-01", "WES-RUS", "HP_TEST_AND_TREAT", 12, 6, 6, 4, 0, 0, 0],
+    ["2026-06-01", "SOU-NYG", "ENDOSCOPY_REFERRAL", 3, 2, 2, 1, 1, 0, 0],
+  ])}`);
+  await run(`CREATE TABLE mart_care_adherence (dim VARCHAR, level VARCHAR, n INTEGER, adhered INTEGER, rate DOUBLE, median_days DOUBLE)`);
+  await run(`INSERT INTO mart_care_adherence VALUES ('channel','APP',20,12,0.6,21.0),('channel','APP+SMS+CHW',15,12,0.8,14.5),('channel','SMS',3,1,0.333,30.0),
+             ('pathway','ENDOSCOPY_REFERRAL',33,24,0.727,18.0)`);
+  await run(`CREATE TABLE mart_care_impact (route VARCHAR, n INTEGER, early_stage_pct DOUBLE, surv_1y DOUBLE, n_surv_eligible INTEGER, note VARCHAR)`);
+  await run(`INSERT INTO mart_care_impact VALUES ('care_pathway', 4, 50.0, 0.9, 2, 'Synthetic'), ('usual', 380, 22.1, 0.41, 300, 'Synthetic')`);
+  await run(`CREATE TABLE mart_chw_workload (district_code VARCHAR, open_visits INTEGER, overdue INTEGER, completed_30d INTEGER)`);
+  await run(`INSERT INTO mart_chw_workload VALUES ('NOR-MUS', 12, 3, 9), ('WES-RUS', 2, 0, 1)`);
+
+  // ------------------------------------------------------------------ forecasts
+  await run(`CREATE TABLE mart_forecast (series_id VARCHAR, geo_level VARCHAR, geo_code VARCHAR, sex VARCHAR, age_band VARCHAR, freq VARCHAR, period TIMESTAMP,
+             kind VARCHAR, metric VARCHAR, mean DOUBLE, lo80 DOUBLE, hi80 DOUBLE, lo95 DOUBLE, hi95 DOUBLE, model VARCHAR, run_id VARCHAR, cases_obs DOUBLE)`);
+  const fc: unknown[][] = [];
+  for (let y = 2015; y <= 2031; y++) {
+    const hist = y <= 2025;
+    const m = 2000 + 80 * (y - 2015);
+    const w = hist ? 0 : 60 + 40 * (y - 2025);
+    fc.push(["NATIONAL|ALL|ALL|REGISTRY", "NATIONAL", "RW", "ALL", "ALL", "Y", `${y}-01-01 00:00:00`, hist ? "history" : "forecast", "cases", m,
+      hist ? null : m - w * 0.64, hist ? null : m + w * 0.64, hist ? null : m - w, hist ? null : m + w, hist ? "observed" : "ensemble(apc+ets)", "fc-test", hist ? m : null]);
+    const d = hist ? (y % 2 ? 3 : 6) : 6;
+    fc.push(["SOU-NYG|ALL|ALL|REGISTRY", "DISTRICT", "SOU-NYG", "ALL", "ALL", "Y", `${y}-01-01 00:00:00`, hist ? "history" : "forecast", "cases", d,
+      hist ? null : d - 1, hist ? null : d + 1, hist ? null : d - 2, hist ? null : d + 3, hist ? "observed" : "ensemble(apc+ets)", "fc-test", hist ? d : null]);
+  }
+  await run(`INSERT INTO mart_forecast VALUES ${values(fc)}`);
+  await run(`CREATE TABLE mart_forecast_drivers (geo_level VARCHAR, geo_code VARCHAR, from_year INTEGER, to_year INTEGER, component VARCHAR, cases DOUBLE, pct DOUBLE,
+             cases_from DOUBLE, cases_to DOUBLE, total_change DOUBLE)`);
+  await run(`INSERT INTO mart_forecast_drivers VALUES ('NATIONAL','RW',2025,2031,'population',190,6.55,2800,3280,480),('NATIONAL','RW',2025,2031,'ageing',210,7.5,2800,3280,480),
+             ('NATIONAL','RW',2025,2031,'risk',80,2.86,2800,3280,480)`);
+  await run(`CREATE TABLE ml_forecast_backtest (series_id VARCHAR, origin_year BIGINT, horizon BIGINT, year BIGINT, actual DOUBLE, forecast DOUBLE, mape DOUBLE,
+             cov80 DOUBLE, cov95 DOUBLE, crps DOUBLE, model VARCHAR)`);
+  await run(`INSERT INTO ml_forecast_backtest VALUES ('NATIONAL|ALL|ALL|REGISTRY',2018,1,2019,2300,2250,4.0,1,1,0.02,'ensemble'),('NATIONAL|ALL|ALL|REGISTRY',2018,2,2020,2400,2290,6.0,0,1,0.03,'ensemble')`);
+  await run(`CREATE TABLE ml_forecast_runs (run_id VARCHAR, sim_time TIMESTAMP, created_at TIMESTAMP, source VARCHAR, source_label VARCHAR, case_def VARCHAR,
+             first_year BIGINT, last_full_year BIGINT, horizon_year BIGINT)`);
+  await run(`INSERT INTO ml_forecast_runs VALUES ('fc-test','2026-06-30 23:59:59','2026-07-01 00:00:00','registry','Synthetic national cancer registry','REGISTRY',2000,2025,2031)`);
+  await run(`CREATE TABLE ext_registry (year SMALLINT, district_code VARCHAR, sex VARCHAR, age_band VARCHAR, cases INTEGER, completeness DOUBLE, population DOUBLE, source_note VARCHAR)`);
+  await run(`INSERT INTO ext_registry VALUES (2024,'NOR-MUS','M','60-64',12,0.85,8000,'(Synthetic)'),(2024,'SOU-NYG','F','40-44',2,0.85,9000,'(Synthetic)')`);
+
+  // ------------------------------------------------------------------ learning loop
+  await run(`ALTER TABLE ml_model_registry ADD COLUMN status VARCHAR`);
+  await run(`ALTER TABLE ml_model_registry ADD COLUMN trained_at TIMESTAMP`);
+  await run(`ALTER TABLE ml_model_registry ADD COLUMN parent_model_id VARCHAR`);
+  await run(`ALTER TABLE ml_model_registry ADD COLUMN n_feedback_labels INTEGER`);
+  await run(`ALTER TABLE ml_model_registry ADD COLUMN promoted_by VARCHAR`);
+  await run(`UPDATE ml_model_registry SET status = 'champion', trained_at = '2026-01-01 00:00:00'`);
+  await run(`INSERT INTO ml_model_registry (model_id, tier, is_active, path, params_json, status, trained_at, parent_model_id, n_feedback_labels, promoted_by)
+             VALUES ('t2_xgb_ch1', 2, FALSE, 'y', '{}', 'challenger', '2026-06-30 00:00:00', 't2_xgb', 42, NULL)`);
+  await run(`CREATE TABLE ml_retrain_runs (run_id VARCHAR, sim_time TIMESTAMP, champion_id VARCHAR, challenger_id VARCHAR, metrics VARCHAR, gates VARCHAR,
+             decision VARCHAR, decided_by VARCHAR, decided_at TIMESTAMP, n_feedback_labels INTEGER, train_window VARCHAR, runtime_s DOUBLE, started_at TIMESTAMP)`);
+  await run(`INSERT INTO ml_retrain_runs VALUES ('rt-1','2026-06-30 23:59:59','t2_xgb','t2_xgb_ch1','{}','${JSON.stringify([
+    { name: "auroc", value: 0.004, threshold: -0.01, pass: true, champion: 0.83, challenger: 0.834 },
+    { name: "high_volume_change", value: 0.4, threshold: 0.25, pass: true, champion: 20, challenger: 28, note: "relative change within +/-25% or absolute change <= 22 patients" },
+  ])}','pending',NULL,NULL,42,'2016-01-01/2025-06-30',31.5,'2026-10-01 00:00:00')`);
+  await run(`CREATE TABLE mart_model_monitoring (as_of TIMESTAMP, model_id VARCHAR, metric VARCHAR, value DOUBLE, n INTEGER, detail VARCHAR)`);
+  await run(`INSERT INTO mart_model_monitoring VALUES ('2026-06-30 23:59:59','t2_xgb','psi:age',0.03,4400,'stable'),('2026-06-30 23:59:59','t2_xgb','psi:days_in_cohort',0.73,4400,'major'),
+             ('2026-06-30 23:59:59','t2_xgb','alert_volume',134,134,'new alerts'),('2026-06-30 23:59:59','t2_xgb','ppv_verified',0.0,1,'HIGH flags')`);
+  await run(`CREATE TABLE ml_feedback_labels (patient_id BIGINT, landmark_date DATE, label INTEGER, label_kind VARCHAR, source VARCHAR, verified BOOLEAN, propensity DOUBLE)`);
+  await run(`INSERT INTO ml_feedback_labels VALUES (3,'2025-10-01',1,'cancer','care_outcome',TRUE,0.6),(1,'2026-05-20',0,'hp','care_outcome',TRUE,0.5)`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
