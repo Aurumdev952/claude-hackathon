@@ -5,12 +5,29 @@ import unicodedata
 
 import polars as pl
 
-from shared.config import REF_DIR
+from shared.config import DATA_DIR, REF_DIR
 from shared.geo import AGE_GROUPS, DISTRICTS, PROVINCES, WHO_STD
 
 
 def _norm(s: str) -> str:
     return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
+
+
+EXTERNAL = {"ext_registry": "registry_incidence.parquet", "ext_surveys": "risk_factor_surveys.parquet",
+            "ext_population": "population_projections.parquet"}
+
+
+def load_external(con, ext_dir=None) -> list[str]:
+    """v3 external synthetic sources (generator/external, `make external-data`) -> ext_registry, ext_surveys,
+    ext_population. A missing file is skipped (the table, if any, is left as it is)."""
+    ext_dir = ext_dir or (DATA_DIR / "external")
+    loaded = []
+    for tbl, fname in EXTERNAL.items():
+        f = ext_dir / fname
+        if f.exists():
+            con.execute(f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM read_parquet('{f.as_posix()}')")
+            loaded.append(tbl)
+    return loaded
 
 
 def load_refs(con):
@@ -32,3 +49,4 @@ def load_refs(con):
     con.execute(f"""CREATE OR REPLACE TABLE core_facility_events AS
                     SELECT location_id, CAST(event_date AS DATE) AS event_date, event_type, description
                     FROM read_csv_auto('{(REF_DIR / 'facility_events.csv').as_posix()}')""")
+    load_external(con)

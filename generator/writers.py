@@ -2,7 +2,6 @@
 future (> history_end), which the simulator replays in time order (docs/decisions.md D-07)."""
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 
@@ -41,6 +40,48 @@ COLUMNS = {
     "patient_program": ["patient_program_id", "patient_id", "program_id", "date_enrolled", "date_completed",
                         "location_id", "outcome_concept_id", "creator", "date_created", "voided", "uuid"],
 }
+_DT = pl.Datetime("us")
+# exact Parquet dtypes of the bulk/future copies (chunk_frames output); writeback rows are cast to these (care/emr.py)
+SCHEMAS: dict[str, dict[str, pl.DataType]] = {
+    "person": {"person_id": pl.Int64, "gender": pl.String, "birthdate": pl.Date, "birthdate_estimated": pl.Int8,
+               "dead": pl.Int8, "death_date": _DT, "cause_of_death": pl.Int32, "creator": pl.Int16, "date_created": _DT,
+               "voided": pl.Int8, "uuid": pl.String},
+    "person_name": {"person_name_id": pl.Int64, "person_id": pl.Int64, "preferred": pl.Int8, "given_name": pl.String,
+                    "family_name": pl.String, "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8, "uuid": pl.String},
+    "person_address": {"person_address_id": pl.Int64, "person_id": pl.Int64, "preferred": pl.Int8, "country": pl.String,
+                       "state_province": pl.String, "county_district": pl.String, "address3": pl.String,
+                       "latitude": pl.String, "longitude": pl.String, "start_date": _DT, "end_date": _DT,
+                       "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8, "uuid": pl.String},
+    "person_attribute": {"person_attribute_id": pl.Int64, "person_id": pl.Int64, "value": pl.String,
+                         "person_attribute_type_id": pl.Int16, "creator": pl.Int16, "date_created": _DT,
+                         "voided": pl.Int8, "uuid": pl.String},
+    "patient": {"patient_id": pl.Int64, "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8},
+    "patient_identifier": {"patient_identifier_id": pl.Int64, "patient_id": pl.Int64, "identifier": pl.String,
+                           "identifier_type": pl.Int16, "preferred": pl.Int8, "location_id": pl.Int32,
+                           "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8, "uuid": pl.String},
+    "visit": {"visit_id": pl.Int64, "patient_id": pl.Int64, "visit_type_id": pl.Int16, "date_started": _DT,
+              "date_stopped": _DT, "location_id": pl.Int32, "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8,
+              "uuid": pl.String},
+    "encounter": {"encounter_id": pl.Int64, "encounter_type": pl.Int16, "patient_id": pl.Int64, "location_id": pl.Int32,
+                  "visit_id": pl.Int64, "encounter_datetime": _DT, "creator": pl.Int16, "date_created": _DT,
+                  "voided": pl.Int8, "uuid": pl.String},
+    "obs": {"obs_id": pl.Int64, "person_id": pl.Int64, "concept_id": pl.Int32, "encounter_id": pl.Int64,
+            "order_id": pl.Int64, "obs_datetime": _DT, "location_id": pl.Int32, "obs_group_id": pl.Int64,
+            "value_coded": pl.Int32, "value_numeric": pl.Float64, "value_text": pl.String, "value_datetime": pl.String,
+            "comments": pl.String, "status": pl.String, "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8,
+            "void_reason": pl.String, "uuid": pl.String},
+    "orders": {"order_id": pl.Int64, "order_type_id": pl.Int16, "concept_id": pl.Int32, "patient_id": pl.Int64,
+               "encounter_id": pl.Int64, "date_activated": _DT, "date_stopped": _DT, "urgency": pl.String,
+               "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8, "uuid": pl.String},
+    "drug_order": {"order_id": pl.Int64, "drug_inventory_id": pl.Int32, "dose": pl.Float64, "dose_units": pl.Int32,
+                   "frequency": pl.String, "duration": pl.Int32, "duration_units": pl.String, "quantity": pl.Float64,
+                   "num_refills": pl.Int32},
+    "patient_program": {"patient_program_id": pl.Int64, "patient_id": pl.Int64, "program_id": pl.Int16,
+                        "date_enrolled": _DT, "date_completed": _DT, "location_id": pl.Int32,
+                        "outcome_concept_id": pl.Int32, "creator": pl.Int16, "date_created": _DT, "voided": pl.Int8,
+                        "uuid": pl.String},
+}
+assert all(list(SCHEMAS[t]) == COLUMNS[t] for t in COLUMNS)
 PATIENT_TABLES = ["person", "person_name", "person_address", "person_attribute", "patient", "patient_identifier"]
 CLINICAL_TABLES = ["visit", "encounter", "obs", "orders", "drug_order", "patient_program"]
 ALL_TABLES = PATIENT_TABLES + CLINICAL_TABLES

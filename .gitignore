@@ -23,3 +23,24 @@ data/analytics/tmp/
 *.tsbuildinfo
 *.tmp.mjs
 logs/
+# agent backend
+agent/data/
+agent/sandbox/.venv/
+agent/dist/
+agent/node_modules/
+evals/agent/results/*
+!evals/agent/results/latest.json
+reports/snapshots/*.json
+!reports/snapshots/latest.json
+
+# libsql test artefacts (":memory:" opened as a file path)
+:memory:*
+
+# v3 loop outputs
+data/next/
+data/external/
+data/videos/
+video/node_modules/
+video/out/
+video/public/models/
+data/v3*/

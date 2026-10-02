@@ -66,11 +66,13 @@ export function BodyModel({ state, anchors, reducedMotion, onOrgans }: {
       u.uHover.value = damp(u.uHover.value, focused ? 1 : 0, 10, dt);
       const dim = emph && !focused && !SHELLS.has(id) && id !== "skeleton" ? 1 : 0;
       u.uDim.value = damp(u.uDim.value, dim, 8, dt);
-      u.uXray.value = damp(u.uXray.value, ui.xray && !SHELLS.has(id) ? 1 : 0, 6, dt);
+      // post-gastrectomy (v3): the resected stomach becomes a ghost, a faint x-ray rim at low opacity
+      const ghost = id === "stomach" ? (s.resected ?? 0) : 0;
+      u.uXray.value = damp(u.uXray.value, Math.max(ui.xray && !SHELLS.has(id) ? 1 : 0, ghost), 6, dt);
 
       // layer visibility (fade, then hide so hidden layers don't cost fill-rate)
       const visible = id === "skin" ? ui.layers.skin : id === "muscles" ? ui.layers.muscles : id === "skeleton" ? ui.layers.skeleton : ui.layers.organs;
-      const targetOp = visible ? (id === "muscles" ? 0.9 : 1) : 0;
+      const targetOp = visible ? (id === "muscles" ? 0.9 : 1) * (1 - 0.72 * ghost) : 0;
       u.uOpacity.value = damp(u.uOpacity.value, targetOp, 7, dt);
       o.mesh.visible = u.uOpacity.value > 0.01;
 

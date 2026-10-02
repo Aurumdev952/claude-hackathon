@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from scipy.optimize import minimize_scalar
-from sklearn.isotonic import IsotonicRegression
+from ml.calibration import fit_calibrator
 from sklearn.metrics import average_precision_score
 
 from . import model as M
@@ -78,7 +78,7 @@ def fit(train, val, vocab_size: int, cfg: dict, log=print, seed: int = 42):
                 break
     zv = predict_logits(best_p, cfg, val["ids"], val["days"], val["age"], val["static"])
     T = _temperature(zv, val["y"])
-    iso = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0).fit(1 / (1 + np.exp(-zv / T)), val["y"])
+    iso = fit_calibrator(1 / (1 + np.exp(-zv / T)), val["y"])  # same small-plateau shrinkage as tier 2 (D-58)
     return best_p, T, iso, history
 
 

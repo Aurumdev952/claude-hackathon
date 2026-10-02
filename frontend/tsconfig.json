@@ -14,7 +14,19 @@
     "noEmit": true,
     "types": ["vite/client"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": {
+      "@/*": ["src/*"],
+      "@agent/widgets": ["../agent/src/widgets/specs.ts"],
+      "@video/*": ["../video/src/*"],
+      "zod": ["./node_modules/zod"],
+      "remotion": ["./node_modules/remotion"],
+      "@remotion/*": ["./node_modules/@remotion/*"],
+      "three": ["./node_modules/@types/three"],
+      "three/*": ["./node_modules/@types/three/*"],
+      "@react-three/fiber": ["./node_modules/@react-three/fiber"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../agent/src/widgets"]
 }

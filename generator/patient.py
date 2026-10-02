@@ -11,7 +11,8 @@ class Patient:
                  "move_day", "district2", "emr_start", "hp", "tobacco", "alcohol", "alcohol_heavy", "salt", "smoked",
                  "family_hx", "nsaid", "atrophy_day", "hiv", "hiv_dx", "htn", "htn_dx", "dm", "dm_dx", "water", "fuel",
                  "occupation", "fruit_veg", "hb_base", "height", "bmi", "hot", "micro", "hp_erad_day", "initial_done",
-                 "hb_decline", "wt_loss", "cancer", "died_of", "death_recorded", "lifestyle_recorded", "death_enc", "death_traced")
+                 "hb_decline", "wt_loss", "cancer", "died_of", "death_recorded", "lifestyle_recorded", "death_enc", "death_traced",
+                 "hb_stop", "wt_stop", "wt_post")
 
     def __init__(self, P: dict, i: int):
         self.i = i
@@ -45,6 +46,9 @@ class Patient:
         self.lifestyle_recorded = {}
         self.death_enc = False
         self.death_traced = False
+        self.hb_stop = None      # treatment start: tumour bleeding stops, Hb recovers (survivorship, v3)
+        self.wt_stop = None      # treatment start: tumour weight loss stops
+        self.wt_post = None      # (surgery_day, drop_kg, regain_fraction) after gastrectomy
 
     # -- time-varying attributes --------------------------------------------------------
     def age(self, day: int) -> float:
@@ -63,7 +67,11 @@ class Patient:
         age = self.age(day)
         base = self.hb_base if age >= 15 else 11.2 + 0.12 * max(age, 0)
         if self.hb_decline and day > self.hb_decline[0]:
-            base -= self.hb_decline[1] * (day - self.hb_decline[0]) / 30.44
+            end = day if self.hb_stop is None else min(day, max(self.hb_stop, self.hb_decline[0]))
+            deficit = self.hb_decline[1] * (end - self.hb_decline[0]) / 30.44
+            base -= deficit
+            if self.hb_stop is not None and day > self.hb_stop:  # after treatment: recovers 0.3 g/dL a month, to 80%
+                base += min(0.8 * deficit, 0.3 * (day - self.hb_stop) / 30.44)
         return max(base, 4.5)
 
     def weight(self, day: int) -> float:
@@ -74,7 +82,11 @@ class Patient:
         else:
             w = self.bmi * (self.height / 100) ** 2
         if self.wt_loss and day > self.wt_loss[0]:
-            w -= self.wt_loss[1] * (day - self.wt_loss[0]) / 30.44
+            end = day if self.wt_stop is None else min(day, max(self.wt_stop, self.wt_loss[0]))
+            w -= self.wt_loss[1] * (end - self.wt_loss[0]) / 30.44
+        if self.wt_post and day > self.wt_post[0]:  # post-gastrectomy: loss over 6 months, partial regain over 12
+            m = (day - self.wt_post[0]) / 30.44
+            w -= self.wt_post[1] * min(1.0, m / 6) * (1 - self.wt_post[2] * min(1.0, max(0.0, m - 6) / 12))
         return max(w, 3.0)
 
     def height_at(self, day: int) -> float:

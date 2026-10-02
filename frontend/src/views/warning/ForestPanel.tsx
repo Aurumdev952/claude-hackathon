@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import type { EChartsOption } from "echarts";
 import { EChart } from "@/components/charts/EChart";
-import { DataTable, ErrorNote, Loading, Panel } from "@/components/ui/Panel";
+import { Crosshair } from "lucide-react";
+import { Card, chartDetailTabs, DataTable, Loading } from "@/components/ui";
+import { ErrorNote } from "@/components/ui/ErrorNote";
 import { fmt } from "@/lib/format";
 import { chartBase, tipHead, tipRow, usePalette } from "../trends/kit";
 import { SIGNAL_LABEL, useOr } from "./api";
@@ -30,11 +32,11 @@ export function ForestPanel() {
         { ...b.yAxis, type: "category", data: cats, inverse: true, splitLine: { show: false }, axisLabel: { color: k.secondary, fontSize: 11.5, formatter: (v: string) => SIGNAL_LABEL[v] ?? v } },
         { ...b.yAxis, type: "category", data: cats, inverse: true, position: "right", splitLine: { show: false },
           axisLabel: { color: k.primary, fontSize: 11, align: "left", margin: 12, rich: { m: { color: k.muted, fontSize: 10.5 } },
-            formatter: (v: string) => { const r = rows.find((x) => x.signal === v)!; return `${fmt(r.or, 1)} {m|[${fmt(r.lci, 1)}–${fmt(r.uci, 1)}]}`; } } },
+            formatter: (v: string) => { const r = rows.find((x) => x.signal === v)!; return `${fmt(r.or, 1)} {m|(${fmt(r.lci, 1)}–${fmt(r.uci, 1)})}`; } } },
       ],
       tooltip: { ...b.tooltip, trigger: "item", formatter: (p: any) => {
         const r = rows[p.data.value[2]];
-        return tipHead(SIGNAL_LABEL[r.signal] ?? r.signal) + tipRow(c, "Odds ratio", fmt(r.or, 1), `[${fmt(r.lci, 1)}–${fmt(r.uci, 1)}]`) +
+        return tipHead(SIGNAL_LABEL[r.signal] ?? r.signal) + tipRow(c, "Odds ratio", fmt(r.or, 1), `(${fmt(r.lci, 1)}–${fmt(r.uci, 1)})`) +
           tipRow(null, "Cases with signal", `${fmt(r.pct_cases, 0)}%`) + tipRow(null, "Controls with signal", `${fmt(r.pct_controls, 0)}%`) + tipRow(null, "p", pFmt(r.p));
       } },
       series: [{
@@ -56,30 +58,18 @@ export function ForestPanel() {
     } as EChartsOption;
   }, [rows, pal]);
 
+  const method = "Conditional logistic regression on the matched sets (statsmodels ConditionalLogit), one signal at a time. Windows are the 12 months before the index date (6 months for weight loss). OR = 1 means no association; the x-axis is logarithmic so ×2 and ÷2 look the same distance from 1.";
+  const table = <DataTable columns={[{ key: "signal", label: "Signal", fmt: (v) => SIGNAL_LABEL[v] ?? v }, { key: "pct_cases", label: "% cases", num: true, fmt: (v) => fmt(v, 1) },
+    { key: "pct_controls", label: "% controls", num: true, fmt: (v) => fmt(v, 1) }, { key: "or", label: "OR", num: true, fmt: (v) => fmt(v, 2) },
+    { key: "ci", label: "95% CI", num: true, fmt: (_v, r) => `${fmt(r.lci, 2)}–${fmt(r.uci, 2)}` }, { key: "p", label: "p", num: true, fmt: pFmt }]} rows={rows} />;
   return (
-    <Panel
-      title="Which signals separate cases from controls?"
-      subtitle="Odds ratio for having each signal before the index date (95% CI). Right: OR [CI]."
-      method="Conditional logistic regression on the matched sets (statsmodels ConditionalLogit), one signal at a time. Windows are the 12 months before the index date (6 months for weight loss). OR = 1 means no association; the x-axis is logarithmic so ×2 and ÷2 look the same distance from 1."
-      table={<DataTable columns={[{ key: "signal", label: "Signal", fmt: (v) => SIGNAL_LABEL[v] ?? v }, { key: "pct_cases", label: "% cases", num: true, fmt: (v) => fmt(v, 1) },
-        { key: "pct_controls", label: "% controls", num: true, fmt: (v) => fmt(v, 1) }, { key: "or", label: "OR", num: true, fmt: (v) => fmt(v, 2) },
-        { key: "ci", label: "95% CI", num: true, fmt: (_v, r) => `${fmt(r.lci, 2)}–${fmt(r.uci, 2)}` }, { key: "p", label: "p", num: true, fmt: pFmt }]} rows={rows} />}
+    <Card
+      title="Signals that separate cases" icon={<Crosshair size={16} />}
+      detail={{ tabs: chartDetailTabs({ table, method: <><p>Odds ratio for having each signal before the index date, with its 95% CI (right axis). The share of cases and controls with each signal is in the table and the tooltip.</p><p className="mt-2">{method}</p></> }), defaultTab: "table" }} detailLabel="Signals: view as table"
     >
       {q.error ? <ErrorNote error={q.error} /> : !option ? <Loading h={240} /> : (
-        <>
-          <EChart option={option} height={236} ariaLabel="Forest plot of signal odds ratios on a log scale" />
-          <ul className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 text-[11.5px] tabular mt-2 border-t border-line/50 pt-2">
-            <li className="contents text-fog text-[10.5px] uppercase tracking-[0.1em]"><span>Signal present in</span><span className="text-right">Cases</span><span className="text-right">Controls</span></li>
-            {rows.map((r) => (
-              <li key={r.signal} className="contents">
-                <span className="text-fog truncate">{SIGNAL_LABEL[r.signal] ?? r.signal}</span>
-                <span className="text-right font-semibold">{fmt(r.pct_cases, 0)}%</span>
-                <span className="text-right text-fog">{fmt(r.pct_controls, 0)}%</span>
-              </li>
-            ))}
-          </ul>
-        </>
+        <EChart option={option} height={352} ariaLabel="Forest plot of signal odds ratios on a log scale" />
       )}
-    </Panel>
+    </Card>
   );
 }

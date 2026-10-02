@@ -1,4 +1,4 @@
-"""Tier 2: XGBoost + isotonic calibration + SHAP reasons (SPEC §13.6)."""
+"""Tier 2: XGBoost + isotonic calibration (with small-plateau shrinkage, D-58) + SHAP reasons (SPEC §13.6)."""
 from __future__ import annotations
 
 import json
@@ -11,9 +11,10 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 import yaml
-from sklearn.isotonic import IsotonicRegression
 
 from shared.config import models_cfg
+
+from .calibration import fit_calibrator
 
 REASONS = yaml.safe_load(open(Path(__file__).parent / "reasons.yaml"))
 
@@ -27,7 +28,7 @@ def train(Xtr: pd.DataFrame, ytr, Xva: pd.DataFrame, yva, seed: int = 42):
                             early_stopping_rounds=p["early_stopping_rounds"], tree_method="hist", random_state=seed, n_jobs=os.cpu_count())
     clf.fit(Xtr, ytr, eval_set=[(Xva, yva)], verbose=False)
     raw_va = clf.predict_proba(Xva)[:, 1]
-    iso = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0).fit(raw_va, yva)
+    iso = fit_calibrator(raw_va, yva)  # isotonic with small-plateau shrinkage (ml/calibration.py, D-58)
     return clf, iso
 
 

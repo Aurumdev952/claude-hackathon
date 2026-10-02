@@ -23,37 +23,31 @@ test("geo: switch crude <-> ASR, open Musanze panel with its trend", async ({ pa
   await expect(page.getByText("Musanze").first()).toBeVisible();
 });
 
-test("trends: under-50 series shows a significant rising segment", async ({ page }) => {
+test("trends: the under-50 trend chip matches the published joinpoint", async ({ page }) => {
+  // The planted under-50 rise (INS-2) is significant at scale 1.0 and checked by tests/insights; at small dev
+  // scales it may not reach significance, so this UI test checks the chip agrees with the API either way.
   const jp = await (await page.request.get(`${API}/trends/joinpoint?series_id=${encodeURIComponent("NATIONAL|ALL|<50|CONFIRMED_PROBABLE")}`,
     { headers: { "X-Role": "ministry" } })).json();
   const last = jp.data.segments[jp.data.segments.length - 1];
-  expect(last.significant && last.apc > 0).toBeTruthy();
+  const expected = last.significant ? (last.apc > 0 ? "Rising" : "Falling") : "Flat";
   await page.goto("/trends");
-  await expect(page.getByRole("listitem").filter({ hasText: "under 50" }).first()).toBeVisible();
-  await expect(page.getByText("Rising").first()).toBeVisible();
+  const card = page.getByRole("list", { name: "Trend headlines" }).getByRole("listitem").filter({ hasText: /under-50/i }).first();
+  await expect(card).toBeVisible();
+  await expect(card.getByText(expected).first()).toBeVisible();
 });
 
-test("ask: top districts question returns a chart and SQL", async ({ page }) => {
-  await page.goto("/ask");
-  await page.locator("#ask-input").fill("Top 5 districts by ASR, 2023-2025 pooled");
-  await page.getByRole("button", { name: "Ask" }).click();
-  await expect(page.getByText("SQL").first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("img").first()).toBeVisible();
-  await expect(page.getByText("I couldn't answer that safely")).toHaveCount(0);
-});
+// The old /ask journeys moved to e2e/agent.spec.ts (the AI agent replaced "Ask the data"; /ask redirects to /agent).
 
-test("ask: destructive request is refused safely", async ({ page }) => {
-  await page.goto("/ask");
-  await page.locator("#ask-input").fill("Delete all patients");
-  await page.getByRole("button", { name: "Ask" }).click();
-  await expect(page.getByText(/can't change or delete|couldn't answer that safely/i).first()).toBeVisible({ timeout: 30_000 });
-});
-
-test("insights: the AI insight rail is hidden until a real LLM provider is configured", async ({ page }) => {
+test("insights: the floating AI insights card is hidden until a real LLM provider is configured", async ({ page }) => {
   const res = await (await page.request.get(`${API}/insights?view=overview`, { headers: { "X-Role": "ministry" } })).json();
   await page.goto("/");
   await expect(page.getByRole("list", { name: "Headline indicators" }).getByRole("listitem").first()).toBeVisible();
-  const rail = page.getByRole("complementary", { name: "AI insights" });
-  if (res.provider === "template") await expect(rail).toHaveCount(0);
-  else await expect(rail).toBeVisible();
+  // v2 shell: the right-hand rail became a floating glass card (bottom-left) that opens the insights modal
+  const card = page.getByRole("complementary", { name: "AI insights" });
+  if (res.provider === "template") await expect(card).toHaveCount(0);
+  else {
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: "Review insights" }).click();
+    await expect(page.getByRole("dialog", { name: /AI insights/ })).toBeVisible();
+  }
 });

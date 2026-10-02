@@ -26,6 +26,8 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
 
 ### Dashboard views
 
+The UI uses HeroUI + Framer Motion on a light, card-based design (dark mode toggle in the top bar). Explanations sit behind ⓘ icons and details open in modals, so the screens show charts, numbers and titles.
+
 1. **National Overview**: KPIs with deltas and sparklines, national trend with joinpoints, mini 3D map.
 2. **Geo Explorer**: extruded district map (ASR / crude / SIR / LISA / HP testing / stage IV), hexbins, facilities, referral arcs, time slider.
 3. **Trends Lab**: multi-series ASR with CIs, joinpoint table, 3D "rate landscape", crude vs ASR.
@@ -41,7 +43,7 @@ Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1
      - X-ray mode, layer toggles, click-to-fly camera, two-way hover between the lists and the body;
      - a timeline **replay** that relights the body month by month;
      - a table fallback and reduced-motion support.
-8. **Ask the Data**: natural-language questions → validated read-only SQL → answer, chart, table, SQL.
+8. **Agent** (`/agent`): chat with the clinical assistant (doctor role) or the ministry analyst (ministry role). Answers stream with markdown, chart widgets, patient cards and sandbox plots; messages can be edited, rewound and regenerated. See [AI agent and MCP](#ai-agent-and-mcp).
 
 ## Quick start
 
@@ -125,6 +127,99 @@ What the build container measured on the final dataset:
 ### Offline demo (no backend)
 
 `VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
+
+<!-- v3: closing the loop (track U3) -->
+## v3: closing the loop
+
+v3 follows the patient past the flag: a doctor approves a care plan, the patient gets advice to visit on a simulated
+phone, the synthetic EMR records whether they came (the care world decides, with reminders and CHW visits), the outcome
+updates the journey, the marts and a challenger model, and the ministry sees the programme, a 2031 outlook and data
+videos. Contracts: [`docs/contracts/v3-loop.md`](docs/contracts/v3-loop.md); decisions D-46 to D-57.
+
+| Part | Folder | What it does |
+|---|---|---|
+| Care engine | `care/`, `config/care_pathways.yaml` | Six pathways (endoscopy referral, H. pylori test and treat, anaemia work-up, oncology, survivorship, palliative), tasks closed by EMR evidence, reminder ladder app -> SMS -> CHW -> doctor |
+| Sim clock + care world | `simulator/local.py`, `simulator/care_world.py` | MySQL-free time travel: replay the future, simulate how patients respond, write EMR rows back, re-run the pipeline |
+| Learning loop | `ml/retrain.py`, `ml/adherence.py` | IPW challenger on verified outcomes, gates, human Promote in Model Arena |
+| Forecasting | `ml/forecast/`, `generator/external/` | Synthetic registry 2000-2026, surveys, projections; APC + ETS forecasts to 2031 with 80/95% bands, drivers, scenarios |
+| Patient app | `frontend/src/views/patient` | Phone-frame simulator at `/patient` (PWA screens) |
+| Videos | `video/` | Remotion case summary (doctor) and national reel (ministry), MP4 with poster |
+
+**Demo the full loop in 10 steps** (dataset in `data/v3`; `make` exports `DATA_DIR` from `.env`):
+
+1. **Data and servers.** `make dev-data-next` once (about 15 min), then `make care-seed` (8 demo plans at Musanze 1207 and
+   Kayonza 1219) and `make serve` (API :8000, dashboard :5173, agent :8787, video :8790).
+2. **Doctor approves.** Switch the role pill to Doctor, facility Musanze District Hospital. In the workspace open a
+   HIGH-risk patient's case, click **Approve & plan** on the alert, keep the suggested pathway (for example endoscopy
+   referral), check the patient message preview (advice to visit, no diagnosis words) and approve.
+3. **Patient phone.** Switch the role to Patient and pick the same display ID at `/patient`: the notification drops in
+   on the phone frame, the care plan shows the open task, and the event log explains what happened.
+4. **Patient acts.** On the phone tap "I've booked" or send a weekly check-in; it is written to the EMR as a
+   `PATIENT_REPORTED` encounter.
+5. **Advance time.** Open the **Simulation** popover in the top bar and click +1 week (or run `make advance DAYS=7`).
+   The care world decides who attends; reminders, SMS and CHW visits fire for overdue tasks.
+6. **Evidence closes tasks.** Back as the doctor, the **Follow-ups** tab lists overdue tasks first (ranked by predicted
+   adherence); the patient's task turns COMPLETED with an EMR evidence link once the endoscopy encounter arrives.
+7. **Journey.** The case screen's **Journey** tab shows the phase track (Flagged -> Approved -> Notified -> Endoscopy ->
+   Diagnosis -> Treatment ...), recovery tiles (weight, B12, Hb, ECOG, chemo cycles) and the survivorship schedule.
+8. **Ministry programme and learning loop.** As Ministry, **Follow-up** (`/programme`) shows the funnel flagged ->
+   approved -> notified -> attended -> endoscopy, adherence by channel and distance, CHW workload; **Models** shows the
+   challenger, its gates and the **Promote** button (`make retrain` trains one now).
+9. **Outlook.** `/outlook` shows the 2031 fan chart with 80/95% bands, the drivers (population, ageing, risk) and the
+   scenario simulator (for example +50% H. pylori test-and-treat: cases averted and stage shift, associational).
+10. **Video and agent.** **Create video** on the case screen (doctor) or on Overview / Outlook (ministry) renders an MP4
+    with a poster and download link. Ask the agent "Which follow-ups are overdue?", "Draft an H. pylori plan for
+    MUS-00241753" (a preview only: the doctor approves in the UI) or "How many cases do we expect in 2031?".
+
+The daily brief (`make report`) now includes care coordination KPIs and the 2031 outlook line.
+
+<!-- /v3 -->
+
+## AI agent and MCP
+
+`agent/` is a Node service (Hono + Vercel AI SDK 7) with two agents: a **clinical assistant** for doctors (facility-scoped, patient widgets) and a **ministry analyst** for health officials (aggregates only, cells under 5 suppressed). Both read the published DuckDB marts read-only, answer with chart widgets by default, can run small Python plotting scripts in a sandbox, and keep chats in SQLite (edit, rewind, regenerate).
+
+```bash
+make agent-setup        # pnpm install + sandbox venv
+make agent-dev          # http://localhost:8787/agent/health ; the dashboard chat is at /agent
+make agent-test         # unit tests
+make eval-agent         # DeepEval readiness gate (needs OpenRouter credit)
+```
+
+Model: `AGENT_MODEL` (default `deepseek/deepseek-v4.1-flash` on OpenRouter, key in `OPENROUTER_API_KEY`). For a government-hosted model set `AGENT_PROVIDER=openai-compatible` and `AGENT_BASE_URL`.
+
+Connect your own agent through MCP (no auth in the demo):
+
+```bash
+claude mcp add --transport http early-signals http://localhost:8787/mcp -H "X-Role: ministry"
+claude mcp add --transport http early-signals-doctor http://localhost:8787/mcp -H "X-Role: doctor" -H "X-Facility-Id: 1215"
+```
+
+Details: [`agent/README.md`](agent/README.md), evals: [`evals/agent/README.md`](evals/agent/README.md).
+
+## Claude Code automations
+
+Project skills live in `.claude/skills/`. Repo notes for Claude are in [`CLAUDE.md`](CLAUDE.md). Both skills need published
+data (`make dev-data` builds a small MySQL-free dataset). They identify patients by display ID only.
+
+| Command (in Claude Code) | What it does |
+|---|---|
+| `/validate-risk 5` | Fetches the 5 newest HIGH-risk patients that have not been reviewed yet (`scripts/risk_validation.py cases`). Claude checks each flag against the record (alarm features, labs, H. pylori, endoscopy status, demographics) and appends a verdict (`agree / disagree / uncertain`, confidence, evidence, per-reason checks) to `reports/risk_validation.jsonl`. It then commits and pushes `reports/` |
+| `/loop 30m /validate-risk 5` | Repeats the review every 30 minutes for as long as the session is open. Once every HIGH case is reviewed, each run does nothing |
+| `/daily-report` | Builds `reports/daily/<today>.pdf`, a one-page A4 brief with KPIs, trend, alerts by trigger, care coordination (new plans, overdue tasks, completion rate, days to endoscopy), the 2031 outlook, the top 8 high-risk patients with Claude's verdicts, data quality and provenance. Adds 3-4 observations against the previous day, then commits and pushes |
+
+The **daily Routine** (07:00 Africa/Kigali) starts a fresh cloud session, runs `/daily-report` and pushes the PDF. A fresh
+session has no generated data, so the report renders from the committed `reports/snapshots/latest.json` and the
+validation log. The snapshot is refreshed whenever validations are appended or a report is built against live data.
+
+```bash
+make validate-cases N=5                                  # what /validate-risk sees, as JSON
+uv run python scripts/risk_validation.py summary         # agreement so far
+make report                                              # PDF for today (live data, or the snapshot)
+uv run python scripts/daily_report.py --from-snapshot --check
+```
+
+See [`reports/README.md`](reports/README.md) for the file formats.
 
 ## Data, privacy and licences
 
