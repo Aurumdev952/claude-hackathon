@@ -39,7 +39,7 @@ export function BodyStage({ data, aside, bottomLeft }: { data: CaseData; aside?:
   const fullscreen = useFullscreen(stage);
   return (
     <PortalContainerContext.Provider value={fullscreen[0] ? stage.current ?? undefined : undefined}>
-    <div ref={stage} className={`relative h-full min-h-[640px] rounded-hero overflow-hidden ${light ? "bg-surface" : "case-stage border border-hairline"}`}>
+    <div ref={stage} className={`relative h-full min-h-[640px] rounded-hero overflow-hidden ${light ? "case-stage-light" : "case-stage border border-hairline"}`}>
       {!webgl ? <div className="absolute inset-0 overflow-auto p-6 pt-24"><OrganTable data={data} state={state} /></div> : anchors.data ? (
         <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-label text-muted">Loading 3D view</div>}>
           <div className="absolute inset-0"><BodyScene state={state} anchors={anchors.data.anchors} reducedMotion={reduced} light={light} /></div>

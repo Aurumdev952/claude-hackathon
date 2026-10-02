@@ -128,6 +128,9 @@ body { @apply bg-page text-ink font-sans antialiased; font-size: 14px; line-heig
 ::-webkit-scrollbar-track { background: transparent; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 
+/* Case Analysis 3D stage, light theme: a soft cool-grey well instead of plain white, so the glass shell, its rim and the
+   ivory skeleton keep contrast (on #FFF they vanished); the white overlay HUDs still read as raised surfaces on it. */
+.case-stage-light { background: radial-gradient(75% 65% at 50% 38%, #F3F5F8 0%, #E5E9EF 62%, #D8DEE6 100%); }
 /* Case Analysis 3D stage: the dark "lightbox" variant (imaging viewers), plain, no scanlines. */
 .case-stage { background: #14171C; }
 .case-label {

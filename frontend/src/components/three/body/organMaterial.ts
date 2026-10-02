@@ -98,15 +98,18 @@ const fragment = /* glsl */ `
     // fever: warm rim on the skin
     col += vec3(1.0, 0.45, 0.2) * uHeat * fres * 0.9;
     // hover / focus: a crisp cool rim (keeps the organ's own glow colour readable underneath)
-    col += uRim * uHover * smoothstep(0.35, 1.0, fres) * 1.4;
+    // (light stage: an additive pale rim only washes the organ out against white, so blend towards a saturated blue)
+    float hov = uHover * smoothstep(0.35, 1.0, fres);
+    col = mix(col + uRim * hov * 1.4, mix(col, vec3(0.10, 0.36, 0.86), hov * 0.85), uLight);
 
     float alpha = uOpacity;
     if (uShell > 0.0) {
       // glass shell: mostly rim, faintly filled
       // light stage: a cool steel-blue glass (darker than the white stage) instead of the pale rim used on the lightbox
-      vec3 rimCol = mix(vec3(0.8, 0.9, 1.0), vec3(0.22, 0.36, 0.56), uLight);
+      vec3 rimCol = mix(vec3(0.8, 0.9, 1.0), vec3(0.16, 0.27, 0.43), uLight);
       vec3 fillCol = mix(uColor * 0.6, mix(uColor, vec3(0.56, 0.67, 0.80), 0.75), uLight);
-      alpha = mix(uOpacity, clamp(fres * mix(0.65, 0.92, uLight) + mix(0.025, 0.11, uLight), 0.0, 1.0) * uOpacity, uShell);
+      // light stage: a near-clear fill (three stacked shells at 0.11 each veiled the organs in milk) and a firm rim
+      alpha = mix(uOpacity, clamp(fres * mix(0.65, 0.95, uLight) + mix(0.025, 0.035, uLight), 0.0, 1.0) * uOpacity, uShell);
       col = mix(col, mix(fillCol, rimCol, fres) + uGlow * g * fres, uShell * 0.85);
     }
     if (uXray > 0.0) {
