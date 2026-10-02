@@ -27,11 +27,11 @@ function SimulatorPage() {
     <div className="flex flex-col gap-5">
       <PageHeader title="Patient app" eyebrow="Simulated phone, synthetic patients" icon={<Smartphone size={18} />} info={ABOUT}
                   actions={
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 max-sm:w-full">
                       {patientId && <DemoPicker compact />}
                       <Link to="/patient/app" target="_blank" rel="noreferrer" aria-label="Open the full-screen app in a new tab"
                             className="h-10 px-4 rounded-full bg-surface text-ink text-[14px] font-medium inline-flex items-center gap-2 hover:bg-tile dark:border dark:border-hairline focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal">
-                        <ExternalLink size={14} aria-hidden />Full screen
+                        <ExternalLink size={14} aria-hidden /><span className="max-sm:sr-only">Full screen</span>
                       </Link>
                     </div>
                   } />
@@ -68,7 +68,10 @@ function FullScreen() {
     const before = meta?.content;
     if (meta) meta.content = "width=device-width, initial-scale=1.0, viewport-fit=cover";
     document.title = "My care (Synthetic)";
-    return () => { if (meta && before) meta.content = before; };
+    // iOS reads the home-screen icon from the DOM when the page is added
+    const icon = Object.assign(document.createElement("link"), { rel: "apple-touch-icon", href: "/pwa/apple-touch-icon.png" });
+    document.head.appendChild(icon);
+    return () => { if (meta && before) meta.content = before; icon.remove(); };
   }, []);
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;

@@ -174,7 +174,7 @@ function MilestoneList({ items }: { items: { date: string; label: string; kind: 
     <ol className="flex flex-col divide-y divide-hairline">
       {items.map((m, i) => (
         <li key={`${m.date}-${i}`} className="flex items-center gap-3 py-2 text-[14px] min-w-0">
-          <span className="w-7 h-7 rounded-full bg-tile text-ink grid place-items-center shrink-0">{KIND_ICON[m.kind] ?? <CalendarCheck size={14} aria-hidden />}</span>
+          <span className="w-7 h-7 rounded-full bg-tile text-ink grid place-items-center shrink-0">{/chemo|cycle|b12/i.test(m.label) ? KIND_ICON.drug : KIND_ICON[m.kind] ?? <CalendarCheck size={14} aria-hidden />}</span>
           <span className="flex-1 min-w-0 truncate text-ink">{m.label}</span>
           <span className="text-micro text-muted tabular shrink-0">{date(m.date)}</span>
         </li>

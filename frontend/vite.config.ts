@@ -1,9 +1,55 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // v3 patient app PWA (track U1): manifest + service worker for the /patient/app scope only. The worker is registered
+    // by views/PatientApp.tsx (full-screen route, production builds) with scope "/patient/app", so the dashboards are
+    // never controlled; it precaches the app shell and never caches /api, /agent, /mcp or /video. Off in the dev server.
+    VitePWA({
+      injectRegister: false,
+      registerType: "autoUpdate",
+      filename: "sw.js",
+      scope: "/patient/app",
+      includeAssets: ["pwa/apple-touch-icon.png", "pwa/icon.svg"],
+      manifest: {
+        id: "/patient/app",
+        name: "Early Signals Patient (Synthetic)",
+        short_name: "My care",
+        description: "Your care plan, messages and check-ins from your care team. Demo app with synthetic data.",
+        start_url: "/patient/app",
+        scope: "/patient/app",
+        display: "standalone",
+        orientation: "portrait",
+        lang: "en",
+        background_color: "#F1F2F6", // --page
+        theme_color: "#F1F2F6",
+        icons: [
+          { src: "/pwa/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/pwa/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/pwa/maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/pwa/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+      },
+      workbox: {
+        navigateFallback: "/index.html",
+        navigateFallbackAllowlist: [/^\/patient\/app(\/|$|\?)/],
+        navigateFallbackDenylist: [/^\/api/, /^\/agent/, /^\/mcp/, /^\/video/],
+        globPatterns: ["**/*.{js,css,html,woff2,png,svg,webmanifest}"],
+        // the 3D, map and chart bundles and the dashboards' data never belong to the patient app shell
+        globIgnores: ["**/models/**", "**/geo/**", "mockServiceWorker.js", "**/three-*.js", "**/deck-*.js", "**/echarts-*.js", "**/AgentView-*.js", "**/VideoStudio-*.js"],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+      },
+      // dev: serve the manifest (e2e checks it) but never register a worker (PatientApp registers in production only)
+      devOptions: { enabled: true, navigateFallbackAllowlist: [/^\/patient\/app/] },
+    }),
+  ],
   // several dev servers on one checkout (parallel tracks) need separate dep-optimiser caches
   cacheDir: process.env.VITE_CACHE_DIR || "node_modules/.vite",
   resolve: {

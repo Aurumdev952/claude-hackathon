@@ -49,7 +49,7 @@ export function AlertActions({ alerts, columns = 1, variant, isCase }: { alerts:
     </div>
   );
   const approve = (a: Alert) => setPlanFor({ patientId: a.patient_id, alertId: a.alert_id, trigger: a.trigger, isCase,
-                                             label: <>{a.name} <span className="tabular">{a.display_id}</span>, {triggerLabel(a.trigger).toLowerCase()}</> });
+                                             label: <>{a.name} <span className="tabular">{a.display_id}</span><span className="ml-3">{triggerLabel(a.trigger)}</span></> });
   const listCls = look === "tiles" ? `grid gap-2.5 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}` : "flex flex-col divide-y divide-hairline -my-1";
   const itemCls = look === "tiles" ? "rounded-tile bg-tile p-4 min-w-0" : "py-4 first:pt-1 last:pb-1 min-w-0";
   return (

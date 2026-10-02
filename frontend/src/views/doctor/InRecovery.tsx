@@ -76,7 +76,8 @@ export function InRecovery({ onOpenPatient }: { onOpenPatient: (id: number) => v
                           </span>
                           <span className="shrink-0 text-right text-micro tabular">
                             {(j?.missed_visits ?? 0) > 0 ? <span className="inline-flex items-center gap-1.5 text-ink"><Dot level="high" />{j!.missed_visits} missed</span>
-                              : late !== null && late > 0 && j?.phase !== "Deceased" ? <span className="inline-flex items-center gap-1.5 text-ink"><Dot level="medium" />Visit {late} days late</span>
+                              : late !== null && late > 0 && late <= 180 && j?.phase !== "Deceased" ? <span className="inline-flex items-center gap-1.5 text-ink"><Dot level="medium" />Visit {late} days late</span>
+                              : late !== null && late > 180 && j?.phase !== "Deceased" ? <span className="text-muted">No visit booked</span>
                               : j?.gastrectomy ? <span className="text-muted">After surgery</span> : <span className="text-muted">{j?.intent ?? ""}</span>}
                           </span>
                         </button>

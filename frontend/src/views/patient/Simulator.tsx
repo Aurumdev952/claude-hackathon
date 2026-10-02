@@ -91,7 +91,7 @@ export function DemoPicker({ compact = false }: { compact?: boolean }) {
   const items: DemoPatient[] = demo.data?.data ?? [];
   if (compact) {
     return (
-      <Select aria-label="Demo patient" size="sm" radius="full" className="w-[260px]" placeholder="Choose a demo patient" isLoading={demo.isLoading}
+      <Select aria-label="Demo patient" size="sm" radius="full" className="w-[260px] max-sm:w-auto max-sm:flex-1" placeholder="Choose a demo patient" isLoading={demo.isLoading}
               selectedKeys={patientId ? [String(patientId)] : []} disallowEmptySelection
               items={items.map((d) => ({ key: String(d.patient_id), label: d.display_id, d }))}
               onSelectionChange={(k) => { const v = Number(Array.from(k as Set<string>)[0]); const d = items.find((x) => x.patient_id === v); if (d) setPatient(d.patient_id, d.display_id); }}
@@ -192,7 +192,7 @@ export function EventLog() {
     return g;
   }, [items]);
   return (
-    <Card title="Event log" icon={<History size={16} />} className="h-full" bodyClassName="min-h-0 flex flex-col"
+    <Card title="Event log" aria-label="Event log" icon={<History size={16} />} className="h-full" bodyClassName="min-h-0 flex flex-col"
           info="What happened in this patient's care loop, newest first, in simulated time: the doctor's approval, every message the care engine sent, steps the EMR shows done, and what the patient did in the app.">
       <div className="flex-1 min-h-0 overflow-auto -mx-2 px-2 max-h-[640px]" aria-live="polite">
         {!items.length && <div className="text-label text-muted py-8 text-center">Nothing yet</div>}
