@@ -9,9 +9,12 @@ export default defineConfig({
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
       // widget contract shared with the agent backend (zod only; see agent/src/widgets/specs.ts)
       { find: /^@agent\/widgets$/, replacement: fileURLToPath(new URL("../agent/src/widgets/specs.ts", import.meta.url)) },
+      // Remotion compositions and props shared with the video render server (video/src, browser-safe files only)
+      { find: /^@video\/(.*)$/, replacement: fileURLToPath(new URL("../video/src/$1", import.meta.url)) },
     ],
     // the shared specs live outside this package: always resolve zod from the frontend's node_modules
-    dedupe: ["zod"],
+    // (and React / Remotion / three for the video compositions, so the Player shares one React and one three)
+    dedupe: ["zod", "react", "react-dom", "remotion", "@remotion/player", "@remotion/three", "three", "@react-three/fiber", "@fontsource-variable/urbanist"],
   },
   server: {
     // allow serving the shared agent widget specs (../agent/src/widgets) in dev
@@ -23,6 +26,9 @@ export default defineConfig({
       "/agent": { target: process.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787", changeOrigin: true, proxyTimeout: 300_000, timeout: 300_000,
         bypass: (req) => (req.headers.accept?.includes("text/html") ? "/index.html" : undefined) },
       "/mcp": { target: process.env.VITE_AGENT_URL ?? "http://127.0.0.1:8787", changeOrigin: true, proxyTimeout: 300_000, timeout: 300_000 },
+      // video render server (video/, Hono): props for the Player preview, MP4 export jobs and files
+      "^/video/": { target: process.env.VITE_VIDEO_URL ?? "http://127.0.0.1:8790", changeOrigin: true, proxyTimeout: 600_000, timeout: 600_000,
+        bypass: (req) => (req.headers.accept?.includes("text/html") && !req.url?.startsWith("/video/files/") ? "/index.html" : undefined) },
     },
   },
   build: {
