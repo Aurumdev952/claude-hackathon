@@ -12,6 +12,7 @@ import { useLive } from "@/state/live";
 import { useRole } from "@/state/role";
 import { useInsightsUi, useRouteInsights } from "./InsightsFab";
 import { activeNav, navFor } from "./nav";
+import { SimControl } from "./SimControl";
 
 /** Round 40px icon button: white, hairline edge, ink icon (design v3 header). */
 const iconBtn = "min-w-10 w-10 h-10 bg-surface border border-hairline text-ink data-[hover=true]:bg-tile data-[focus-visible=true]:outline-signal";
@@ -103,6 +104,7 @@ function RoleMenu() {
       <DropdownMenu aria-label="Switch role" onAction={(k) => {
         if (k === "ministry") { setRole("ministry"); navigate("/"); }
         if (k === "doctor") { setRole("doctor"); navigate("/doctor"); }
+        // the patient app opens on the demo picker until a patient is chosen (setPatient), never with a name in the URL
         if (k === "patient") { setRole("patient"); navigate("/patient"); }
       }}>
         <DropdownSection title="View as" classNames={{ heading: "text-micro text-muted px-2" }}>
@@ -110,7 +112,7 @@ function RoleMenu() {
                         endContent={role === "ministry" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Ministry</DropdownItem>
           <DropdownItem key="doctor" description={fac ? `Patient-level data for ${fac}` : "Patient-level data for one facility"} startContent={<Building2 size={16} className="text-ink" aria-hidden />}
                         endContent={role === "doctor" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Doctor</DropdownItem>
-          <DropdownItem key="patient" description="Simulated phone: notifications, care plan, journey" startContent={<Smartphone size={16} className="text-ink" aria-hidden />}
+          <DropdownItem key="patient" description={patientDisplayId ? `Simulated phone of ${patientDisplayId}` : "Simulated phone: notifications, care plan, journey"} startContent={<Smartphone size={16} className="text-ink" aria-hidden />}
                         endContent={role === "patient" ? <Check size={15} className="text-signal" aria-hidden /> : null}>Patient app</DropdownItem>
         </DropdownSection>
       </DropdownMenu>
@@ -159,7 +161,7 @@ function NavMenu({ items, current, onCmd, onDq }: { items: ReturnType<typeof nav
 function SearchField({ onCmd }: { onCmd: () => void }) {
   return (
     <button type="button" onClick={onCmd} aria-label="Search" aria-keyshortcuts="Control+K"
-            className="hidden 2xl:flex items-center gap-2.5 h-10 w-[200px] min-[1600px]:w-[260px] pl-3.5 pr-2 rounded-full bg-surface text-muted text-[14px] hover:text-ink transition-colors">
+            className="hidden 2xl:flex items-center gap-2.5 h-10 w-[150px] min-[1700px]:w-[200px] min-[2000px]:w-[260px] pl-3.5 pr-2 rounded-full bg-surface text-muted text-[14px] hover:text-ink transition-colors">
       <Search size={17} className="text-ink shrink-0" aria-hidden />
       <span className="flex-1 text-left truncate">Search or ask</span>
     </button>
@@ -191,6 +193,7 @@ export function TopNav({ onCmd, onDq, extra }: { onCmd: () => void; onDq: () => 
       </nav>
       <div className="flex items-center gap-2 justify-end">
         <LiveIndicator />
+        <SimControl />
         {extra}
         <SearchField onCmd={onCmd} />
         <Tooltip content={<span className="flex items-center gap-1.5 text-xs">Search <Kbd keys={["ctrl"]}>K</Kbd></span>} delay={300} placement="bottom">
