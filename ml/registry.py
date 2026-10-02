@@ -65,33 +65,47 @@ def _row(con, model_id: str) -> dict | None:
     return None if r is None else {"model_id": r[0], "tier": r[1], "is_active": bool(r[2]), "status": r[3], "params": json.loads(r[4])}
 
 
+def _has_table(con, name: str) -> bool:
+    return con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = ?", [name]).fetchone()[0] > 0
+
+
 def _activate(con, target: dict, actor: str, reason: str, action: str, sim_time=None) -> dict:
+    """Flip the active model of the tier, write the audit row and keep ml_thresholds / ml_retrain_runs in step, all in
+    one transaction (a failure leaves the registry as it was; no statement inside may fail on a missing table)."""
     tier = target["tier"]
-    prev = con.execute("SELECT model_id FROM ml_model_registry WHERE tier = ? AND is_active", [tier]).fetchone()
-    prev_id = prev[0] if prev else None
-    now = dt.datetime.now()
-    con.execute("UPDATE ml_model_registry SET is_active = FALSE, status = 'retired' WHERE tier = ? AND is_active AND model_id <> ?",
-                [tier, target["model_id"]])
-    con.execute("""UPDATE ml_model_registry SET is_active = TRUE, status = 'champion', promoted_at = ?, promoted_by = ?, promote_reason = ?
-                   WHERE model_id = ?""", [now, actor, reason, target["model_id"]])
-    con.execute("INSERT INTO ml_model_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                [now, sim_time, action, target["model_id"], prev_id, tier, actor, reason])
-    # the scoring step reads the bands from the champion's params; keep ml_thresholds in step for the API
-    p = target["params"]
+    has_thr, has_runs = _has_table(con, "ml_thresholds"), _has_table(con, "ml_retrain_runs")
+    own = True
     try:
-        if "high_cut" in p:
+        con.begin()
+    except Exception:  # the caller already holds a transaction: it commits
+        own = False
+    try:
+        prev = con.execute("SELECT model_id FROM ml_model_registry WHERE tier = ? AND is_active", [tier]).fetchone()
+        prev_id = prev[0] if prev else None
+        now = dt.datetime.now()
+        con.execute("UPDATE ml_model_registry SET is_active = FALSE, status = 'retired' WHERE tier = ? AND is_active AND model_id <> ?",
+                    [tier, target["model_id"]])
+        con.execute("""UPDATE ml_model_registry SET is_active = TRUE, status = 'champion', promoted_at = ?, promoted_by = ?, promote_reason = ?
+                       WHERE model_id = ?""", [now, actor, reason, target["model_id"]])
+        con.execute("INSERT INTO ml_model_audit VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [now, sim_time, action, target["model_id"], prev_id, tier, actor, reason])
+        # the scoring step reads the bands from the champion's params; keep ml_thresholds in step for the API
+        p = target["params"]
+        if has_thr and "high_cut" in p:
             con.execute("UPDATE ml_thresholds SET high_cut = ?, medium_cut = ?", [p["high_cut"], p.get("medium_cut")])
-    except Exception:
-        pass
-    try:
-        decision = "promoted" if action == "promote" else "rolled_back_to"
-        con.execute("UPDATE ml_retrain_runs SET decision = ?, decided_by = ?, decided_at = ? WHERE challenger_id = ?",
-                    [decision, actor, now, target["model_id"]])
-        if action == "rollback" and prev_id:
-            con.execute("UPDATE ml_retrain_runs SET decision = 'rolled_back', decided_by = ?, decided_at = ? WHERE challenger_id = ?",
-                        [actor, now, prev_id])
-    except Exception:
-        pass
+        if has_runs:
+            decision = "promoted" if action == "promote" else "rolled_back_to"
+            con.execute("UPDATE ml_retrain_runs SET decision = ?, decided_by = ?, decided_at = ? WHERE challenger_id = ?",
+                        [decision, actor, now, target["model_id"]])
+            if action == "rollback" and prev_id:
+                con.execute("UPDATE ml_retrain_runs SET decision = 'rolled_back', decided_by = ?, decided_at = ? WHERE challenger_id = ?",
+                            [actor, now, prev_id])
+        if own:
+            con.commit()
+    except BaseException:
+        if own:
+            con.rollback()
+        raise
     return {"action": action, "model_id": target["model_id"], "previous_model_id": prev_id, "tier": tier, "actor": actor,
             "reason": reason, "at": now.isoformat()}
 
@@ -107,19 +121,28 @@ def promote(con, model_id: str, actor: str, reason: str, sim_time=None) -> dict:
     return _activate(con, t, actor, reason, "promote", sim_time)
 
 
+def predecessor(con, model_id: str) -> str | None:
+    """The champion `model_id` replaced when it was last *promoted* (audit log). A rollback that restored `model_id` is
+    not a promotion, so rolling the restored model back goes further back in the promotion history instead of undoing
+    the rollback (A -> promote C -> roll back to A -> roll back A restores what A replaced, never C again)."""
+    r = con.execute("""SELECT previous_model_id FROM ml_model_audit WHERE model_id = ? AND action = 'promote'
+                       AND previous_model_id IS NOT NULL AND previous_model_id <> model_id
+                       ORDER BY audit_at DESC LIMIT 1""", [model_id]).fetchone()
+    return r[0] if r else None
+
+
 def rollback(con, model_id: str, actor: str, reason: str, sim_time=None) -> dict:
-    """Restore a previous champion. `model_id` is the model to restore; if it is the current champion, the model it
-    replaced (from the audit log) is restored instead."""
+    """Restore a previous champion. `model_id` is the model to restore; if it is the current champion, the champion it
+    replaced when it was promoted (`predecessor`, from the audit log) is restored instead."""
     ensure_columns(con)
     t = _row(con, model_id)
     if t is None:
         raise KeyError(f"unknown model {model_id}")
     if t["is_active"]:
-        r = con.execute("""SELECT previous_model_id FROM ml_model_audit WHERE model_id = ? AND previous_model_id IS NOT NULL
-                           AND previous_model_id <> model_id ORDER BY audit_at DESC LIMIT 1""", [model_id]).fetchone()
-        if not r:
-            raise ValueError(f"{model_id} is the champion and has no recorded predecessor to roll back to")
-        t = _row(con, r[0])
+        prev = predecessor(con, model_id)
+        if not prev:
+            raise ValueError(f"{model_id} is the champion and was not promoted over another model: nothing to roll back to")
+        t = _row(con, prev)
         if t is None:
-            raise KeyError(f"previous model {r[0]} is no longer registered")
+            raise KeyError(f"previous model {prev} is no longer registered")
     return _activate(con, t, actor, reason, "rollback", sim_time)

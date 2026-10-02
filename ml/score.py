@@ -51,7 +51,7 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     contrib = tier2_xgb.shap_values(clf, X)
     reasons = tier2_xgb.top_reasons(meta["features"], contrib, X, feats)
     t3, attn = _tier3(con, act.get(3), feats, X, log)
-    ens = np.nanmean(np.vstack([t2, t3]), axis=0) if t3 is not None else t2
+    ens = ensemble(t2, t3)
     params = act[2]["params"]
     hi, med = params["high_cut"], params["medium_cut"]
     band = np.where(ens >= hi, "HIGH", np.where(ens >= med, "MEDIUM", "LOW"))
@@ -82,11 +82,10 @@ def score_in_pipeline(con, sim_time: dt.datetime, log=print):
     log(f"    scored {len(risk):,} patients: HIGH={n_hi:,} MEDIUM={int((band == 'MEDIUM').sum()):,}")
 
 
-def _tier3(con, m, feats, X, log=print):
-    if not m:
-        return None, None
+def _tier3_inputs(con, m, feats, X) -> dict:
+    """Load the Tier 3 model and its inputs for (patient_id, L) rows of `feats` (any landmarks); `prob` is the
+    calibrated probability."""
     from .tier3_seq import dataset as D
-    from .tier3_seq import model as M3
     from .tier3_seq import train as T3
     from .tier3_seq.tokenizer import Tokenizer
     path = Path(m["path"])
@@ -102,7 +101,29 @@ def _tier3(con, m, feats, X, log=print):
     S = (X.reindex(columns=D.STATIC_COLS).fillna(0).values.astype(np.float32) - np.array(meta["static_mean"])) / np.array(meta["static_std"])
     S = S.astype(np.float32)
     z = T3.predict_logits(p, cfg, ids, days, age, S)
-    prob = T3.calibrated(z, meta["temperature"], iso)
+    return {"p": p, "cfg": cfg, "tok": tok, "path": path, "lm": lm, "ids": ids, "days": days, "age": age, "S": S,
+            "prob": T3.calibrated(z, meta["temperature"], iso)}
+
+
+def tier3_probs(con, m, feats, X) -> np.ndarray | None:
+    """Calibrated Tier 3 probabilities for (patient_id, L) rows (None without an active Tier 3 model)."""
+    if not m:
+        return None
+    return _tier3_inputs(con, m, feats, X)["prob"]
+
+
+def ensemble(t2: np.ndarray, t3: np.ndarray | None) -> np.ndarray:
+    """The production risk: mean of Tier 2 and Tier 3 where Tier 3 exists, else Tier 2 (bands are cut on this)."""
+    return np.nanmean(np.vstack([t2, t3]), axis=0) if t3 is not None else np.asarray(t2)
+
+
+def _tier3(con, m, feats, X, log=print):
+    if not m:
+        return None, None
+    from .tier3_seq import model as M3
+    t = _tier3_inputs(con, m, feats, X)
+    p, cfg, tok, path, lm = t["p"], t["cfg"], t["tok"], t["path"], t["lm"]
+    ids, days, age, S, prob = t["ids"], t["days"], t["age"], t["S"], t["prob"]
     # Integrated Gradients for the top-scoring 10% (shown in the Doctor timeline). IG is the costliest scoring step, so
     # attributions are cached per patient and recomputed only when the event history, the model, or 28 days have passed
     attn = [[] for _ in range(len(lm))]

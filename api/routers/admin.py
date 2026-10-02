@@ -9,12 +9,12 @@ import socket
 import threading
 import time
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends, Header
 
 from shared.config import SIM_STATE_DIR
 
 from .. import jobs
-from ..deps import APIError, envelope
+from ..deps import APIError, Role, envelope, role
 
 router = APIRouter()
 CONTROL = SIM_STATE_DIR / "control.json"
@@ -28,10 +28,19 @@ def read_control() -> dict:
 
 
 @router.post("/admin/sim")
-def sim(body: dict = Body(...)):
+def sim(body: dict = Body(...), x_role: str | None = Header(default=None), r: Role = Depends(role)):
+    # DEMO CONTROL. The MySQL-free sim clock is a demo-only control (real deployments replay through the MySQL
+    # simulator). Every role of the demo may drive it, the patient app included (its demo page has a "Simulate" strip),
+    # but the caller must say who it is: a request without a recognised X-Role is rejected (no silent ministry default
+    # here), and the role is recorded on the job, in control.json and in the API log.
+    if not x_role or x_role.strip().lower() not in ("ministry", "doctor", "patient"):
+        raise APIError(400, "ROLE_REQUIRED", "The simulation controls need an X-Role header (ministry, doctor or patient)")
+    who = r.role + (f":{r.facility_id}" if r.facility_id is not None else "") + \
+        (f":{r.patient_id}" if r.patient_id is not None else "")
     action = body.get("action")
+    print(f"admin/sim: action={action} by role={who}")
     if action == "advance":
-        return envelope(_advance(body))
+        return envelope(_advance(body, requested_by=who))
     if action == "auto_start":
         return envelope(auto_start(body.get("seconds_per_day", DEFAULT_SPD)))
     if action == "auto_stop":
@@ -50,6 +59,7 @@ def sim(body: dict = Body(...)):
         c["fast_forward_days"] = int(c.get("fast_forward_days", 0)) + days
     else:
         raise APIError(400, "INVALID_ACTION", "action must be pause|resume|demo_mode|fast_forward|advance|auto_start|auto_stop")
+    c["updated_by"] = who
     return envelope(write_control(c))
 
 
@@ -83,7 +93,7 @@ def _emit(job_id: str, status: str, progress: float, step: str | None):
         pass
 
 
-def _advance(body: dict) -> dict:
+def _advance(body: dict, requested_by: str = "auto-clock") -> dict:
     try:
         days = int(body.get("days", 1))
     except (TypeError, ValueError):
@@ -113,13 +123,18 @@ def _advance(body: dict) -> dict:
     def done(job: dict):
         _emit(job["id"], job["status"], job.get("progress") or 0.0, job.get("step"))
 
+    # model jobs (promote / rollback / retrain) write the work DB and publish too: never start next to one (in this
+    # process: job conflicts; across processes: the advance lock, which advance() itself takes)
+    lock_free = getattr(local, "lock_free", None)
+    if lock_free is not None and not lock_free():
+        raise APIError(409, "SIM_BUSY", "the simulation data is busy (an advance or a model job is running)")
     try:
-        job = jobs.submit("sim_advance", run, on_done=done)
+        job = jobs.submit("sim_advance", run, on_done=done, conflicts=("models",), meta={"requested_by": requested_by})
     except jobs.Busy as e:
         raise APIError(409, "SIM_BUSY", str(e), {"job_id": e.job_id}) from None
     holder["id"] = job["id"]
     _emit(job["id"], "queued", 0.0, None)
-    return {"job_id": job["id"], "status": job["status"], "days": days}
+    return {"job_id": job["id"], "status": job["status"], "days": days, "requested_by": requested_by}
 
 
 @router.get("/admin/sim/jobs/{job_id}")
@@ -127,7 +142,8 @@ def sim_job(job_id: str):
     j = jobs.get(job_id)
     if not j:
         raise APIError(404, "NOT_FOUND", "Job not found")
-    return envelope({k: j.get(k) for k in ("id", "status", "progress", "step", "result", "error", "started_at", "finished_at")})
+    return envelope({k: j.get(k) for k in ("id", "status", "progress", "step", "result", "error", "started_at", "finished_at",
+                                           "requested_by")})
 
 
 @router.get("/admin/sim/status")

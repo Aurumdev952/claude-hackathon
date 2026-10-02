@@ -1,9 +1,9 @@
+# ruff: noqa: F811  (the `env` fixture is imported from test_care_engine and used as a parameter)
 """Regression tests for the F1 review fixes in the care engine (care/engine.py, care/evidence.py, care/store.py,
 care/emr_bridge.py). Same in-memory fixtures as test_care_engine.py: never touches data/."""
 from __future__ import annotations
 
 import datetime as dt
-import json
 import sqlite3
 import threading
 import time
@@ -14,7 +14,7 @@ import pytest
 from care import emr_bridge, engine, evidence
 from care import store as st
 from shared.concepts import C
-from test_care_engine import FAC, PID, PID2, T0, Clock, add_endoscopy, advance, env, fake_db, plan  # noqa: F401
+from test_care_engine import FAC, PID, PID2, T0, Clock, add_endoscopy, advance, env, fake_db, plan  # noqa: F401 (env: fixture)
 
 ISO = "%Y-%m-%dT%H:%M:%S"
 

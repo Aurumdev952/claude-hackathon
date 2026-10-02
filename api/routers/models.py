@@ -132,13 +132,14 @@ def _loop_state() -> dict:
     return {"champion": _model_card(champ), "challenger": _model_card(chall), "gates": gates,
             "decision": (latest or {}).get("decision"), "latest_run": {k: v for k, v in (latest or {}).items() if k != "metrics"} or None,
             "comparison": (latest or {}).get("metrics"), "history": runs, "feedback": fb, "monitoring": mon, "adherence": adherence,
-            "audit": audit, "running_job": jobs.running(JOB_KIND)}
+            "audit": audit}
 
 
 @router.get("/models/learning-loop")
 def learning_loop(r: Role = Depends(_m)):
-    return envelope(SERVE.cached(("learning_loop",), _loop_state),
-                    note="Synthetic data. Challenger models are trained automatically; a person promotes them.")
+    # the published state is cached per serve DB version; the running job is live (never cached)
+    data = {**SERVE.cached(("learning_loop",), _loop_state), "running_job": jobs.running(JOB_KIND)}
+    return envelope(data, note="Synthetic data. Challenger models are trained automatically; a person promotes them.")
 
 
 class DecisionIn(BaseModel):
@@ -156,9 +157,32 @@ def _registered(model_id: str) -> dict:
 
 
 def _submit(label: str, fn) -> dict:
+    """Run a model job that writes the work DB and publishes. It holds the sim clock's advance lock from submission to
+    the end (simulator.local.acquire), so it never runs next to a sim advance (in this or another process), and it
+    conflicts with the in-process sim_advance job kind. Busy -> 409."""
+    lock = None
     try:
-        job = jobs.submit(JOB_KIND, fn)
+        from simulator import local
+    except ImportError:  # no sim clock in this deployment: the job-kind conflict still applies
+        local = None
+    if local is not None:
+        try:
+            lock = local.acquire(f"models: {label}")
+        except local.BusyError as e:
+            raise APIError(409, "MODEL_JOB_BUSY", str(e)) from None
+
+    def run(progress):
+        try:
+            return fn(progress)
+        finally:
+            if lock is not None:
+                lock.release()
+
+    try:
+        job = jobs.submit(JOB_KIND, run, conflicts=("sim_advance",))
     except jobs.Busy as e:
+        if lock is not None:
+            lock.release()
         raise APIError(409, "MODEL_JOB_BUSY", str(e), {"job_id": e.job_id}) from None
     return {"job_id": job["id"], "status": job["status"], "action": label}
 
@@ -204,6 +228,12 @@ def rollback(model_id: str, body: DecisionIn, x_actor: str | None = Header(defau
     row = _registered(model_id)
     if row.get("tier") != 2:
         raise APIError(400, "NOT_PROMOTABLE", "Only Tier 2 models are rolled back in the learning loop")
+    if row.get("is_active"):  # rolling back the champion restores the model it replaced when it was promoted
+        prev = SERVE.one("""SELECT previous_model_id FROM ml_model_audit WHERE model_id = ? AND action = 'promote'
+                            AND previous_model_id IS NOT NULL AND previous_model_id <> model_id
+                            ORDER BY audit_at DESC LIMIT 1""", [model_id]) if SERVE.has_table("ml_model_audit") else None
+        if not prev:
+            raise APIError(409, "NO_PREDECESSOR", f"{model_id} was not promoted over another model: nothing to roll back to")
     actor = (x_actor or "ministry-user").strip()[:80]
     return envelope(_submit("rollback", _decide("rollback", model_id, body.reason, actor)) | {"model_id": model_id, "actor": actor})
 
