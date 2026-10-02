@@ -247,7 +247,7 @@ export function summarise(message: AgentUIMessage, tctx: ToolCtx) {
     const safe = tp.state === "output-available" && def ? modelSafe(def, tp.output, tctx) : null;
     tool_calls.push({ name, state: tp.state, input: tp.input ?? null, output: safe, error: tp.errorText ?? null });
     const out = tp.output as { kind?: string } | undefined;
-    if (out?.kind === "chart" || out?.kind === "artifact") widgets.push({ tool: name, ...(out as object) });
+    if (out?.kind === "chart" || out?.kind === "artifact" || out?.kind === "video") widgets.push({ tool: name, ...(out as object) });
     if (out?.kind === "patient") widgets.push({ tool: name, ...(safe as object), kind: "patient" });
   }
   const answer = message.parts.filter((p) => p.type === "text").map((p) => (p as { text: string }).text.trim()).filter(Boolean).join("\n\n");

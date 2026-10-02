@@ -2,7 +2,7 @@
 name: daily-report
 description: Build today's one-page PDF risk brief (reports/daily/YYYY-MM-DD.pdf) from the live serve DB or the committed snapshot, add 3-4 observations versus the previous report, then commit and push. Used by the daily Routine.
 argument-hint: "[YYYY-MM-DD, default today]"
-allowed-tools: Bash(uv sync:*), Bash(uv run python scripts/daily_report.py:*), Bash(PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(uv run python scripts/risk_validation.py summary:*), Bash(test -f:*), Bash(ls reports/:*), Bash(git status:*), Bash(git pull --rebase:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git branch --show-current), Bash(make dev-data), Read, Write
+allowed-tools: Bash(uv sync:*), Bash(uv run python scripts/daily_report.py:*), Bash(PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/next uv run python scripts/daily_report.py:*), Bash(DATA_DIR=data/next PYTHONPATH=. uv run python scripts/daily_report.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(uv run python scripts/risk_validation.py summary:*), Bash(test -f:*), Bash(ls reports/:*), Bash(git status:*), Bash(git pull --rebase:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git branch --show-current), Bash(make dev-data), Read, Write
 disable-model-invocation: true
 ---
 
@@ -21,10 +21,12 @@ uv sync --inexact --extra dev --extra report   # no-op when the SessionStart hoo
 ## 2. Pick the data source
 
 ```bash
-test -f data/analytics/current.json && echo live || echo snapshot
+grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/next
+test -f data/next/analytics/current.json && echo next; test -f data/analytics/current.json && echo live || echo snapshot
 ```
 
-- **live**: a published serve DB exists. The script reads it and refreshes `reports/snapshots/latest.json`.
+- **live**: a published serve DB exists. When `.env` sets `DATA_DIR=./data/next` and `data/next/analytics/current.json`
+  exists, prefix the script with `DATA_DIR=data/next` (the script does not read `.env`). The script reads it and refreshes `reports/snapshots/latest.json`.
 - **snapshot**: a fresh cloud session with no generated data. Render from the committed
   `reports/snapshots/latest.json` plus `reports/risk_validation.jsonl` (add `--from-snapshot`).
 - Do **not** generate data, unless the environment variable `REPORT_LIVE=1` is set. Then run `make dev-data`
@@ -39,7 +41,10 @@ uv run python scripts/daily_report.py --date D --from-snapshot --check   # snaps
 
 `--check` fails unless the PDF is exactly one page. The script also writes `reports/daily/D.json`. That JSON holds the
 KPIs, deltas against the previous report, alerts by trigger, the top cases with Claude's verdicts, the validation
-summary and data quality.
+summary, data quality, `care` (care coordination: new plans in the last 7 sim days, active plans, open and overdue
+tasks, CHW escalations, task completion rate, median days from approval to endoscopy, plans by pathway) and `forecast`
+(the national 2031 outlook: mean, 80 / 95% interval, change against the last observed year). Older snapshots without
+`care` / `forecast` render placeholders.
 
 ## 4. Observations
 
@@ -51,7 +56,9 @@ each). Base them only on numbers from those files:
   On the first report, describe the current state instead.
 - where Claude's validations disagree with the model, and which reason features are disputed most
 - anything that needs action, for example HIGH patients still awaiting endoscopy, or a data-quality check failing
-- the national rate trend, with care: a partial year is annualised
+- care coordination: overdue tasks and CHW escalations, the completion rate, days to endoscopy (small numbers: say so)
+- the national rate trend, with care: a partial year is annualised; the 2031 outlook is a synthetic projection, quote
+  its 95% interval
 
 Re-render with the observations in the Highlights strip:
 

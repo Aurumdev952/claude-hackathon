@@ -1,30 +1,54 @@
 {
- "schema": 2,
+ "date": "2026-10-02",
  "generated_at": "2026-10-02T01:36:17Z",
+ "source": "live",
  "run_id": 6,
  "sim_time": "2026-06-30T23:59:59",
  "published_at": "2026-10-02T01:08:46Z",
+ "snapshot_generated_at": "2026-10-02T01:36:17Z",
  "models": {
   "1": "tier1-points-202610020014",
   "2": "tier2-xgb-202610020014"
  },
  "risk_model_id": "tier2-xgb-202610020014",
- "thresholds": {
-  "high_cut": 0.30000001192092896,
-  "medium_cut": 0.11009174585342407
+ "kpis": {
+  "high_patients": 20,
+  "high_awaiting_endoscopy": 20,
+  "new_high_patients_7d": 20,
+  "national_asr": 39.24626371419494,
+  "national_asr_lci": 23.45184713550767,
+  "national_asr_uci": 66.57013115574316,
+  "asr_year": 2026,
+  "asr_partial_year": true,
+  "asr_delta": 6.839267006767592,
+  "last_full_year": 2025,
+  "last_full_year_asr": 32.406996707427346,
+  "cases_annualised": 38.341162672726284,
+  "new_high_alerts": 26,
+  "open_alerts": 131,
+  "agreement_pct": 66.7,
+  "validated": 6,
+  "care_overdue_tasks": 5,
+  "care_new_plans_7d": 0,
+  "care_completion_rate_pct": 50.0,
+  "forecast_horizon_mean": 4186.4
  },
+ "deltas": {
+  "high_patients": 14,
+  "high_awaiting_endoscopy": 14,
+  "new_high_alerts": 14,
+  "agreement_pct": -33.3,
+  "national_asr": 0.001986666001521087,
+  "care_overdue_tasks": null,
+  "care_new_plans_7d": null,
+  "care_completion_rate_pct": null
+ },
+ "previous_report": "2026-10-01",
  "bands": {
   "HIGH": 20,
   "MEDIUM": 880,
   "LOW": 3535
  },
- "high_history": [
-  {
-   "date": "2026-06-30",
-   "high": 20,
-   "scored": 4435
-  }
- ],
  "cases_by_year": [
   {
    "year": 2016,
@@ -104,22 +128,13 @@
    "partial": true
   }
  ],
- "kpis": {
-  "high_patients": 20,
-  "high_awaiting_endoscopy": 20,
-  "new_high_patients_7d": 20,
-  "national_asr": 39.24626371419494,
-  "national_asr_lci": 23.45184713550767,
-  "national_asr_uci": 66.57013115574316,
-  "asr_year": 2026,
-  "asr_partial_year": true,
-  "asr_delta": 6.839267006767592,
-  "last_full_year": 2025,
-  "last_full_year_asr": 32.406996707427346,
-  "cases_annualised": 38.341162672726284,
-  "new_high_alerts": 26,
-  "open_alerts": 131
- },
+ "high_history": [
+  {
+   "date": "2026-06-30",
+   "high": 20,
+   "scored": 4435
+  }
+ ],
  "alerts_by_trigger": [
   {
    "trigger": "RISK_BAND_HIGH",
@@ -190,7 +205,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "KIR-01256131",
@@ -219,7 +236,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "RUB-0080650W",
@@ -248,7 +267,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "KAY-0098898R",
@@ -277,7 +298,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "GAT-0080911R",
@@ -306,7 +329,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.93
   },
   {
    "patient_id": "KAY-0093665C",
@@ -335,7 +360,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "MUS-00769648",
@@ -364,7 +391,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   },
   {
    "patient_id": "NYA-0119453Y",
@@ -393,7 +422,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.8
   },
   {
    "patient_id": "KIR-0055000G",
@@ -422,7 +453,9 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": "agree",
+   "confidence": 0.88
   },
   {
    "patient_id": "RWA-0015239X",
@@ -451,9 +484,64 @@
    ],
    "scoped": false,
    "first_high_at": "2026-06-30T23:59:59",
-   "as_of": "2026-06-30"
+   "as_of": "2026-06-30",
+   "verdict": null,
+   "confidence": null
   }
  ],
+ "validation": {
+  "n": 6,
+  "agree": 4,
+  "disagree": 0,
+  "uncertain": 2,
+  "agreement_pct": 66.7,
+  "agreement_pct_decided": 100.0,
+  "mean_confidence": 0.727,
+  "most_disputed": [
+   {
+    "feature": "days_since_last_gi_visit",
+    "times": 6
+   },
+   {
+    "feature": "n_gi_visits_6m",
+    "times": 3
+   },
+   {
+    "feature": "hb_drop_12m",
+    "times": 1
+   },
+   {
+    "feature": "weight_change_pct_6m",
+    "times": 1
+   }
+  ],
+  "most_supported": [
+   {
+    "feature": "age",
+    "times": 6
+   },
+   {
+    "feature": "n_gi_visits_6m",
+    "times": 3
+   },
+   {
+    "feature": "sx_early_satiety",
+    "times": 3
+   },
+   {
+    "feature": "hb_min_12m",
+    "times": 3
+   },
+   {
+    "feature": "sx_epigastric",
+    "times": 1
+   }
+  ],
+  "last_run_at": "2026-10-01T19:43:30Z",
+  "by_model": {
+   "tier2-xgb-202610011831": 6
+  }
+ },
  "data_quality": {
   "checks_ok": 32,
   "checks_low": 64,
@@ -677,5 +765,12 @@
     "hi95": 4876.0
    }
   ]
- }
+ },
+ "highlights": [
+  "20 patients in the HIGH band out of 4,435 scored (+14 vs previous report); 20 not yet scoped.",
+  "26 new HIGH-severity alerts in the last 7 sim days; largest open queue: H. pylori untreated (100).",
+  "Care coordination: 8 active plans, 0 approved in the last 7 sim days; 5 tasks overdue, 50% of due tasks completed.",
+  "Claude reviewed 3 of 20 HIGH cases: 4 agree, 0 disagree, 2 uncertain; most disputed reason: days since last GI visit."
+ ],
+ "highlights_source": "auto"
 }

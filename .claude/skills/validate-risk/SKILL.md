@@ -2,7 +2,7 @@
 name: validate-risk
 description: Review the newest HIGH-risk gastric cancer flags against each patient's record, judge whether the flag is clinically justified, and append verdicts to reports/risk_validation.jsonl. Built to run under /loop (e.g. /loop 30m /validate-risk 5).
 argument-hint: "[N cases per run, default 5]"
-allowed-tools: Bash(uv run python scripts/risk_validation.py:*), Bash(PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(test -f:*), Bash(git status:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git pull --rebase:*), Bash(git branch --show-current), Read, Write
+allowed-tools: Bash(uv run python scripts/risk_validation.py:*), Bash(PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/next uv run python scripts/risk_validation.py:*), Bash(DATA_DIR=data/next PYTHONPATH=. uv run python scripts/risk_validation.py:*), Bash(grep -E ^DATA_DIR= .env), Bash(test -f:*), Bash(git status:*), Bash(git add reports/:*), Bash(git commit:*), Bash(git push:*), Bash(git pull --rebase:*), Bash(git branch --show-current), Read, Write
 disable-model-invocation: true
 ---
 
@@ -17,10 +17,13 @@ N = `$ARGUMENTS` (use 5 if it is empty or not a number).
 ## 1. Preflight
 
 ```bash
-test -f data/analytics/current.json && echo ok
+grep -E ^DATA_DIR= .env          # v3: the live dataset may live in data/next
+test -f data/next/analytics/current.json && echo next; test -f data/analytics/current.json && echo data
 ```
 
-If the file is missing, there is no published data in this session. Say so in one line (`make dev-data` builds a small
+If `.env` sets `DATA_DIR=./data/next` and `data/next/analytics/current.json` exists, prefix every
+`scripts/risk_validation.py` command below with `DATA_DIR=data/next` (the scripts do not read `.env`). If neither file
+exists, there is no published data in this session. Say so in one line (`make dev-data` builds a small
 dataset) and **stop**. Do not commit anything. Do not run generate/bootstrap/train from this skill: it runs in a loop.
 
 ## 2. Fetch the next cases
@@ -34,7 +37,10 @@ The output is JSON: `model_id`, `pending_total`, `already_validated`, `returned`
 with a plain-English `label`, the patient's `value` and the SHAP `contribution`), `facts` (Hb and weight series,
 symptoms with alarm flags, `alarm_features_12m`, diagnoses, H. pylori tests and eradication, PPI courses,
 endoscopy procedures, pathology and orders, other labs, visit counts), `features` (the scored feature row) and
-`open_alerts`.
+`open_alerts`. A patient with a doctor-approved care plan (v3) also has `care_outcomes`: the `plans` (pathway, status,
+trigger, approval date), `verified_results` (completed care tasks closed by EMR evidence: endoscopy findings such as
+`NORMAL` / `GASTRITIS` / `SUSPICIOUS` / `CANCER_FOUND`, H. pylori test and test-of-cure results, Hb rechecks),
+`plan_outcomes` (adherence, days to completion, finding, cancer found, stage) and `open_tasks`.
 
 If `returned` is 0, every HIGH case has been reviewed for this model. Print
 `Nothing to validate: all <already_validated> HIGH cases reviewed for <model_id>`, run the summary (step 5) and
@@ -58,8 +64,15 @@ Weigh the evidence in this order:
    counts. Never tested: count as unknown, not as reassurance.
 4. **Endoscopy status**: never scoped, or scoped only *before* the alarm features began, supports the flag. A recent
    normal endoscopy that came after the symptoms weakens it a lot.
-5. **Symptom course**: GI visits speeding up, repeated PPI courses that did not help, dyspepsia that persists past 45.
-6. **Demographics and context** (weakest): age, sex and district rate. These describe who the patient is, not what is
+5. **Verified care outcomes** (`care_outcomes`, when present): these are follow-up results recorded after a doctor
+   approved a care plan, so they are the strongest evidence about the flag itself. An endoscopy with a `SUSPICIOUS` or
+   `CANCER_FOUND` result, or a positive H. pylori test, supports the flag (agree). A completed endoscopy with a `NORMAL`
+   result after the symptoms weakens it, like any recent normal endoscopy (often disagree or uncertain). A negative test
+   of cure after eradication lowers the H. pylori contribution. Open or escalated tasks are not evidence either way: say
+   that the outcome is pending. Quote verified results in `evidence` with their dates (e.g. `"Care-plan endoscopy
+   2026-06-19: suspicious lesion, pathology pending"`).
+6. **Symptom course**: GI visits speeding up, repeated PPI courses that did not help, dyspepsia that persists past 45.
+7. **Demographics and context** (weakest): age, sex and district rate. These describe who the patient is, not what is
    happening to them.
 
 Then decide:

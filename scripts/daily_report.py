@@ -23,14 +23,17 @@ sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve
 import report_data as RD  # noqa: E402
 
 # ---------------------------------------------------------------------------------------------- design tokens
-# Product design system (frontend/src/styles.css, light theme). Status text uses the darker steps for contrast on white.
-INK, MUTED, FAINT = "#0F172A", "#64748B", "#94A3B8"
-BORDER, SURFACE2, WHITE = "#E6EAF2", "#F7F8FB", "#FFFFFF"
-ACCENT, ACCENT_SOFT, NAVY = "#3F6FE8", "#E8EFFF", "#1E3A8A"
-GOOD, WARN, BAD = "#22C55E", "#F59E0B", "#EF4444"
-GOOD_TXT, WARN_TXT, BAD_TXT = "#15803D", "#B45309", "#B91C1C"
-GOOD_SOFT, WARN_SOFT, BAD_SOFT, NEUTRAL_SOFT = "#DCFCE7", "#FEF3C7", "#FEE2E2", "#F1F5F9"
-SERIES = ["#3F6FE8", "#eb6834"]  # categorical slots 1-2 (frontend/src/lib/viz.ts SERIES.light; dataviz validator: PASS)
+# Design v3 (D-44; frontend/src/styles.css light theme, frontend/src/lib/viz.ts): flat grey tiles on a white page, no
+# borders or shadows, one signal-orange accent reserved for attention, sky blue for data. Text uses the darker steps.
+INK, MUTED, FAINT = "#15171C", "#6B7080", "#A3A8B5"
+BORDER, SURFACE2, WHITE, TILE = "#E8E9EF", "#F5F6F9", "#FFFFFF", "#F5F6F9"
+SIGNAL, SIGNAL_TXT, SIGNAL_SOFT = "#F05A28", "#B83A12", "#FDE9E1"
+SKY, SKY_SOFT, SKY_TXT = "#5AB4E5", "#D9EEF9", "#1F6E99"
+ACCENT, ACCENT_SOFT, NAVY = SIGNAL, SIGNAL_SOFT, INK
+GOOD, WARN, BAD = "#2E9E6A", "#D98A00", SIGNAL
+GOOD_TXT, WARN_TXT, BAD_TXT = "#1F7A52", "#9A6200", SIGNAL_TXT
+GOOD_SOFT, WARN_SOFT, BAD_SOFT, NEUTRAL_SOFT = "#E1F3EA", "#FBEFD6", SIGNAL_SOFT, "#ECEDF2"
+SERIES = [SIGNAL, SKY]  # alerts chart: new (attention) vs earlier (data) - frontend/src/lib/viz.ts CORE.light
 
 PAGE_W, PAGE_H = 595.27, 841.89  # A4 in points
 M = 28.0                         # page margin
@@ -137,8 +140,17 @@ def build_model(snap: dict, mode: str, date: dt.date, prev: dict | None, obs: li
     k["agreement_pct"] = val["agreement_pct"]
     k["validated"] = val["n"]
     pk = (prev or {}).get("kpis") or {}
+    care = snap.get("care") or None
+    fc = snap.get("forecast") or None
+    if care:
+        k["care_overdue_tasks"] = care.get("overdue_tasks")
+        k["care_new_plans_7d"] = care.get("new_plans_7d")
+        k["care_completion_rate_pct"] = care.get("completion_rate_pct")
+    if fc:
+        k["forecast_horizon_mean"] = fc.get("mean")
     deltas = {key: _delta(k.get(key), pk.get(key)) for key in
-              ("high_patients", "high_awaiting_endoscopy", "new_high_alerts", "agreement_pct", "national_asr")} if prev else {}
+              ("high_patients", "high_awaiting_endoscopy", "new_high_alerts", "agreement_pct", "national_asr",
+               "care_overdue_tasks", "care_new_plans_7d", "care_completion_rate_pct")} if prev else {}
     cases = []
     for c in snap.get("top_cases") or []:
         v = latest.get(c["patient_id"])
@@ -156,13 +168,19 @@ def build_model(snap: dict, mode: str, date: dt.date, prev: dict | None, obs: li
     if trig:
         auto.append(f"{_fmt_int(k.get('new_high_alerts'))} new HIGH-severity alerts in the last {RD.NEW_ALERT_DAYS} sim days; "
                     f"largest open queue: {trig[0]['label']} ({trig[0]['open']:,}).")
+    if care:
+        rate = care.get("completion_rate_pct")
+        auto.append(f"Care coordination: {care['plans_active']} active plan{'s' if care['plans_active'] != 1 else ''}, "
+                    f"{care['new_plans_7d']} approved in the last {care.get('window_days', 7)} sim days; "
+                    f"{care['overdue_tasks']} task{'s' if care['overdue_tasks'] != 1 else ''} overdue"
+                    + (f", {rate:.0f}% of due tasks completed." if rate is not None else "."))
     if val["n"]:
         dis = f"; most disputed reason: {_pretty_feature(val['most_disputed'][0]['feature'])}" if val["most_disputed"] else ""
         auto.append(f"Claude reviewed {reviewed_high} of {high} HIGH cases: {val['agree']} agree, {val['disagree']} disagree, "
                     f"{val['uncertain']} uncertain{dis}.")
     else:
         auto.append("No Claude validations yet: run /validate-risk (or /loop 30m /validate-risk 5) to review the HIGH list.")
-    if k.get("national_asr") is not None:
+    if k.get("national_asr") is not None and not care:
         part = " (partial year)" if k.get("asr_partial_year") else ""
         ref = (f" vs {k['last_full_year_asr']:.1f} in {k['last_full_year']}" if k.get("last_full_year_asr") is not None
                and k.get("last_full_year") != k.get("asr_year") else "")
@@ -174,7 +192,7 @@ def build_model(snap: dict, mode: str, date: dt.date, prev: dict | None, obs: li
             "previous_report": (prev or {}).get("date"), "bands": snap.get("bands"),
             "cases_by_year": snap.get("cases_by_year") or [], "high_history": snap.get("high_history") or [],
             "alerts_by_trigger": snap.get("alerts_by_trigger") or [], "top_cases": cases, "validation": val,
-            "data_quality": snap.get("data_quality") or {}, "highlights": obs or auto,
+            "data_quality": snap.get("data_quality") or {}, "care": care, "forecast": fc, "highlights": obs or auto,
             "highlights_source": "claude" if obs else "auto"}
 
 
@@ -188,6 +206,7 @@ def _mpl():
 
     names = {f.name for f in font_manager.fontManager.ttflist}
     plt.rcParams.update({"font.family": [n for n in MPL_FONT if n in names] or ["DejaVu Sans"], "font.size": 6.5,
+                         "figure.facecolor": TILE, "axes.facecolor": TILE,
                          "axes.edgecolor": BORDER, "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": MUTED,
                          "axes.linewidth": 0.6, "xtick.major.width": 0, "ytick.major.width": 0,
                          "xtick.major.pad": 3, "ytick.major.pad": 3, "svg.fonttype": "none"})
@@ -196,7 +215,7 @@ def _mpl():
 
 def _png(fig) -> io.BytesIO:
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=300, facecolor=WHITE)
+    fig.savefig(buf, format="png", dpi=300, facecolor=TILE)
     buf.seek(0)
     return buf
 
@@ -211,9 +230,9 @@ def chart_trend(model: dict, w: float, h: float) -> tuple[io.BytesIO, str, str]:
         xs = [dt.date.fromisoformat(x["date"]) for x in hist]
         ys = [x["high"] for x in hist]
         title, sub = "HIGH-risk patients over time", "Patients in the HIGH band at each scoring run"
-        ax.plot(xs, ys, color=ACCENT, lw=1.4, solid_capstyle="round", solid_joinstyle="round", zorder=3)
-        ax.fill_between(xs, ys, color=ACCENT, alpha=0.10, lw=0, zorder=2)
-        ax.scatter([xs[-1]], [ys[-1]], s=22, color=ACCENT, edgecolor=WHITE, linewidth=1.2, zorder=4)
+        ax.plot(xs, ys, color=SKY, lw=1.4, solid_capstyle="round", solid_joinstyle="round", zorder=3)
+        ax.fill_between(xs, ys, color=SKY, alpha=0.10, lw=0, zorder=2)
+        ax.scatter([xs[-1]], [ys[-1]], s=22, color=SKY, edgecolor=TILE, linewidth=1.2, zorder=4)
         ax.annotate(f"{ys[-1]:,}", (xs[-1], ys[-1]), xytext=(0, 6), textcoords="offset points", ha="center",
                     fontsize=7, color=INK, fontweight="bold")
         import matplotlib.dates as mdates
@@ -228,23 +247,23 @@ def chart_trend(model: dict, w: float, h: float) -> tuple[io.BytesIO, str, str]:
         title = "Gastric cancer cases per year"
         sub = "Confirmed + probable incident cases, national" + (" (current year annualised)" if rows and rows[-1]["partial"] else "")
         full = [i for i, r in enumerate(rows) if not r["partial"]]
-        ax.fill_between(xs, ys, color=ACCENT, alpha=0.10, lw=0, zorder=2)
+        ax.fill_between(xs, ys, color=SKY, alpha=0.10, lw=0, zorder=2)
         if full:
-            ax.plot([xs[i] for i in full], [ys[i] for i in full], color=ACCENT, lw=1.4, solid_capstyle="round",
+            ax.plot([xs[i] for i in full], [ys[i] for i in full], color=SKY, lw=1.4, solid_capstyle="round",
                     solid_joinstyle="round", zorder=3)
         if rows and rows[-1]["partial"] and len(rows) > 1:  # the partial year is an estimate: thinner segment, hollow end-dot
-            ax.plot(xs[-2:], ys[-2:], color=ACCENT, lw=0.9, alpha=0.7, zorder=3)
-            ax.scatter([xs[-1]], [ys[-1]], s=22, facecolor=WHITE, edgecolor=ACCENT, linewidth=1.2, zorder=4)
+            ax.plot(xs[-2:], ys[-2:], color=SKY, lw=0.9, alpha=0.7, zorder=3)
+            ax.scatter([xs[-1]], [ys[-1]], s=22, facecolor=TILE, edgecolor=SKY, linewidth=1.2, zorder=4)
             lab = f"{ys[-1]:,.0f} est."
         elif rows:
-            ax.scatter([xs[-1]], [ys[-1]], s=22, color=ACCENT, edgecolor=WHITE, linewidth=1.2, zorder=4)
+            ax.scatter([xs[-1]], [ys[-1]], s=22, color=SKY, edgecolor=TILE, linewidth=1.2, zorder=4)
             lab = f"{ys[-1]:,.0f}"
         if rows:
             ax.annotate(lab, (xs[-1], ys[-1]), xytext=(-2, 6), textcoords="offset points", ha="right",
                         fontsize=7, color=INK, fontweight="bold")
             imax = max(full, key=lambda i: ys[i]) if full else None
             if imax is not None and imax != len(rows) - 1:
-                ax.scatter([xs[imax]], [ys[imax]], s=16, color=ACCENT, edgecolor=WHITE, linewidth=1.0, zorder=4)
+                ax.scatter([xs[imax]], [ys[imax]], s=16, color=SKY, edgecolor=TILE, linewidth=1.0, zorder=4)
                 ax.annotate(f"{ys[imax]:,.0f}", (xs[imax], ys[imax]), xytext=(0, 6), textcoords="offset points", ha="center",
                             fontsize=6.5, color=MUTED)
             ax.set_xticks(xs[::2] if len(xs) > 8 else xs)
@@ -372,7 +391,7 @@ def wrap(text: str, font: str, size: float, width: float, max_lines: int) -> lis
     return [fit(x, font, size, width) for x in lines]
 
 
-def card(c, x, y_top, w, h, fill=WHITE, stroke=BORDER, r=12):
+def card(c, x, y_top, w, h, fill=TILE, stroke=None, r=12):
     c.setFillColor(_hex(fill))
     if stroke:
         c.setStrokeColor(_hex(stroke))
@@ -448,7 +467,7 @@ def draw_header(c, model, y):
         (p.moveTo if i == 0 else p.lineTo)(M + px, y - 34 + py)
     c.drawPath(p, stroke=1, fill=0)
     x = M + 44
-    text(c, x, y - 9, "EARLY SIGNALS  ·  GASTRIC CANCER SURVEILLANCE, RWANDA", FB, 7, ACCENT)
+    text(c, x, y - 9, "EARLY SIGNALS  ·  GASTRIC CANCER SURVEILLANCE, RWANDA", FB, 7, SIGNAL_TXT)
     text(c, x, y - 26, f"Daily risk brief — {_date_long(d)}", FB, 17, INK)
     src = "live serve DB" if model["source"] == "live" else "committed snapshot"
     text(c, x, y - 39, fit(f"Data as of {_sim_short(model['sim_time'])} (simulated)  ·  run #{model['run_id']}  ·  "
@@ -502,17 +521,17 @@ def draw_kpis(c, model, y_top, h=78):
     w = (CW - (n - 1) * 8) / n
     for i, (label, value, sub, (dtxt, dcol), status) in enumerate(tiles):
         x = M + i * (w + 8)
-        card(c, x, y_top, w, h, fill=WHITE, r=12)
+        card(c, x, y_top, w, h, r=12)
         text(c, x + 10, y_top - 17, fit(label, F, 7.6, w - 20), F, 7.6, MUTED)
         if status:
-            pill(c, x + w - 10, y_top - 40, status[1], WARN_TXT if status[0] == WARN else GOOD_TXT,
-                 WARN_SOFT if status[0] == WARN else GOOD_SOFT, size=5.8, h=10, pad=4, anchor="right")
-        text(c, x + 10, y_top - 41, value, FB, 20, INK)
+            pill(c, x + w - 10, y_top - 37, status[1], SIGNAL_TXT if status[0] == WARN else GOOD_TXT,
+                 SIGNAL_SOFT if status[0] == WARN else GOOD_SOFT, size=5.8, h=10, pad=4, anchor="right")
+        text(c, x + 10, y_top - 38, value, FB, 20, INK)
         lines = wrap(sub, F, 6.4, w - 20, 2)
-        yy = y_top - 53
+        yy = y_top - 49
         for ln in lines:
             text(c, x + 10, yy, ln, F, 6.4, MUTED)
-            yy -= 8.2
+            yy -= 7.8
         if dtxt:
             text(c, x + 10, yy, fit(dtxt, FB, 6.4, w - 20), FB, 6.4, dcol)
     return y_top - h
@@ -533,7 +552,7 @@ def draw_charts(c, model, y_top, h=172):
 
 
 def draw_highlights(c, model, y_top, h=68):
-    card(c, M, y_top, CW, h, fill=ACCENT_SOFT, stroke=None, r=14)
+    card(c, M, y_top, CW, h, r=14)
     src = "Claude's observations" if model["highlights_source"] == "claude" else "What the numbers say"
     text(c, M + 12, y_top - 19, "Highlights", FB, 9.5, NAVY)
     text(c, M + 12, y_top - 30, src, F, 6.8, MUTED)
@@ -556,13 +575,140 @@ def draw_highlights(c, model, y_top, h=68):
     return y_top - h
 
 
+def chart_fan(fc: dict, w: float, h: float) -> io.BytesIO:
+    """Mini fan chart for the Outlook card: observed cases (solid sky), forecast (dashed) inside 80 / 95% bands."""
+    plt = _mpl()
+    pts = fc.get("series") or []
+    hist = [p_ for p_ in pts if p_["kind"] == "history" and p_["mean"] is not None]
+    fut = [p_ for p_ in pts if p_["kind"] == "forecast" and p_["mean"] is not None]
+    fig = plt.figure(figsize=(w / 72, h / 72))
+    ax = fig.add_axes([0.07, 0.2, 0.86, 0.78])
+    if fut:
+        bridge = hist[-1:] if hist else []
+        xs = [p_["year"] for p_ in bridge + fut]
+        lo95 = [p_.get("lo95") if p_["kind"] == "forecast" else p_["mean"] for p_ in bridge + fut]
+        hi95 = [p_.get("hi95") if p_["kind"] == "forecast" else p_["mean"] for p_ in bridge + fut]
+        lo80 = [p_.get("lo80") if p_["kind"] == "forecast" else p_["mean"] for p_ in bridge + fut]
+        hi80 = [p_.get("hi80") if p_["kind"] == "forecast" else p_["mean"] for p_ in bridge + fut]
+        ax.fill_between(xs, lo95, hi95, color=SKY, alpha=0.18, lw=0, zorder=1)
+        ax.fill_between(xs, lo80, hi80, color=SKY, alpha=0.30, lw=0, zorder=2)
+        ax.plot(xs, [p_["mean"] for p_ in bridge + fut], color=SKY, lw=1.1, ls=(0, (2.2, 1.6)), zorder=3)
+        ax.scatter([xs[-1]], [fut[-1]["mean"]], s=10, color=SKY, edgecolor=TILE, linewidth=0.8, zorder=4)
+    if hist:
+        ax.plot([p_["year"] for p_ in hist], [p_["mean"] for p_ in hist], color=SKY, lw=1.3, solid_capstyle="round", zorder=3)
+    years = [p_["year"] for p_ in pts]
+    if years:
+        ax.set_xlim(min(years) - 0.3, max(years) + 0.6)
+        ticks = [y for y in (min(years), fc.get("base_year"), fc.get("horizon_year")) if y]
+        ax.set_xticks(sorted(set(ticks)))
+        ax.set_xticklabels([str(t) for t in sorted(set(ticks))], fontsize=5.6)
+    top = max([p_.get("hi95") or p_["mean"] or 0 for p_ in pts] + [1])
+    ax.set_ylim(0, top * 1.08)
+    ax.set_yticks([])
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+    ax.spines["bottom"].set_color(BORDER)
+    ax.tick_params(axis="x", length=0, pad=2)
+    buf = _png(fig)
+    plt.close(fig)
+    return buf
+
+
+def _stat(c, x, y_top, w, label, value, sub, value_color=INK, sub2=None, sub2_color=MUTED):
+    text(c, x, y_top, fit(label, F, 7, w), F, 7, MUTED)
+    text(c, x, y_top - 20, value, FB, 17, value_color)
+    text(c, x, y_top - 30.5, fit(sub, F, 6.1, w), F, 6.1, MUTED)
+    if sub2:
+        text(c, x, y_top - 39, fit(sub2, FB, 6.1, w), FB, 6.1, sub2_color)
+
+
+PATHWAY_SHORT = {"ENDOSCOPY_REFERRAL": "endoscopy referral", "HP_TEST_AND_TREAT": "H. pylori test and treat",
+                 "ANAEMIA_WORKUP": "anaemia work-up", "ONCOLOGY_TREATMENT": "oncology treatment", "SURVIVORSHIP": "survivorship",
+                 "PALLIATIVE_SUPPORT": "palliative support"}
+
+
+def draw_care_outlook(c, model, y_top, h=92):
+    """Care coordination (doctor-approved plans: new, overdue, completion, days to endoscopy) + the 2031 Outlook."""
+    from reportlab.lib.utils import ImageReader
+
+    care, fc, dl = model.get("care"), model.get("forecast"), model.get("deltas") or {}
+    prev = model.get("previous_report")
+    prev_s = _sim_short(prev + "T00:00:00") if prev else None
+    wl = (CW - GAP) * 0.615
+    wr = CW - GAP - wl
+    # ---- care coordination
+    card(c, M, y_top, wl, h, r=14)
+    npw = len((care or {}).get("by_pathway") or [])
+    card_title(c, M, y_top, "Care coordination",
+               f"Doctor-approved care plans · new = last {(care or {}).get('window_days', 7)} sim days"
+               + (f" · {npw} pathway{'s' if npw != 1 else ''} in use" if npw else ""))
+    if care:
+        pad, inner = 12, wl - 24
+        cw = (inner - 3 * 10) / 4
+        ys = y_top - 45
+        rate = care.get("completion_rate_pct")
+        med = care.get("median_days_to_endoscopy")
+        d_new, _ = _delta_text(dl.get("care_new_plans_7d"), prev_date=prev_s)
+        d_over, col_over = _delta_text(dl.get("care_overdue_tasks"), good_when_down=True, prev_date=prev_s)
+        stats = [
+            ("New plans", _fmt_int(care.get("new_plans_7d")), f"{care.get('plans_active', 0):,} active, {care.get('facilities', 0)} "
+             f"facilit{'y' if care.get('facilities') == 1 else 'ies'}", INK, d_new, MUTED),
+            ("Overdue tasks", _fmt_int(care.get("overdue_tasks")), f"of {care.get('open_tasks', 0):,} open tasks",
+             SIGNAL_TXT if (care.get("overdue_tasks") or 0) > 0 else INK,
+             d_over or f"{care.get('chw_escalations', 0)} escalated to a CHW", col_over if d_over else MUTED),
+            ("Completion rate", "—" if rate is None else f"{rate:.0f}%",
+             f"{care.get('completed_tasks', 0):,} of {care.get('due_or_done_tasks', 0):,} due tasks", INK, None, MUTED),
+            ("Days to endoscopy", "—" if med is None else (f"{med:.0f}" if float(med).is_integer() else f"{med:.1f}"),
+             "median from approval", INK,
+             f"n = {care.get('endoscopies_completed', 0)} completed", MUTED),
+        ]
+        for i, (lab, val, sub, vc, d2, d2c) in enumerate(stats):
+            x = M + pad + i * (cw + 10)
+            if i:
+                c.setStrokeColor(_hex(BORDER))
+                c.setLineWidth(0.7)
+                c.line(x - 5, ys + 7, x - 5, ys - 41)
+            _stat(c, x, ys, cw, lab, val, sub, vc, d2, d2c)
+    else:
+        text(c, M + 12, y_top - 52, "No care plans in this snapshot yet: approve a flag with Approve & plan in the doctor workspace.", F, 7.2, MUTED)
+    # ---- outlook
+    x = M + wl + GAP
+    card(c, x, y_top, wr, h, r=14)
+    if fc:
+        card_title(c, x, y_top, f"Outlook {fc['horizon_year']}", "National cases · synthetic registry forecast")
+        tx = x + 12
+        mean = fc.get("mean")
+        text(c, tx, y_top - 65, _fmt_int(mean), FB, 19, INK)
+        text(c, tx + _sw(_fmt_int(mean), FB, 19) + 3, y_top - 65, "cases", F, 6.8, MUTED)
+        text(c, tx, y_top - 76, f"95% interval {_fmt_int(fc.get('lo95'))}–{_fmt_int(fc.get('hi95'))}", F, 6.2, MUTED)
+        if fc.get("change_pct") is not None:
+            text(c, tx, y_top - 84.5, f"{fc['change_pct']:+.0f}% vs {fc.get('base_year')} ({_fmt_int(fc.get('base_cases'))})", FB, 6.2, INK)
+        iw, ih = wr * 0.47, h - 42
+        c.drawImage(ImageReader(chart_fan(fc, iw, ih)), x + wr - iw - 8, y_top - h + 7, iw, ih)
+    else:
+        card_title(c, x, y_top, "Outlook", "Incidence forecast")
+        text(c, x + 12, y_top - 52, "No forecast in this snapshot (make forecast).", F, 7.2, MUTED)
+    return y_top - h
+
+
 VERDICT_STYLE = {"agree": ("Agree", GOOD_TXT, GOOD_SOFT, GOOD), "disagree": ("Disagree", BAD_TXT, BAD_SOFT, BAD),
                  "uncertain": ("Uncertain", WARN_TXT, WARN_SOFT, WARN), None: ("Pending", MUTED, NEUTRAL_SOFT, FAINT)}
 
 
-def draw_table(c, model, y_top, h=272):
+TABLE_ROWS = 8
+TABLE_ROW_H = 18.0
+
+
+def table_height(model) -> float:
+    cases = model["top_cases"][:TABLE_ROWS]
+    n_high = sum(1 for r in cases if r.get("risk_band") == "HIGH")
+    return 46 + 8 + len(cases) * TABLE_ROW_H + (13 if 0 < n_high < len(cases) else 0) + 12
+
+
+def draw_table(c, model, y_top, h=None):
+    h = h or table_height(model)
     card(c, M, y_top, CW, h, r=14)
-    cases = model["top_cases"][:10]
+    cases = model["top_cases"][:TABLE_ROWS]
     high = (model["bands"] or {}).get("HIGH", 0)
     n_high = sum(1 for r in cases if r.get("risk_band") == "HIGH")
     card_title(c, M, y_top, "Top high-risk patients",
@@ -590,7 +736,7 @@ def draw_table(c, model, y_top, h=272):
     for j, (name, w, a) in enumerate(cols):
         hx = reason_x if j == 6 else (xs[j] + w if a == "right" else xs[j])
         text(c, hx, hy, name, FB, 6.8, MUTED, anchor="right" if a == "right" else "left")
-    rh = 19.5
+    rh = TABLE_ROW_H
     ry = hy - 8
     for i, r in enumerate(cases):
         if i == n_high and 0 < n_high:  # separator before the MEDIUM top-up rows
@@ -626,8 +772,8 @@ def draw_table(c, model, y_top, h=272):
             text(c, xs[7], mid, "—", F, 7.2, FAINT)
         else:
             scoped = bool(r.get("scoped"))
-            pill(c, xs[7], ry + rh / 2 - 5, "Scoped" if scoped else "Awaiting", GOOD_TXT if scoped else WARN_TXT,
-                 GOOD_SOFT if scoped else WARN_SOFT, size=6, h=10, pad=4)
+            pill(c, xs[7], ry + rh / 2 - 5, "Scoped" if scoped else "Awaiting", GOOD_TXT if scoped else SIGNAL_TXT,
+                 GOOD_SOFT if scoped else SIGNAL_SOFT, size=6, h=10, pad=4)
         if is_high or r.get("verdict"):
             lab, fg, bg, dot = VERDICT_STYLE.get(r.get("verdict"), VERDICT_STYLE[None])
             if r.get("verdict") and r.get("confidence") is not None:
@@ -661,9 +807,10 @@ def draw_footer(c, model, y_top, h=76):
     else:
         dtxt = "No data-quality marts in this snapshot."
     models = ", ".join(v for _, v in sorted((model.get("models") or {}).items())) or "—"
-    ptxt = (f"Pipeline run #{model['run_id']} published {_utc_short(model.get('published_at'))}. Models: {models}. "
-            f"Built {_utc_short(model['generated_at'])} by scripts/daily_report.py from the "
-            f"{'live serve database' if model['source'] == 'live' else 'committed snapshot (reports/snapshots/latest.json)'}.")
+    fcr = (model.get("forecast") or {}).get("run_id")
+    ptxt = (f"Run #{model['run_id']} published {_utc_short(model.get('published_at'))}. Models: {models}"
+            + (f"; forecast {fcr} (APC + ETS)" if fcr else "") + f". Built {_utc_short(model['generated_at'])} from the "
+            f"{'live serve database' if model['source'] == 'live' else 'committed snapshot'}.")
     for i, (title, body) in enumerate((("Claude validation", vtxt), ("Data quality", dtxt), ("Provenance", ptxt))):
         x = M + 12 + i * (colw + 16)
         if i:
@@ -689,11 +836,12 @@ def render(model: dict, out: Path) -> Path:
     c.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
     y = PAGE_H - M
     y = draw_header(c, model, y) - 12
-    y = draw_kpis(c, model, y) - GAP
-    y = draw_charts(c, model, y) - GAP
-    y = draw_highlights(c, model, y) - GAP
+    y = draw_kpis(c, model, y, h=70) - GAP
+    y = draw_charts(c, model, y, h=146) - GAP
+    y = draw_care_outlook(c, model, y, h=96) - GAP
+    y = draw_highlights(c, model, y, h=58) - GAP
     y = draw_table(c, model, y) - GAP
-    y = draw_footer(c, model, y)
+    y = draw_footer(c, model, y, h=min(70, y - M - 6))
     assert y >= M + 4, f"layout overflow: {y:.1f}"
     text(c, M, M - 6, "Synthetic data generated for the Early Signals demo. Patients appear by display ID only. Not for clinical use.",
          F, 6.3, FAINT)
