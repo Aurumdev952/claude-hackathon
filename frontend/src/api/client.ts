@@ -9,9 +9,10 @@ export class ApiError extends Error {
 const BASE = "/api/v1";
 
 function headers(): HeadersInit {
-  const { role, facilityId } = useRole.getState();
+  const { role, facilityId, patientId } = useRole.getState();
   const h: Record<string, string> = { "X-Role": role, "Content-Type": "application/json" };
   if (role === "doctor" && facilityId) h["X-Facility-Id"] = String(facilityId);
+  if (role === "patient" && patientId) h["X-Patient-Id"] = String(patientId);
   return h;
 }
 
