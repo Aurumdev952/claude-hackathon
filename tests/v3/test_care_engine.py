@@ -88,7 +88,8 @@ def test_create_plan_writes_emr_tasks_notifications(env):
     p, tasks = r["plan"], r["tasks"]
     assert p["id"].startswith("CP-") and p["status"] == "ACTIVE" and p["trigger"] == "RISK_BAND_HIGH"
     assert p["display_id"] == "GAS-0000101X"
-    assert p["propensity"] == pytest.approx(0.31) and p["risk_at_approval"] == pytest.approx(0.31)
+    # the risk score is not a propensity: P(verified | features) is estimated when feedback labels are built (F1 #2)
+    assert p["propensity"] is None and p["risk_at_approval"] == pytest.approx(0.31)
     assert p["model_id"] == "tier2-xgb-test" and p["band_at_approval"] == "HIGH"
     assert p["target_facility_id"] == ENDO_FAC  # nearest endoscopy-capable facility (home facility has none)
     assert [t["type"] for t in tasks] == ["ENDOSCOPY"]
@@ -163,7 +164,9 @@ def test_evidence_completes_task_and_spawns_next_step(env):
     assert d["plan"]["status"] == "COMPLETED" and d["plan"]["closed_sim"]
     o = env["store"].one("SELECT * FROM recommendation_outcomes WHERE plan_id = ?", [p["id"]])
     assert o["adhered"] == 1 and o["on_time"] == 1 and o["days_to_completion"] == 9 and o["finding"] == "GASTRITIS"
-    assert o["propensity"] == pytest.approx(0.31) and o["sex"] == "F" and o["age_band"] == "60-69"
+    assert o["propensity"] is None and o["risk_at_approval"] == pytest.approx(0.31)
+    assert o["sex"] == "F" and o["age_band"] == "60-69"
+    assert o["cancer_found"] is None  # endoscopy 1 day ago: a negative is only final 60 days after it (F1 #1)
     # a completion message went to the app
     keys = [n["template_key"] for n in engine.notifications_for(PID)]
     assert "default.ENDOSCOPY.completed" in keys
