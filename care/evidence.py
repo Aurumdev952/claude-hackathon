@@ -1,7 +1,11 @@
 """Evidence rules (docs/contracts/v3-loop.md §4.1): which EMR fact closes which care task, and what it means.
 
-A task completes with the earliest matching fact dated on or after its `opens_at` (and not after the reconcile end).
-A fact closes at most one task per plan, so chained tasks (chemo cycles, test then test of cure) never reuse it.
+A task completes with the earliest matching fact dated on or after its opening *date* (and not after the reconcile end):
+a fact on the calendar day the task opens counts even when it is earlier in the day than `opens_at` (sim ticks end at
+23:59:59, so a task that opens "today" must accept today's clinic visit), but never a fact from before the task was
+created (`created_sim`), so a result-discussion step spawned at 14:00 is not closed by that morning's visit. A fact
+closes at most one task per plan (keyed by `fact_key`), so chained tasks (chemo cycles, test then test of cure) never
+reuse it.
 
 Facts come from the work DuckDB (`raw_*` unioned with `stg_*`, so rows written this tick count before the next
 staging run) or, as a fallback, from the serve DB `pt_timeline`.
@@ -145,7 +149,8 @@ def _facts_serve(con, pids: str, since, until) -> dict[int, list[dict]]:
             continue
         if et == "STAGING":
             out[int(pid)].append({"table": "obs", "id": enc or 0, "kind": "obs", "code": C.STAGE_SET, "value_coded": cid,
-                                  "value_numeric": None, "date": ts, "encounter_id": enc})
+                                  "value_numeric": None, "date": ts, "encounter_id": enc, "source": "pt_timeline",
+                                  "key": _serve_key("obs", pid, enc, C.STAGE_SET, ts, cid)})
             continue
         kind = {"VISIT": "enc", "LAB": "obs", "VITAL": "obs", "DRUG": "drug"}[et]
         if (kind == "enc" and cid not in ENC_TYPES) or (kind == "obs" and cid not in OBS_CODES) or \
@@ -154,14 +159,44 @@ def _facts_serve(con, pids: str, since, until) -> dict[int, list[dict]]:
         vc = None
         if kind == "obs" and cid in (C.HP_STOOL, C.HP_SERO, C.HP_UBT, C.RUT):
             vc = C.POS if (vt or "").lower().startswith("pos") else C.NEG if (vt or "").lower().startswith("neg") else None
-        out[int(pid)].append({"table": {"enc": "encounter", "obs": "obs", "drug": "drug_order"}[kind], "id": enc or 0,
-                              "kind": kind, "code": int(cid), "value_coded": vc, "value_numeric": vn, "date": ts,
-                              "encounter_id": enc, "source": "pt_timeline"})
+        table = {"enc": "encounter", "obs": "obs", "drug": "drug_order"}[kind]
+        # pt_timeline has no obs/order ids: an encounter is unique by its id, an obs or drug order by
+        # (table, patient, encounter, concept, time, value); `id` stays the encounter id for display
+        key = f"encounter:{enc}" if kind == "enc" and enc is not None else _serve_key(table, pid, enc, cid, ts, vn if vn is not None else vt)
+        out[int(pid)].append({"table": table, "id": enc or 0, "kind": kind, "code": int(cid), "value_coded": vc,
+                              "value_numeric": vn, "date": ts, "encounter_id": enc, "source": "pt_timeline", "key": key})
     for fs in out.values():
         for f in fs:
             if f["kind"] == "enc" and f["encounter_id"] in det:
                 f["details"] = det[f["encounter_id"]]
     return out
+
+
+def _serve_key(table: str, pid, enc, cid, ts, value) -> str:
+    t = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+    return f"{table}:{int(pid)}:{enc if enc is not None else '-'}:{int(cid)}:{t}:{value}"
+
+
+def fact_key(f: dict) -> str:
+    """Unique identity of an evidence fact (work DB: table + real row id; serve DB: a composite key)."""
+    return f.get("key") or f"{f['table']}:{f['id']}"
+
+
+def evidence_key(ev: dict) -> str | None:
+    """`fact_key` of a stored task evidence json (None for manual completions without an EMR fact)."""
+    if not ev or not ev.get("table") or ev.get("id") is None:
+        return ev.get("key") if ev else None
+    return ev.get("key") or f"{ev['table']}:{ev['id']}"
+
+
+def lower_bound(task: dict) -> dt.datetime:
+    """Earliest fact time that may close the task: the start of its opening day, but never before it was created."""
+    opens = dt.datetime.fromisoformat(str(task["opens_at"])[:19])
+    lo = dt.datetime.combine(opens.date(), dt.time())
+    created = task.get("created_sim")
+    if created:
+        lo = max(lo, dt.datetime.fromisoformat(str(created)[:19]))
+    return min(lo, opens)
 
 
 def rules_for(task_type: str, serve: bool = False) -> list[dict]:
@@ -178,13 +213,14 @@ def matches(task_type: str, fact: dict) -> bool:
 
 
 def find(task: dict, facts: list[dict], used: set, until: dt.datetime) -> dict | None:
-    """Earliest unused fact matching the task's rule, dated within [opens_at, until]."""
-    opens = dt.datetime.fromisoformat(task["opens_at"])
+    """Earliest unused fact matching the task's rule, dated within [lower_bound(task), until] (see module docstring).
+    `used` holds `fact_key`s already used by this plan."""
+    lo = lower_bound(task)
     for f in facts:
         d = f["date"] if isinstance(f["date"], dt.datetime) else dt.datetime.fromisoformat(str(f["date"]))
-        if d < opens or d > until:
+        if d < lo or d > until:
             continue
-        if (f["table"], f["id"]) in used:
+        if fact_key(f) in used:
             continue
         if matches(task["type"], f):
             return f
@@ -222,5 +258,8 @@ def as_evidence(fact: dict) -> dict:
     value = fact.get("value_coded") if fact.get("value_coded") is not None else fact.get("value_numeric")
     if value is None and fact.get("details"):
         value = next(iter(fact["details"].values()))
-    return {"table": fact["table"], "id": fact["id"], "concept_id": fact["code"], "value": value,
-            "date": d.isoformat() if hasattr(d, "isoformat") else str(d), "encounter_id": fact.get("encounter_id")}
+    out = {"table": fact["table"], "id": fact["id"], "concept_id": fact["code"], "value": value,
+           "date": d.isoformat() if hasattr(d, "isoformat") else str(d), "encounter_id": fact.get("encounter_id")}
+    if fact.get("key"):
+        out["key"] = fact["key"]
+    return out

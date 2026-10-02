@@ -10,9 +10,9 @@ Logs and events carry display ids only. Notification bodies never contain names 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import math
-import uuid
 from collections import defaultdict
 from typing import Any
 
@@ -23,6 +23,10 @@ from .emr_bridge import ENC_CARE, ENC_CHW, ENC_PATIENT, Rows, adapter, commit_al
 from .store import get_store, iso, sim_now, to_dt
 
 TERMINAL = ("COMPLETED", "CANCELLED", "DECLINED")
+# pathways whose primary step is an endoscopy (anaemia work-up only once it escalates to one): the only care outcomes that
+# can verify a cancer label (ml/feedback.py). Other pathways leave recommendation_outcomes.cancer_found NULL.
+SCREENING = ("ENDOSCOPY_REFERRAL", "ANAEMIA_WORKUP")
+NEG_CONFIRM_DAYS = 60  # an endoscopy is a verified negative once this many days pass without a diagnosis
 OPEN = ("SCHEDULED", "DUE", "NOTIFIED", "OVERDUE", "ESCALATED")
 PLAN_OPEN = ("ACTIVE", "ESCALATED")
 CH_CONCEPT = {"APP": C.CH_APP, "SMS": C.CH_SMS, "CHW": C.CH_CHW}
@@ -201,8 +205,20 @@ def _facility_name(locs: dict, fid) -> str:
     return l["name"] if l else "your health centre"
 
 
-def _new_id(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
+def _new_id(prefix: str, *key, taken=None) -> str:
+    """Deterministic id: prefix + 8 hex of a hash of `key` (same actions -> same ids -> the same care-world draws, which
+    are keyed by task). `taken(id) -> bool` reports ids already in use; a collision re-hashes with a salt."""
+    for salt in range(1000):
+        h = hashlib.blake2b("|".join(str(k) for k in (*key, salt or "")).encode(), digest_size=8).hexdigest()[:8].upper()
+        out = f"{prefix}-{h}"
+        if taken is None or not taken(out):
+            return out
+    raise RuntimeError(f"could not allocate a unique {prefix} id")
+
+
+def _taken(table: str, extra: set | None = None):
+    store = get_store()
+    return lambda i: (extra is not None and i in extra) or store.one(f"SELECT 1 AS x FROM {table} WHERE id = ?", [i]) is not None
 
 
 def _wall() -> str:
@@ -211,15 +227,18 @@ def _wall() -> str:
 
 # ------------------------------------------------------------------------------------------------ task building
 def _task_rows(plan_id: str, pid: int, pw_id: str, specs: list[dict], anchor: dt.datetime, now: dt.datetime,
-               start_seq: int, due_override: dt.datetime | None = None) -> list[dict]:
+               start_seq: int, due_override: dt.datetime | None = None, *, persist: bool = False) -> list[dict]:
     out = []
+    ids: set = set()
     for i, s in enumerate(specs):
         opens = anchor + dt.timedelta(days=s["opens"])
         due = anchor + dt.timedelta(days=s["due"])
         if due_override is not None and i == 0:
             due = due_override
             opens = min(opens, due)
-        out.append({"id": _new_id("CT"), "plan_id": plan_id, "patient_id": pid, "seq": start_seq + i, "type": s["type"],
+        tid = _new_id("CT", plan_id, start_seq + i, taken=_taken("care_tasks", ids) if persist else None)
+        ids.add(tid)
+        out.append({"id": tid, "plan_id": plan_id, "patient_id": pid, "seq": start_seq + i, "type": s["type"],
                     "title": s["title"], "status": "DUE" if opens <= now else "SCHEDULED", "opens_at": iso(opens),
                     "due_at": iso(due), "completed_at": None, "evidence": None, "result": None, "reminders": 0,
                     "last_reminder_sim": None, "escalation_level": 0, "created_sim": iso(now),
@@ -294,35 +313,41 @@ def create_plan(patient_id: int, facility_id: int, pathway: str, *, alert_id: st
                    target_facility_id=target_facility_id, con=con)
     store = get_store()
     pid, now, db, pt = int(patient_id), ctx["now"], ctx["db"], ctx["pt"]
-    if store.one(f"SELECT id FROM care_plans WHERE patient_id = ? AND pathway = ? AND status IN {PLAN_OPEN}", [pid, pathway]):
-        raise CareError(409, "PLAN_EXISTS", "This patient already has an open plan on this pathway")
     risk = db.one("SELECT ensemble_prob, risk_band FROM pt_risk WHERE patient_id = ?", [pid]) if db.has("pt_risk") else None
     model = db.one("SELECT model_id FROM ml_model_registry WHERE is_active AND tier = 2 ORDER BY trained_at DESC LIMIT 1") \
         if db.has("ml_model_registry") else None
-    plan_id = _new_id("CP")
-    tasks = _task_rows(plan_id, pid, pathway, ctx["specs"], now, now, 1, ctx["due_override"])
-    # EMR: CARE_COORDINATION encounter with pathway, tasks, channels and the referral order
-    rows = Rows(pid, ctx["facility_id"] or ctx["target"], now, ENC_CARE, now)
-    order_id = rows.order(int(ctx["pw"]["order"]))
-    rows.obs(C.CARE_PATHWAY, coded=int(ctx["pw"]["concept"]), order_id=order_id)
-    for t in tasks:
-        rows.obs(C.CARE_TASK, text=t["type"])
-    for ch in ctx["channels"]:
-        rows.obs(C.NOTIFIED, coded=CH_CONCEPT[ch])
-    rows.commit()
     facts = ctx["facts"]
-    plan = {"id": plan_id, "patient_id": pid, "display_id": pt["display_id"], "facility_id": ctx["facility_id"],
-            "pathway": pathway, "status": "ACTIVE", "source_alert_id": alert_id, "trigger": ctx["trigger"],
-            "approved_by": actor, "approved_at": iso(now), "channels": json.dumps(ctx["channels"]),
-            "model_id": (model or {}).get("model_id"),
-            "risk_at_approval": _f((risk or {}).get("ensemble_prob")), "band_at_approval": (risk or {}).get("risk_band"),
-            "propensity": _f((risk or {}).get("ensemble_prob")),
-            "due_override": iso(ctx["due_override"]) if ctx["due_override"] else None, "target_facility_id": ctx["target"],
-            "note": note, "emr_encounter_id": rows.encounter_id, "created_sim": iso(now), "closed_sim": None,
-            "context": json.dumps({**facts, "district_code": pt.get("district_code"), "sex": pt.get("sex"),
-                                   "age_band": _age_band(pt.get("age"))}, default=str)}
-    w = _Writer(store, {plan_id: plan}, ctx["locs"])
+    # One write transaction (BEGIN IMMEDIATE, serialised across the API and the simulator): the open-plan check, the EMR
+    # write and the inserts. A double submit therefore gets 409 before any EMR row is written; the partial unique index
+    # ux_plans_open (care/store.py) is the last guard.
     with store.tx() as c:
+        if store.one(f"SELECT id FROM care_plans WHERE patient_id = ? AND pathway = ? AND status IN {PLAN_OPEN}", [pid, pathway]):
+            raise CareError(409, "PLAN_EXISTS", "This patient already has an open plan on this pathway")
+        n_prior = store.one("SELECT count(*) AS n FROM care_plans WHERE patient_id = ?", [pid])["n"]
+        plan_id = _new_id("CP", pid, pathway, iso(now), n_prior, taken=_taken("care_plans"))
+        tasks = _task_rows(plan_id, pid, pathway, ctx["specs"], now, now, 1, ctx["due_override"], persist=True)
+        # EMR: CARE_COORDINATION encounter with pathway, tasks, channels and the referral order
+        rows = Rows(pid, ctx["facility_id"] or ctx["target"], now, ENC_CARE, now)
+        order_id = rows.order(int(ctx["pw"]["order"]))
+        rows.obs(C.CARE_PATHWAY, coded=int(ctx["pw"]["concept"]), order_id=order_id)
+        for t in tasks:
+            rows.obs(C.CARE_TASK, text=t["type"])
+        for ch in ctx["channels"]:
+            rows.obs(C.NOTIFIED, coded=CH_CONCEPT[ch])
+        rows.commit()
+        # propensity (P(outcome verified | features), for IPW) is estimated when the feedback labels are built
+        # (ml/feedback.py), from all screening plans; the risk score itself is not a propensity
+        plan = {"id": plan_id, "patient_id": pid, "display_id": pt["display_id"], "facility_id": ctx["facility_id"],
+                "pathway": pathway, "status": "ACTIVE", "source_alert_id": alert_id, "trigger": ctx["trigger"],
+                "approved_by": actor, "approved_at": iso(now), "channels": json.dumps(ctx["channels"]),
+                "model_id": (model or {}).get("model_id"),
+                "risk_at_approval": _f((risk or {}).get("ensemble_prob")), "band_at_approval": (risk or {}).get("risk_band"),
+                "propensity": None,
+                "due_override": iso(ctx["due_override"]) if ctx["due_override"] else None, "target_facility_id": ctx["target"],
+                "note": note, "emr_encounter_id": rows.encounter_id, "created_sim": iso(now), "closed_sim": None,
+                "context": json.dumps({**facts, "district_code": pt.get("district_code"), "sex": pt.get("sex"),
+                                       "age_band": _age_band(pt.get("age"))}, default=str)}
+        w = _Writer(store, {plan_id: plan}, ctx["locs"])
         store.insert("care_plans", plan, c)
         w.event(plan, None, "PLAN_CREATED", {"pathway": pathway, "channels": ctx["channels"], "alert_id": alert_id,
                                              "emr_encounter_id": rows.encounter_id, "order_id": order_id}, actor, now)
@@ -365,6 +390,7 @@ class _Writer:
         self.by_plan: dict[str, list[dict]] | None = None  # live task lists (reconcile / patch) that spawns join
         self.fresh: list[dict] = []  # spawned during this pass, still to be checked for evidence
         self.counts = defaultdict(int)
+        self.ids: set[str] = set()  # notification ids allocated by this writer (not yet flushed)
 
     def event(self, plan, task, kind, detail, actor, when):
         self.events.append({"plan_id": plan["id"], "task_id": task["id"] if task else None, "patient_id": plan["patient_id"],
@@ -381,7 +407,10 @@ class _Writer:
         m = messages.render(plan["pathway"], task["type"] if task else "default", stage, channel, task_title=title,
                             facility=_facility_name(self.locs, target), date=task["due_at"] if task else None,
                             display_id=plan.get("display_id"))
-        n = {"id": _new_id("NT"), "patient_id": plan["patient_id"], "plan_id": plan["id"], "task_id": task["id"] if task else None,
+        nid = _new_id("NT", plan["id"], task["id"] if task else "-", channel, stage, iso(when), len(self.notifications),
+                      taken=_taken("notifications", self.ids))
+        self.ids.add(nid)
+        n = {"id": nid, "patient_id": plan["patient_id"], "plan_id": plan["id"], "task_id": task["id"] if task else None,
              "channel": channel, "template_key": m["template_key"], "title": m["title"], "body": m["body"],
              "created_sim": iso(when), "delivered_sim": iso(when), "read_sim": None, "acted_sim": None}
         self.notifications.append(n)
@@ -426,90 +455,151 @@ class _Writer:
 
 
 # ------------------------------------------------------------------------------------------------ reconcile
-def reconcile(t0, t1, con=None, *, log=print) -> dict:
-    """Advance every open plan to sim time t1 using EMR evidence from `con` (work DB or serve DB)."""
+def reconcile(t0, t1, con=None, *, log=print, outcomes: list[dict] | None = None) -> dict:
+    """Advance every open plan to sim time t1 using EMR evidence from `con` (work DB or serve DB).
+
+    `outcomes` are the care world's reports for this window (simulator/care_world.py `step()["outcomes"]`): a patient
+    who declines a task closes it as DECLINED (with the reason, a care event for the doctor and a TASK_OUTCOME obs).
+    Completions still need EMR evidence. The read-modify-write runs inside one BEGIN IMMEDIATE transaction, so a
+    concurrent `patch_task` (API process) is never overwritten: it either commits before (and is read here) or waits."""
     store = get_store()
     t1 = to_dt(t1)
     db = DB(con)
-    plans = {p["id"]: p for p in store.rows(f"SELECT * FROM care_plans WHERE status IN {PLAN_OPEN}")}
-    summary = {"completed": 0, "overdue": 0, "reminders": 0, "escalations": 0, "new_tasks": 0, "plans_closed": 0}
-    if not plans:
-        return summary
-    ph = ",".join("?" * len(plans))
-    tasks = store.rows(f"SELECT * FROM care_tasks WHERE plan_id IN ({ph}) ORDER BY due_at, seq", list(plans))
-    by_plan: dict[str, list[dict]] = defaultdict(list)
-    for t in tasks:
-        by_plan[t["plan_id"]].append(t)
-    used: dict[str, set] = defaultdict(set)
-    for t in tasks:
-        if t["evidence"]:
-            ev = json.loads(t["evidence"])
-            if ev.get("table") and ev.get("id") is not None:
-                used[t["plan_id"]].add((ev["table"], int(ev["id"])))
     locs = _locations(db)
+    summary = {"completed": 0, "overdue": 0, "reminders": 0, "escalations": 0, "new_tasks": 0, "plans_closed": 0,
+               "declined": 0}
+    plans = {p["id"]: p for p in store.rows(f"SELECT * FROM care_plans WHERE status IN {PLAN_OPEN}")}
+    by_plan: dict[str, list[dict]] = defaultdict(list)
     w = _Writer(store, plans, locs)
-    # deaths close plans
-    pids = sorted({p["patient_id"] for p in plans.values()})
-    dead = _deaths(db, pids, t1)
-    for p in plans.values():
-        if p["patient_id"] in dead:
-            for t in by_plan[p["id"]]:
-                if t["status"] in OPEN:
-                    w.update(t, status="CANCELLED", result="DECEASED")
-            p["status"], p["closed_sim"] = "CANCELLED", iso(min(t1, dead[p["patient_id"]]))
-            w.event(p, None, "PLAN_CANCELLED", {"reason": "deceased"}, "system", to_dt(p["closed_sim"]))
-            summary["plans_closed"] += 1
-    open_tasks = [t for t in tasks if t["status"] in OPEN and plans[t["plan_id"]]["status"] in PLAN_OPEN]
-    since = min((to_dt(t["opens_at"]) for t in open_tasks), default=t1)
-    duck = db.duck
-    facts = evidence.fetch_facts(duck, pids, since, t1) if duck is not None and open_tasks else {}
-
-    w.by_plan = by_plan
-    queue = sorted(open_tasks, key=lambda t: (t["due_at"], t["seq"]))
-    for _round in range(200):
-        while queue:
-            t = queue.pop(0)
-            plan = plans[t["plan_id"]]
-            if plan["status"] not in PLAN_OPEN or t["status"] in TERMINAL:
-                continue
-            f = evidence.find(t, facts.get(plan["patient_id"], []), used[plan["id"]], t1)
-            done_at = _dt(f["date"]) if f else None
-            _ladder(w, plan, t, min(done_at or t1, _cap(plan, t, t1)), summary)
-            if f and done_at <= _cap(plan, t, t1):
-                ctx = json.loads(plan.get("context") or "{}")
-                res = evidence.result_of(t["type"], f, ctx)
-                used[plan["id"]].add((f["table"], f["id"]))
-                _complete(w, plan, t, done_at, evidence.as_evidence(f), res, "system", by_plan)
-                summary["completed"] += 1
-            if w.fresh:
-                summary["new_tasks"] += len(w.fresh)
-                queue.extend(w.fresh)
-                w.fresh = []
-                queue.sort(key=lambda x: (x["due_at"], x["seq"]))
-        # recurring schedules add occurrences (and catch up missed ones) once the one-off tasks are settled
-        for p in plans.values():
-            if p["status"] in PLAN_OPEN:
-                _recurring(w, p, by_plan, t1)
-        if not w.fresh:
-            break
-        summary["new_tasks"] += len(w.fresh)
-        queue, w.fresh = sorted(w.fresh, key=lambda x: (x["due_at"], x["seq"])), []
-    for p in plans.values():
-        if p["status"] in PLAN_OPEN:
-            _maybe_close(w, p, by_plan[p["id"]], t1, summary)
-    with store.tx() as c:
-        for p in plans.values():
-            store.update("care_plans", p["id"], {"status": p["status"], "closed_sim": p.get("closed_sim")}, c)
-        w.flush(c)
+    if plans:
+        _reconcile_open(store, db, locs, t0, t1, outcomes, summary, plans, by_plan, w)
     try:
         commit_all(w.emr, iso(t1))
     except Exception as e:  # noqa: BLE001
         log(f"care: EMR write failed: {e}")
-    _upsert_outcomes(list(plans), db, t1)
+    # outcomes of open plans, plus recently closed screening plans whose label may still change (a diagnosis after the
+    # endoscopy, or the 60-day negative confirmation)
+    recent = [r["id"] for r in store.rows(
+        f"""SELECT id FROM care_plans WHERE status NOT IN {PLAN_OPEN} AND closed_sim >= ?
+            AND pathway IN ({','.join('?' * len(SCREENING))})""",
+        [iso(t1 - dt.timedelta(days=NEG_CONFIRM_DAYS + 120)), *SCREENING]) if r["id"] not in plans]
+    _upsert_outcomes(list(plans) + recent, db, t1)
     summary["reminders"] = w.counts["reminders"]
     summary["notifications"] = w.counts["notifications"]
     summary["overdue"] = sum(1 for p in plans for t in by_plan[p] if t["status"] in ("OVERDUE", "ESCALATED"))
     return summary
+
+
+def _reconcile_open(store, db: DB, locs: dict, t0, t1: dt.datetime, outcomes, summary: dict, plans: dict, by_plan: dict,
+                    w: "_Writer"):
+    with store.tx() as c:
+        # re-read inside the write transaction: a plan closed in between (patch_task) is no longer reconciled
+        fresh = {p["id"]: p for p in store.rows(f"SELECT * FROM care_plans WHERE status IN {PLAN_OPEN}")}
+        for k in list(plans):
+            if k not in fresh:
+                del plans[k]
+            else:
+                plans[k].update(fresh[k])
+        if not plans:
+            return
+        ph = ",".join("?" * len(plans))
+        tasks = store.rows(f"SELECT * FROM care_tasks WHERE plan_id IN ({ph}) ORDER BY due_at, seq", list(plans))
+        for t in tasks:
+            by_plan[t["plan_id"]].append(t)
+        used: dict[str, set] = defaultdict(set)
+        for t in tasks:
+            if t["evidence"]:
+                k = evidence.evidence_key(json.loads(t["evidence"]))
+                if k:
+                    used[t["plan_id"]].add(k)
+        w.by_plan = by_plan
+        # deaths close plans
+        pids = sorted({p["patient_id"] for p in plans.values()})
+        dead = _deaths(db, pids, t1)
+        for p in plans.values():
+            if p["patient_id"] in dead:
+                for t in by_plan[p["id"]]:
+                    if t["status"] in OPEN:
+                        w.update(t, status="CANCELLED", result="DECEASED")
+                p["status"], p["closed_sim"] = "CANCELLED", iso(min(t1, dead[p["patient_id"]]))
+                w.event(p, None, "PLAN_CANCELLED", {"reason": "deceased"}, "system", to_dt(p["closed_sim"]))
+                summary["plans_closed"] += 1
+        # patient declines reported by the care world
+        by_id = {t["id"]: t for t in tasks}
+        for o in outcomes or []:
+            if o.get("status") != "declined":
+                continue
+            t = by_id.get(o.get("task_id"))
+            plan = plans.get(t["plan_id"]) if t else None
+            if t is None or plan is None or plan["status"] not in PLAN_OPEN or t["status"] not in OPEN:
+                continue
+            when = _outcome_time(o, t, t0, t1)
+            _ladder(w, plan, t, when, summary)
+            _decline(w, plan, t, when, o.get("reason") or "patient declined", "patient", by_plan, source="care_world")
+            summary["declined"] += 1
+        open_tasks = [t for t in tasks if t["status"] in OPEN and plans[t["plan_id"]]["status"] in PLAN_OPEN]
+        since = min((evidence.lower_bound(t) for t in open_tasks), default=t1)
+        duck = db.duck
+        facts = evidence.fetch_facts(duck, pids, since, t1) if duck is not None and open_tasks else {}
+
+        queue = sorted(open_tasks, key=lambda t: (t["due_at"], t["seq"]))
+        for _round in range(200):
+            while queue:
+                t = queue.pop(0)
+                plan = plans[t["plan_id"]]
+                if plan["status"] not in PLAN_OPEN or t["status"] in TERMINAL:
+                    continue
+                f = evidence.find(t, facts.get(plan["patient_id"], []), used[plan["id"]], t1)
+                done_at = _dt(f["date"]) if f else None
+                _ladder(w, plan, t, min(done_at or t1, _cap(plan, t, t1)), summary)
+                if f and done_at <= _cap(plan, t, t1):
+                    ctx = json.loads(plan.get("context") or "{}")
+                    res = evidence.result_of(t["type"], f, ctx)
+                    used[plan["id"]].add(evidence.fact_key(f))
+                    _complete(w, plan, t, done_at, evidence.as_evidence(f), res, "system", by_plan)
+                    summary["completed"] += 1
+                if w.fresh:
+                    summary["new_tasks"] += len(w.fresh)
+                    queue.extend(w.fresh)
+                    w.fresh = []
+                    queue.sort(key=lambda x: (x["due_at"], x["seq"]))
+            # recurring schedules add occurrences (and catch up missed ones) once the one-off tasks are settled
+            for p in plans.values():
+                if p["status"] in PLAN_OPEN:
+                    _recurring(w, p, by_plan, t1)
+            if not w.fresh:
+                break
+            summary["new_tasks"] += len(w.fresh)
+            queue, w.fresh = sorted(w.fresh, key=lambda x: (x["due_at"], x["seq"])), []
+        for p in plans.values():
+            if p["status"] in PLAN_OPEN:
+                _maybe_close(w, p, by_plan[p["id"]], t1, summary)
+        for p in plans.values():
+            store.update("care_plans", p["id"], {"status": p["status"], "closed_sim": p.get("closed_sim")}, c)
+        w.flush(c)
+
+
+def _outcome_time(o: dict, t: dict, t0, t1: dt.datetime) -> dt.datetime:
+    """Sim time of a care-world outcome (it reports a date): noon that day, inside the task window and (t0, t1]."""
+    try:
+        d = dt.datetime.combine(dt.date.fromisoformat(str(o.get("date"))[:10]), dt.time(12))
+    except ValueError:
+        d = t1
+    lo = max(evidence.lower_bound(t), to_dt(t0) + dt.timedelta(seconds=1)) if t0 is not None else evidence.lower_bound(t)
+    return min(max(d, lo), t1)
+
+
+def _decline(w: "_Writer", plan: dict, t: dict, when: dt.datetime, reason: str, actor: str, by_plan: dict,
+             source: str | None = None):
+    """Close a task as DECLINED: reason in the evidence, a DECLINED care event (doctor WS update) and the EMR outcome."""
+    ev = {"reason": reason}
+    if source:
+        ev["source"] = source
+    w.update(t, status="DECLINED", completed_at=iso(when), result="DECLINED", evidence=json.dumps(ev))
+    w.event(plan, t, "DECLINED", {"reason": reason, "type": t["type"], **({"source": source} if source else {})}, actor, when)
+    _emr_outcome(w, plan, t, when, C.OUTCOME_DECLINED)
+    if plan["status"] == "ESCALATED" and not any(x["status"] == "ESCALATED" for x in by_plan.get(plan["id"], []) if x is not t):
+        plan["status"] = "ACTIVE"
 
 
 def _dt(v) -> dt.datetime:
@@ -627,7 +717,8 @@ def _spawn_task(w: _Writer, plan: dict, ttype: str, anchor: dt.datetime, *, open
     d = due_at or anchor + dt.timedelta(days=due_days if due_days is not None else int(spec.get("due_days", 14)))
     seq = 1 + max([int(x["seq"]) for x in w.store.rows("SELECT seq FROM care_tasks WHERE plan_id = ?", [plan["id"]])] +
                   [int(x["seq"]) for x in w.new_tasks if x["plan_id"] == plan["id"]] + [0])
-    t = {"id": _new_id("CT"), "plan_id": plan["id"], "patient_id": plan["patient_id"], "seq": seq, "type": ttype,
+    tid = _new_id("CT", plan["id"], seq, taken=_taken("care_tasks", {x["id"] for x in w.new_tasks}))
+    t = {"id": tid, "plan_id": plan["id"], "patient_id": plan["patient_id"], "seq": seq, "type": ttype,
          "title": spec.get("title", ttype.replace("_", " ").title()), "status": "SCHEDULED", "opens_at": iso(o), "due_at": iso(d),
          "completed_at": None, "evidence": None, "result": None, "reminders": 0, "last_reminder_sim": None,
          "escalation_level": 0, "created_sim": iso(anchor), "occurrence": occurrence}
@@ -721,8 +812,13 @@ def _maybe_close(w: _Writer, plan: dict, tasks: list[dict], t1: dt.datetime, sum
     if any(s.get("repeat") for s in pw["tasks"]):
         return  # recurring pathways close at end_days
     last = max((to_dt(t["completed_at"]) for t in tasks if t.get("completed_at")), default=t1)
-    plan["status"], plan["closed_sim"] = "COMPLETED", iso(last)
-    w.event(plan, None, "PLAN_COMPLETED", {"tasks": len(tasks)}, "system", last)
+    if any(t["status"] == "DECLINED" for t in tasks) and not any(t["status"] == "COMPLETED" for t in tasks):
+        # the patient declined and nothing was done: the plan is cancelled (not a completed pathway)
+        plan["status"], plan["closed_sim"] = "CANCELLED", iso(last)
+        w.event(plan, None, "PLAN_CANCELLED", {"reason": "declined", "tasks": len(tasks)}, "system", last)
+    else:
+        plan["status"], plan["closed_sim"] = "COMPLETED", iso(last)
+        w.event(plan, None, "PLAN_COMPLETED", {"tasks": len(tasks)}, "system", last)
     summary["plans_closed"] += 1
 
 
@@ -762,20 +858,13 @@ def _upsert_outcomes(plan_ids: list[str], db: DB, now: dt.datetime):
             else:
                 adhered = None
             results = [t["result"] for t in ts if t.get("result") and t["status"] == "COMPLETED"]
-            cancer = any(r == "CANCER_FOUND" for r in results)
-            d = dx.get(p["patient_id"])
-            stage = None
-            if d and d.get("dx_date") is not None:
-                dd = d["dx_date"]
-                dd = dd if isinstance(dd, dt.date) else dt.date.fromisoformat(str(dd)[:10])
-                if dd >= approved.date():
-                    cancer, stage = True, d.get("stage_group")
+            cancer, stage = _cancer_found(p, ts, dx.get(p["patient_id"]), approved, now)
             finding = next((r for r in reversed(results) if r not in ("DONE",)), None)
             row = {"plan_id": p["id"], "patient_id": p["patient_id"], "pathway": p["pathway"], "approved_sim": p["approved_at"],
                    "first_completion_sim": iso(comp) if comp else None,
                    "days_to_completion": (comp - approved).days if comp else None, "adhered": adhered,
                    "on_time": (1 if comp and comp <= to_dt(primary["due_at"]) else 0) if adhered is not None else None,
-                   "finding": finding, "cancer_found": int(cancer), "stage_at_dx": stage, "channels": p["channels"],
+                   "finding": finding, "cancer_found": cancer, "stage_at_dx": stage, "channels": p["channels"],
                    "reminders": sum(int(t["reminders"] or 0) for t in ts),
                    "escalation_level": max(int(t["escalation_level"] or 0) for t in ts),
                    "district_code": ctx.get("district_code"), "distance_km": ctx.get("distance_km"), "sex": ctx.get("sex"),
@@ -784,54 +873,90 @@ def _upsert_outcomes(plan_ids: list[str], db: DB, now: dt.datetime):
             store.insert("recommendation_outcomes", row, c, replace=True)
 
 
+def _cancer_found(plan: dict, tasks: list[dict], case: dict | None, approved: dt.datetime, now: dt.datetime):
+    """(cancer_found, stage_at_dx) of a plan: 1/0 only for a screening pathway with a completed endoscopy, else NULL.
+
+    - not a screening pathway (H. pylori, oncology, survivorship, palliative) or no endoscopy done -> NULL;
+    - diagnosed before the plan was approved (the landmark) -> NULL (not a valid screening label);
+    - pathology/endoscopy result CANCER_FOUND, or a diagnosis between approval and endoscopy + 60 days -> 1;
+    - endoscopy at least 60 days ago and no diagnosis by then -> 0;
+    - otherwise (e.g. SUSPICIOUS endoscopy, pathology pending) -> NULL until it is known."""
+    if plan["pathway"] not in SCREENING:
+        return None, None
+    endo = next((t for t in tasks if t["type"] == "ENDOSCOPY" and t["status"] == "COMPLETED" and t.get("completed_at")), None)
+    if endo is None:
+        return None, None
+    e_at = to_dt(endo["completed_at"])
+    dd = None
+    if case and case.get("dx_date") is not None:
+        dd = case["dx_date"]
+        dd = dd if isinstance(dd, dt.date) else dt.date.fromisoformat(str(dd)[:10])
+        if isinstance(dd, dt.datetime):
+            dd = dd.date()
+    if dd is not None and dd < approved.date():
+        return None, None
+    window_end = e_at + dt.timedelta(days=NEG_CONFIRM_DAYS)
+    found = any(t.get("result") == "CANCER_FOUND" and t["status"] == "COMPLETED" and t.get("completed_at")
+                and to_dt(t["completed_at"]) <= window_end for t in tasks)
+    if dd is not None and dd <= window_end.date():
+        return 1, (case or {}).get("stage_group")
+    if found:
+        return 1, None
+    if now >= window_end:
+        return 0, None
+    return None, None
+
+
 # ------------------------------------------------------------------------------------------------ manual actions
 def patch_task(task_id: str, action: str, *, reason: str | None = None, due_at: str | None = None,
                result: str | None = None, actor: str = "doctor", facility_id: int | None = None) -> dict:
     store = get_store()
-    t = store.one("SELECT * FROM care_tasks WHERE id = ?", [task_id])
-    if not t:
-        raise CareError(404, "NOT_FOUND", "Task not found")
-    plan = store.one("SELECT * FROM care_plans WHERE id = ?", [t["plan_id"]])
-    if facility_id is not None and int(facility_id) not in (plan["facility_id"], plan["target_facility_id"]):
-        raise CareError(404, "NOT_FOUND", "Task not found at this facility")
-    if t["status"] in TERMINAL:
-        raise CareError(409, "TASK_CLOSED", f"Task is already {t['status']}")
-    now = to_dt(sim_now())
-    db = DB()
-    w = _Writer(store, {plan["id"]: plan}, _locations(db))
-    all_tasks = store.rows("SELECT * FROM care_tasks WHERE plan_id = ? ORDER BY seq", [plan["id"]])
-    by_plan = {plan["id"]: [x if x["id"] != t["id"] else t for x in all_tasks]}
-    w.by_plan = by_plan
     action = (action or "").lower()
-    if action == "complete":
-        ev = {"table": None, "id": None, "manual": True, "by": actor, "reason": reason, "date": iso(now)}
-        _complete(w, plan, t, now, ev, (result or "DONE").upper(), actor, by_plan)
-        _emr_outcome(w, plan, t, now, C.OUTCOME_DONE)
-    elif action == "decline":
-        if not reason:
-            raise CareError(400, "REASON_REQUIRED", "Declining a task needs a reason")
-        w.update(t, status="DECLINED", completed_at=iso(now), result="DECLINED", evidence=json.dumps({"reason": reason}))
-        w.event(plan, t, "DECLINED", {"reason": reason}, actor, now)
-        _emr_outcome(w, plan, t, now, C.OUTCOME_DECLINED)
-    elif action == "reschedule":
+    if action not in ("complete", "decline", "reschedule"):
+        raise CareError(400, "INVALID_ACTION", "action must be complete|decline|reschedule")
+    if action == "decline" and not reason:
+        raise CareError(400, "REASON_REQUIRED", "Declining a task needs a reason")
+    nd = None
+    if action == "reschedule":
         if not due_at:
             raise CareError(400, "DUE_REQUIRED", "Rescheduling needs due_at")
         try:
             nd = to_dt(due_at)
         except ValueError:
             raise CareError(400, "INVALID_DATE", "due_at must be an ISO date") from None
-        if nd <= now:
-            raise CareError(400, "INVALID_DATE", "due_at must be in the future")
-        opens = min(to_dt(t["opens_at"]), nd)
-        w.update(t, due_at=iso(nd), opens_at=iso(opens), reminders=0, escalation_level=0,
-                 status="DUE" if opens <= now else "SCHEDULED")
-        w.event(plan, t, "RESCHEDULED", {"due_at": iso(nd), "reason": reason}, actor, now)
-        if plan["status"] == "ESCALATED" and not any(x["status"] == "ESCALATED" for x in by_plan[plan["id"]]):
-            plan["status"] = "ACTIVE"
-    else:
-        raise CareError(400, "INVALID_ACTION", "action must be complete|decline|reschedule")
-    _maybe_close(w, plan, by_plan[plan["id"]], now, {"plans_closed": 0})
+    now = to_dt(sim_now())
+    db = DB()
+    locs = _locations(db)
+    # read-modify-write inside one BEGIN IMMEDIATE transaction: a reconcile in the simulator process cannot interleave
     with store.tx() as c:
+        t = store.one("SELECT * FROM care_tasks WHERE id = ?", [task_id])
+        if not t:
+            raise CareError(404, "NOT_FOUND", "Task not found")
+        plan = store.one("SELECT * FROM care_plans WHERE id = ?", [t["plan_id"]])
+        if facility_id is not None and int(facility_id) not in (plan["facility_id"], plan["target_facility_id"]):
+            raise CareError(404, "NOT_FOUND", "Task not found at this facility")
+        if t["status"] in TERMINAL:
+            raise CareError(409, "TASK_CLOSED", f"Task is already {t['status']}")
+        w = _Writer(store, {plan["id"]: plan}, locs)
+        all_tasks = store.rows("SELECT * FROM care_tasks WHERE plan_id = ? ORDER BY seq", [plan["id"]])
+        by_plan = {plan["id"]: [x if x["id"] != t["id"] else t for x in all_tasks]}
+        w.by_plan = by_plan
+        if action == "complete":
+            ev = {"table": None, "id": None, "manual": True, "by": actor, "reason": reason, "date": iso(now)}
+            _complete(w, plan, t, now, ev, (result or "DONE").upper(), actor, by_plan)
+            _emr_outcome(w, plan, t, now, C.OUTCOME_DONE)
+        elif action == "decline":
+            _decline(w, plan, t, now, reason, actor, by_plan)
+        else:
+            if nd <= now:
+                raise CareError(400, "INVALID_DATE", "due_at must be in the future")
+            opens = min(to_dt(t["opens_at"]), nd)
+            w.update(t, due_at=iso(nd), opens_at=iso(opens), reminders=0, escalation_level=0,
+                     status="DUE" if opens <= now else "SCHEDULED")
+            w.event(plan, t, "RESCHEDULED", {"due_at": iso(nd), "reason": reason}, actor, now)
+            if plan["status"] == "ESCALATED" and not any(x["status"] == "ESCALATED" for x in by_plan[plan["id"]]):
+                plan["status"] = "ACTIVE"
+        _maybe_close(w, plan, by_plan[plan["id"]], now, {"plans_closed": 0})
         store.update("care_plans", plan["id"], {"status": plan["status"], "closed_sim": plan.get("closed_sim")}, c)
         w.flush(c)
     commit_all(w.emr, iso(now))
@@ -1007,7 +1132,9 @@ def _home(patient_id: int, db: DB) -> tuple[dict, int]:
 
 def _report(patient_id: int, kind: str, payload: dict, rows: Rows | None, now: dt.datetime, task_id: str | None = None):
     store = get_store()
-    rep = {"id": _new_id("PR"), "patient_id": int(patient_id), "kind": kind, "payload": json.dumps(payload),
+    n = store.one("SELECT count(*) AS n FROM patient_reports WHERE patient_id = ?", [int(patient_id)])["n"]
+    rid = _new_id("PR", int(patient_id), kind, iso(now), n, taken=_taken("patient_reports"))
+    rep = {"id": rid, "patient_id": int(patient_id), "kind": kind, "payload": json.dumps(payload),
            "emr_encounter_id": rows.encounter_id if rows else None, "created_sim": iso(now)}
     if task_id:
         plan = store.one("SELECT p.* FROM care_plans p JOIN care_tasks t ON t.plan_id = p.id WHERE t.id = ?", [task_id])

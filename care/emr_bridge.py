@@ -16,6 +16,8 @@ import polars as pl
 from shared.concepts import C
 
 CARE_ID_BASE = 1_900_000_000
+_UUID_NS = _uuid.UUID("6f1c2b1e-5d1a-4c6e-9a51-0e5a1c7e2b01")  # = care.emr._UUID_NS (same table + id -> same uuid)
+_ID_KEY = {"visit": "visit_id", "encounter": "encounter_id", "obs": "obs_id", "orders": "order_id", "drug_order": "order_id"}
 CREATOR = 2  # "care engine" system user
 VISIT_TYPE_OPD = 1
 ORDER_DRUG, ORDER_TEST, ORDER_REFERRAL = 1, 2, 3
@@ -101,7 +103,7 @@ class Rows:
                                        **self._meta()})
 
     def _meta(self) -> dict:
-        return {"creator": CREATOR, "date_created": self.sim, "voided": 0, "uuid": str(_uuid.uuid4())}
+        return {"creator": CREATOR, "date_created": self.sim, "voided": 0}  # uuid: deterministic, set in frames()
 
     def obs(self, concept: int, *, coded: int | None = None, num: float | None = None, text: str | None = None,
             order_id: int | None = None) -> int:
@@ -130,7 +132,10 @@ class Rows:
         for t, recs in self.data.items():
             if recs:
                 cols = sch[t]
-                out[t] = pl.DataFrame([{c: r.get(c) for c in cols} for r in recs], schema=cols, orient="row")
+                key = _ID_KEY.get(t)
+                rows = [{c: (_det_uuid(t, r.get(key)) if c == "uuid" and key and r.get(key) is not None else r.get(c))
+                         for c in cols} for r in recs]
+                out[t] = pl.DataFrame(rows, schema=cols, orient="row")
         return out
 
     def commit(self, tick: str | None = None) -> dict:
@@ -139,6 +144,11 @@ class Rows:
             for o, i in zip(todo, self.emr.next_ids("obs", len(todo))):
                 o["obs_id"] = i
         return self.emr.write(self.frames(), tick or self.sim.strftime("%Y-%m-%dT%H:%M:%S"))
+
+
+def _det_uuid(table: str, row_id) -> str:
+    """Deterministic row uuid (the same rule as care.emr.make_uuids): repeatable runs give identical EMR rows."""
+    return str(_uuid.uuid5(_UUID_NS, f"{table}:{int(row_id)}"))
 
 
 def commit_all(rows: list[Rows], tick: str | None = None) -> dict:

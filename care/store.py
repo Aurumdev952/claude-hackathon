@@ -60,6 +60,17 @@ class Store:
         if self.path != ":memory:":
             self.con.execute("PRAGMA journal_mode=WAL")
         self.con.executescript(SCHEMA)
+        self._unique_open_plans()
+
+    def _unique_open_plans(self):
+        """At most one open (ACTIVE/ESCALATED) plan per patient and pathway, enforced by a partial unique index. A file
+        that already holds duplicates (written before the guard existed) keeps working; the engine's in-transaction
+        check still applies."""
+        try:
+            self.con.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ux_plans_open ON care_plans(patient_id, pathway)
+                                WHERE status IN ('ACTIVE', 'ESCALATED')""")
+        except sqlite3.IntegrityError:
+            print("care store: duplicate open plans exist; ux_plans_open not created")
 
     # ------------------------------------------------------------------ queries
     def rows(self, sql: str, params: list | tuple = ()) -> list[dict]:
