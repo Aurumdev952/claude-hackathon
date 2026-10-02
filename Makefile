@@ -103,6 +103,7 @@ serve:                      ## API + dashboard only (no MySQL needed; logs in lo
 	setsid nohup $(MAKE) api > logs/api.log 2>&1 & echo $$! > logs/api.pid
 	setsid nohup $(MAKE) frontend > logs/frontend.log 2>&1 & echo $$! > logs/frontend.pid
 	-test -d agent/node_modules && (setsid nohup $(MAKE) agent-dev > logs/agent.log 2>&1 & echo $$! > logs/agent.pid)
+	-test -d video/node_modules && (setsid nohup $(MAKE) video-serve > logs/video.log 2>&1 & echo $$! > logs/video.pid)
 	@echo "dashboard: http://localhost:5173   api: http://localhost:8000/api/v1/docs   agent: http://localhost:8787/agent/health"
 
 up:                         ## simulator + pipeline scheduler + API + frontend (native, background, logs in logs/); stop with make down
@@ -215,3 +216,19 @@ care-seed:                  ## seed ~8 demo care plans across all six pathways a
 
 care-test:                  ## care engine, patient-app API, access guards and WS filter tests
 	$(PY) -m pytest tests/v3/test_care_pathways.py tests/v3/test_care_messages.py tests/v3/test_care_engine.py tests/v3/test_care_ws.py tests/v3/test_patient_api_access.py -q
+
+# ---- v3 L4: data videos (video/, Remotion + Hono render server on VIDEO_PORT=8790) --------------------------------
+.PHONY: video-setup video-dev video-render video-serve
+video-setup:                ## install the video package (copies the 3D body model into video/public)
+	cd video && pnpm install
+
+video-dev:                  ## Remotion Studio for the compositions (http://localhost:3010)
+	cd video && pnpm studio
+
+video-render:               ## render one MP4: KIND=patient ID=<patient_id> [FACILITY=<location_id>] | KIND=ministry|ministry_vertical FROM= TO=
+	cd video && pnpm render --kind $(or $(KIND),patient) $(if $(ID),--id $(ID),) $(if $(FACILITY),--facility $(FACILITY),) \
+	  $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(SEX),--sex $(SEX),) $(if $(AGE),--age $(AGE),) $(if $(DEF),--def $(DEF),)
+
+video-serve:                ## render server (Hono :8790): /video/props, /video/jobs, /video/files (needs the API on API_URL)
+	cd video && pnpm serve
+
