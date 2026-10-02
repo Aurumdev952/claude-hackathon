@@ -169,7 +169,7 @@ e2e:                        ## Playwright journeys (API on :8000 and Vite on :51
 	cd frontend && npx playwright test
 
 # ---- v3 L1: closed-loop simulation, external sources (docs/contracts/v3-loop.md §2, §3, §6) ----
-.PHONY: external-data sim-local advance dev-data-next
+.PHONY: external-data sim-local advance dev-data-next swap-next
 external-data:              ## external synthetic sources -> $(DATA_DIR)/external (registry 2000-2026, surveys, population 2000-2035)
 	$(PY) -m generator.external --out $(or $(DATA_DIR),data)/external
 
@@ -183,9 +183,20 @@ dev-data-next:              ## regenerate the dev dataset into data/next (genera
 	rm -rf data/next/bulk data/next/analytics data/next/models data/next/sim_state data/next/external
 	mkdir -p data/next && rm -rf data/next/reference && cp -r data/reference data/next/reference
 	ALLOW_SMALL_SCALE=1 $(MAKE) generate SCALE=$(or $(DEV_SCALE),0.1) DATA_DIR=data/next
+	$(MAKE) external-data DATA_DIR=data/next
 	$(MAKE) bootstrap DATA_DIR=data/next
 	$(MAKE) train DATA_DIR=data/next
-	$(MAKE) external-data DATA_DIR=data/next
+
+swap-next:                  ## put data/next in place of data/ (stop servers first); the old dataset is kept in data/next
+	test -f data/next/ground_truth.json && test -d data/next/analytics
+	rm -rf data/.swap && mkdir -p data/.swap
+	for p in bulk analytics models external ground_truth.json; do if [ -e data/next/$$p ]; then mv data/next/$$p data/.swap/; fi; done
+	for p in bulk analytics models external sim_state ground_truth.json; do if [ -e data/$$p ]; then mv data/$$p data/next/; fi; done
+	cp data/reference/district_population.csv data/next/district_population.csv.prev
+	cp data/next/reference/district_population.csv data/reference/district_population.csv
+	mv data/.swap/* data/ && rmdir data/.swap
+	$(PY) -c "import duckdb; c = duckdb.connect('data/analytics/work.duckdb'); c.execute(\"UPDATE ml_model_registry SET artefact_path = regexp_replace(artefact_path, '^.*/models/', '$(CURDIR)/data/models/')\"); print(c.execute('SELECT model_id, artefact_path FROM ml_model_registry WHERE is_active').fetchall())"
+	$(PY) -m pipeline.run --no-extract --from score
 
 # ---- v3 L3: learning loop and forecasting (docs/contracts/v3-loop.md §5, §7) ----
 .PHONY: forecast retrain
