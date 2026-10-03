@@ -18,11 +18,11 @@
 </p>
 
 <p align="center">
-  <a href="docs/media/sizzle.mp4">
+  <a href="https://github.com/Aurumdev952/claude-hackathon/blob/main/docs/media/sizzle.mp4">
     <img src="docs/media/sizzle-poster.jpg" width="860" alt="Early Signals demo reel: 3D district hotspot map. Click to watch the 39-second video.">
   </a>
   <br>
-  <a href="docs/media/sizzle.mp4"><b>▶ Watch the 39-second demo reel</b></a>
+  <a href="https://github.com/Aurumdev952/claude-hackathon/blob/main/docs/media/sizzle.mp4"><b>▶ Watch the 39-second demo reel</b></a>
 </p>
 
 > [!IMPORTANT]
