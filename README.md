@@ -1,231 +1,149 @@
-# Early Signals — gastric cancer surveillance from routine EMR data (Rwanda, synthetic)
+<p align="center">
+  <img src="docs/media/logo.svg" width="110" alt="Early Signals logo">
+</p>
 
-> **Synthetic data for demonstration — not real patients or real district statistics.**
+<h1 align="center">Early Signals</h1>
 
-Early Signals shows how routine OpenMRS-style EMR data can:
+<p align="center">
+  <b>Catching gastric cancer before stage IV, using the clinic records Rwanda already collects.</b><br>
+  Surveillance, risk flags, care coordination and an AI agent, built on a synthetic OpenMRS-style EMR.
+</p>
 
-- track gastric cancer trends (age-standardised rates, joinpoint trends, spatial hotspots, survival);
-- surface missed warning signs and care gaps;
-- flag high-risk patients for endoscopy with three tiers of risk models;
-- let a doctor analyse a flagged case on an interactive 3D body.
+<p align="center">
+  <img alt="Synthetic data only" src="https://img.shields.io/badge/data-100%25%20synthetic-4F6F51">
+  <img alt="Licence MIT" src="https://img.shields.io/badge/licence-MIT-98D59B">
+  <img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-4F6F51">
+  <img alt="Node 22" src="https://img.shields.io/badge/node-22-4F6F51">
+  <img alt="Built with Claude Code" src="https://img.shields.io/badge/built%20with-Claude%20Code-D97757">
+</p>
 
-Everything runs locally. The full specification is in [`SPEC.md`](SPEC.md) (v1.1). Agreed deviations, with reasons, are in [`docs/decisions.md`](docs/decisions.md).
+<p align="center">
+  <a href="docs/media/sizzle.mp4">
+    <img src="docs/media/sizzle-poster.jpg" width="860" alt="Early Signals demo reel: 3D district hotspot map. Click to watch the 39-second video.">
+  </a>
+  <br>
+  <a href="docs/media/sizzle.mp4"><b>▶ Watch the 39-second demo reel</b></a>
+</p>
 
-## What's inside
+> [!IMPORTANT]
+> All data in this project is **synthetic**. No real patients, facilities or district statistics appear anywhere. The
+> risk models are proofs of concept and are not for clinical use.
 
-| Part | Folder | What it does |
-|---|---|---|
-| Synthetic EMR generator | `generator/` | 1.5M-person Rwanda population, OpenMRS EAV schema, life-course simulation. Gastric cancer natural history and **8 planted insights** (INS-1…8), realistic data-quality noise, `data/ground_truth.json` |
-| Live simulator | `simulator/` | Replays the pre-simulated future into MySQL tick by tick (insert-only, one transaction per tick) |
-| Pipeline | `pipeline/` | MySQL → DuckDB incremental ETL (id watermarks), staging, dedup, core facts, marts, scoring. Blue/green publish via `current.json` |
-| Epi methods | `pipeline/metrics/` | ASR with Fay–Feuer CIs, WLS joinpoint (permutation-test selection, BIC optional), Local Moran's I / Gi* / SIR / EB smoothing, KM + log-rank, Cox, nested case-control, funnel limits |
-| Risk models | `ml/` | Tier 1 points score, Tier 2 XGBoost + isotonic calibration + SHAP reasons, Tier 3 JAX GRU/Transformer + Integrated Gradients, ensemble bands, alerts |
-| API | `api/` | FastAPI, role-scoped (ministry = aggregates only; doctor = own facility), WebSocket refresh, NL→SQL with sqlglot guard rails, insight cards, case payload |
-| Dashboard | `frontend/` | React + TypeScript + Tailwind ("Highland Watch" design), ECharts, deck.gl 3D map, react-three-fiber 3D views |
-| 3D anatomy | `frontend/public/models/` | Z-Anatomy / BodyParts3D organs as a meshopt GLB (2.9 MB), organ anchors, credits |
+## Background
 
-### Dashboard views
+Gastric cancer cases are rising in Rwanda, and most patients are diagnosed late, when treatment options are limited and
+survival is poor. Hospitals already record diagnoses, lab results, endoscopy reports and demographics in their EMRs,
+but that data is rarely analysed to see how the disease is moving through the population or who is most at risk. Key
+risk factors such as *H. pylori* infection are often not tested or not recorded.
 
-The UI uses HeroUI + Framer Motion on a light, card-based design (dark mode toggle in the top bar). Explanations sit behind ⓘ icons and details open in modals, so the screens show charts, numbers and titles.
+**Early Signals** shows what routine EMR data can do when it is put to work end to end. A synthetic 1.5M-person Rwandan
+EMR feeds an incremental analytics pipeline and three tiers of risk models. Ministry analysts see where the burden is
+growing. District doctors see who needs an endoscopy, and why. And once a doctor approves a care plan, the patient
+gets a plain-language nudge on their phone, with no diagnosis words, only advice to visit.
 
-1. **National Overview**: KPIs with deltas and sparklines, national trend with joinpoints, mini 3D map.
-2. **Geo Explorer**: extruded district map (ASR / crude / SIR / LISA / HP testing / stage IV), hexbins, facilities, referral arcs, time slider.
-3. **Trends Lab**: multi-series ASR with CIs, joinpoint table, 3D "rate landscape", crude vs ASR.
-4. **Early Warning**: care cascades, aligned pre-diagnostic curves (cases vs matched controls), signal ORs, diagnostic intervals, 3D journey helix.
-5. **H. pylori & Care Quality**: funnel plot, stage mix by tier, KM curves, eradication HR next to the HIV negative control.
-6. **Model Arena**: tier cards, ROC/PR, calibration, lead time, SHAP, subgroups.
-7. **Doctor Workspace**: risk-ranked patient list, risk card, timeline, alert actions.
-   - **Case Analysis (3D)** — the doctor's deep dive on one case:
-     - the patient's symptoms, diagnoses, labs and vitals are aggregated per organ and glow on a realistic anatomical body;
-     - tumour + nodal stations + metastatic spread for diagnosed cases;
-     - "suspected region" search rings for flagged patients;
-     - heart beats at the recorded pulse, lungs breathe at the respiratory rate, blood pales with haemoglobin, and the body outline thins with weight loss;
-     - X-ray mode, layer toggles, click-to-fly camera, two-way hover between the lists and the body;
-     - a timeline **replay** that relights the body month by month;
-     - a table fallback and reduced-motion support.
-8. **Agent** (`/agent`): chat with the clinical assistant (doctor role) or the ministry analyst (ministry role). Answers stream with markdown, chart widgets, patient cards and sandbox plots; messages can be edited, rewound and regenerated. See [AI agent and MCP](#ai-agent-and-mcp).
+## Features
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/screens/overview.jpg" alt="National overview"></td>
+    <td width="50%"><img src="docs/media/screens/case.jpg" alt="Doctor case analysis in 3D"></td>
+  </tr>
+  <tr>
+    <td><b>National picture.</b> Age-standardised rates, joinpoint trends, 3D district hotspots, survival and H. pylori testing for the ministry.</td>
+    <td><b>Case analysis in 3D.</b> A patient's symptoms, labs and vitals light up on an anatomical body, with a month-by-month replay.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/media/screens/doctor.jpg" alt="Doctor workspace with risk-ranked patients"></td>
+    <td><img src="docs/media/screens/patient-plan.jpg" alt="Patient app with care plan"></td>
+  </tr>
+  <tr>
+    <td><b>Who needs a scope, and why.</b> Risk-ranked patients for each facility, with the reasons behind every flag.</td>
+    <td><b>Care plans in the patient's pocket.</b> Doctor-approved plans, reminders by app, SMS and community health worker, closed by EMR evidence.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/media/screens/outlook.jpg" alt="Outlook to 2031"></td>
+    <td><img src="docs/media/screens/agent-answer.jpg" alt="AI agent answering a ministry question"></td>
+  </tr>
+  <tr>
+    <td><b>Outlook to 2031.</b> Forecasts with 80/95% bands, the drivers behind the change and what-if scenarios.</td>
+    <td><b>AI agent.</b> Ask in plain language and get charts with numbers checked against the data. Also available over MCP.</td>
+  </tr>
+</table>
+
+- **Surveillance**: age-standardised rates with confidence intervals, joinpoint regression, spatial clustering (LISA,
+  Gi*, SIR), Kaplan–Meier survival and care-quality funnel plots.
+- **Early warning**: pre-diagnostic signal curves, missed alarm symptoms, H. pylori testing gaps and diagnostic delays.
+- **Three tiers of risk models**: a points score, XGBoost with SHAP reasons and a JAX sequence model, combined into an
+  ensemble (AUROC 0.970 and a median lead time of 6.2 months on the synthetic test set).
+- **Care coordination**: six care pathways, a reminder ladder, a patient app and a simulation clock that shows whether
+  patients come back.
+- **Learning loop**: a challenger model trained on verified outcomes, with gates and a human Promote button.
+- **Role-scoped by design**: the ministry sees only aggregates (counts below 5 suppressed), doctors see only their
+  facility, and patients see only their own record.
+- **Data videos and daily briefs**: Remotion videos of a case or the national picture, and a one-page PDF brief each
+  morning.
+
+See [Architecture](docs/architecture.md) for every screen and component.
+
+## Tech stack
+
+| Layer | Tools |
+|---|---|
+| Synthetic EMR | Python 3.11, NumPy, Polars, PyArrow, OpenMRS-style MySQL schema |
+| Pipeline and analytics | DuckDB (blue/green publish), statsmodels, lifelines, PySAL (libpysal, esda), SciPy |
+| Machine learning | scikit-learn, XGBoost, SHAP, JAX (GRU/Transformer sequence model), APC + ETS forecasting |
+| API | FastAPI, Pydantic, sqlglot (guarded NL→SQL), WebSockets |
+| Dashboard | React 18, TypeScript, Vite, HeroUI, Framer Motion, ECharts, deck.gl, react-three-fiber |
+| AI agent | Node 22, Hono, Vercel AI SDK, MCP (Streamable HTTP), Claude / OpenRouter / OpenAI-compatible models, Python sandbox, libSQL |
+| Videos | Remotion |
+| Quality | pytest, Playwright, DeepEval |
+| Tooling | uv, pnpm, Make, Docker Compose, Claude Code |
 
 ## Quick start
 
-**New machine (Ubuntu): follow [`SETUP.md`](SETUP.md).** It covers requirements, a one-time setup script, one command that rebuilds data, models and MySQL, and a results check against the verified build.
-
 ```bash
-bash scripts/setup_ubuntu.sh    # one time: MySQL 8 + config, Node 22, uv, project packages, .env
-make doctor                     # check tools, RAM, disk, MySQL
-make reproduce                  # generate 1.5M people -> analytics -> 3 model tiers -> MySQL -> verify (~1.5 h)
-make up                         # simulator + pipeline scheduler + API (:8000) + dashboard (:5173)
+cp .env.example .env
+uv sync --extra dev --extra report
+make dev-data     # small synthetic dataset, about 15 min, no MySQL needed
+make serve        # dashboard http://localhost:5173, API http://localhost:8000
 ```
 
-Open http://localhost:5173. Use the header switch for **Ministry** vs **Doctor** (pick a facility). API docs are at http://localhost:8000/api/v1/docs.
+The full 1.5M-person build, demo mode and the live MySQL loop are covered in
+[Getting started](docs/getting-started.md) and [Setup](docs/setup.md).
 
-Docker: `docker-compose.yml` describes the same services (SPEC §17.2). The development container had no Docker Hub access, so only the native path is verified (D-02).
+## Documentation
 
-### Demo mode
-
-`make demo` restores the last snapshot (`make snapshot`) and starts in demo mode: 30-second ticks, 7 simulated days each. `make reset-demo` gives a fresh demo in under 2 minutes.
-
-### AI provider
-
-`LLM_PROVIDER=template | ollama | anthropic` (default `template`). Template mode is deterministic and rule-based, and is what the tests exercise:
-- NL→SQL uses the semantic layer;
-- insight cards use fact templates.
-
-Ollama and Anthropic are implemented behind the same interface. Set the provider plus `OLLAMA_BASE_URL` / `ANTHROPIC_API_KEY` to switch (D-16). Every generated SQL statement passes the guard rails:
-- single SELECT only, allow-listed tables, no table functions or file access;
-- row limit and timeout;
-- numbers in the answer are checked against the result.
-
-## Tests
-
-```bash
-make test            # everything
-make test-insights   # ground-truth recovery only
-make e2e             # Playwright journeys (API + Vite running)
-```
-
-| Suite | Checks |
+| | |
 |---|---|
-| `tests/generator/test_realism.py` | §19.2 realism: age pyramid, cohort size, calibration targets, visit rates, seasonality, no impossible dates |
-| `tests/pipeline/test_methods.py` | ASR, Fay–Feuer, joinpoint recovery on known series, spatial statistics |
-| `tests/insights/test_insight_recovery.py` | §19.3: every planted insight (INS-1…8, micro-cluster, dedup) is re-discovered from the published marts |
-| `tests/ml/test_leakage.py` | §19.4: features unchanged when post-landmark data or the excluded diagnostic pathway is deleted; shuffled labels give AUROC ≈ 0.5 |
-| `tests/api/test_contract.py` | Envelope, roles, facility scoping, no PII to ministry, alert workflow, notes, case payload, SQL guard |
-| `tests/api/test_nl2sql_benchmark.py` | §19.5: 20-question benchmark in template mode (≥ 18/20) |
-| `frontend/e2e/` | §19.6 journeys + the 3D case-analysis journey |
+| [Getting started](docs/getting-started.md) | Run it locally |
+| [Architecture](docs/architecture.md) | Components, roles, screens |
+| [Care loop](docs/care-loop.md) | Care plans, patient app, forecasts, 10-step demo |
+| [AI agent and MCP](docs/agent-and-mcp.md) | Agent settings and MCP connection |
+| [Built with Claude Code](docs/claude-code.md) | How we built it and the repo's Claude automations |
+| [Tests and results](docs/testing.md) | Test suites and verified numbers |
+| [Data, privacy and licences](docs/data-and-licences.md) | Synthetic data rules and third-party licences |
+| [Specification](docs/spec.md) and [decisions](docs/decisions.md) | The full spec and agreed deviations |
 
-### Verified results (scale 1.0: 1.5M people, history to 30 Jun 2026)
+## Built at the Anthropic AI Week Hackathon
 
-What the build container measured on the final dataset:
+Early Signals was built at the **Anthropic AI Week Hackathon**.
 
-- **Tests:**
-  - `pytest tests`: 88 passed, 0 skipped. This covers realism, methods, insight recovery, leakage, API contract and NL→SQL.
-  - NL→SQL benchmark: **20/20** in template mode.
-  - Playwright: **7/7** journeys pass, including alert acknowledgement and the 3D case analysis.
-- **Epidemiology** (all planted insights recovered):
-  - National ASR 2024: 34.7 per 100,000 (95% CI 30.7–39.2).
-  - 2,283 incident cases (1,860 confirmed) in a GI cohort of 49,142 people.
-  - Under-50 trend: APC +7.3%/yr (CI 2.9–11.9) from 2017.
-  - LISA High-High cluster: Musanze, Rutsiro, Nyabihu, Ngororero, Gakenke.
-  - 1-year survival: 35% overall; low- vs high-testing facilities 24% vs 48% (log-rank p < 0.001).
-  - H. pylori eradication: HR 0.55 (0.41–0.75). HIV negative control: HR 0.74 (0.48–1.15), not significant, as expected.
-- **Models** (test period, 1,023 cases; [D-32](docs/decisions.md) explains why these exceed the SPEC guidance):
+**Team:** Benjamin, Remy, Andy and Irere.
 
-| Model | AUROC | AUPRC | Sens @ 90% spec | Median lead time |
-|---|---|---|---|---|
-| Tier 1 points score | 0.883 | 0.364 | 67% | 3.5 mo |
-| Tier 2 XGBoost | 0.964 | 0.573 | 94% | 6.2 mo |
-| Tier 3 sequence (GRU) | 0.963 | 0.536 | 92% | 6.3 mo |
-| Ensemble (final band) | 0.970 | 0.594 | 95% | 6.2 mo |
+**Built with Claude.** The code was written almost entirely by **Claude Opus 5.5** in Claude Code, with the team setting
+direction and reviewing the work. Along the way we used:
 
-- **Live loop** (`make up`: simulator tick every 5 min = 1 simulated day, pipeline scheduler every 5 min):
-  - About 2,750 encounters and 17,500 obs are inserted per tick in 45–60 s.
-  - A warm incremental batch takes about 3 min: stage 51 s, core 18 s, marts 44 s, scoring 60 s, publish 4 s.
-  - Most Tier 3 attributions come from the cache (for example 4,497 of 4,552).
-  - The API and the dashboard header pick up each new run without a restart.
-  - The first run in a new process adds about 1 min for numba/JAX compilation.
+- **`/goal`** for long autonomous runs against a clear finish line;
+- **`/loop`** to repeat tasks such as `/validate-risk` on an interval;
+- **Claude Code on the web** cloud sessions and **Routines** (a daily 07:00 Kigali report);
+- **project skills** (`/validate-risk`, `/daily-report`), **hooks** and **`CLAUDE.md`**;
+- **subagents**, **multi-agent workflows**, **git worktrees**, **`/fork`** and **Monitor** for parallel work;
+- **MCP**, to plug the Early Signals agent into Claude Code;
+- **`/brag`**, which made the demo reel from real captures of the app.
 
-### Offline demo (no backend)
+Details are in [Built with Claude Code](docs/claude-code.md).
 
-`VITE_USE_MOCKS=true npm run dev` (in `frontend/`) replays API responses recorded from a full walk-through (`src/mocks/fixtures.json`). Re-record them with `npm run mocks:record` while the API and Vite are running.
+## Licence
 
-<!-- v3: closing the loop (track U3) -->
-## v3: closing the loop
-
-v3 follows the patient past the flag: a doctor approves a care plan, the patient gets advice to visit on a simulated
-phone, the synthetic EMR records whether they came (the care world decides, with reminders and CHW visits), the outcome
-updates the journey, the marts and a challenger model, and the ministry sees the programme, a 2031 outlook and data
-videos. Contracts: [`docs/contracts/v3-loop.md`](docs/contracts/v3-loop.md); decisions D-46 to D-57.
-
-| Part | Folder | What it does |
-|---|---|---|
-| Care engine | `care/`, `config/care_pathways.yaml` | Six pathways (endoscopy referral, H. pylori test and treat, anaemia work-up, oncology, survivorship, palliative), tasks closed by EMR evidence, reminder ladder app -> SMS -> CHW -> doctor |
-| Sim clock + care world | `simulator/local.py`, `simulator/care_world.py` | MySQL-free time travel: replay the future, simulate how patients respond, write EMR rows back, re-run the pipeline |
-| Learning loop | `ml/retrain.py`, `ml/adherence.py` | IPW challenger on verified outcomes, gates, human Promote in Model Arena |
-| Forecasting | `ml/forecast/`, `generator/external/` | Synthetic registry 2000-2026, surveys, projections; APC + ETS forecasts to 2031 with 80/95% bands, drivers, scenarios |
-| Patient app | `frontend/src/views/patient` | Phone-frame simulator at `/patient` (PWA screens) |
-| Videos | `video/` | Remotion case summary (doctor) and national reel (ministry), MP4 with poster |
-
-**Demo the full loop in 10 steps** (dataset in `data/v3`; `make` exports `DATA_DIR` from `.env`):
-
-1. **Data and servers.** `make dev-data-next` once (about 15 min), then `make care-seed` (8 demo plans at Musanze 1207 and
-   Kayonza 1219) and `make serve` (API :8000, dashboard :5173, agent :8787, video :8790).
-2. **Doctor approves.** Switch the role pill to Doctor, facility Musanze District Hospital. In the workspace open a
-   HIGH-risk patient's case, click **Approve & plan** on the alert, keep the suggested pathway (for example endoscopy
-   referral), check the patient message preview (advice to visit, no diagnosis words) and approve.
-3. **Patient phone.** Switch the role to Patient and pick the same display ID at `/patient`: the notification drops in
-   on the phone frame, the care plan shows the open task, and the event log explains what happened.
-4. **Patient acts.** On the phone tap "I've booked" or send a weekly check-in; it is written to the EMR as a
-   `PATIENT_REPORTED` encounter.
-5. **Advance time.** Open the **Simulation** popover in the top bar and click +1 week (or run `make advance DAYS=7`).
-   The care world decides who attends; reminders, SMS and CHW visits fire for overdue tasks.
-6. **Evidence closes tasks.** Back as the doctor, the **Follow-ups** tab lists overdue tasks first (ranked by predicted
-   adherence); the patient's task turns COMPLETED with an EMR evidence link once the endoscopy encounter arrives.
-7. **Journey.** The case screen's **Journey** tab shows the phase track (Flagged -> Approved -> Notified -> Endoscopy ->
-   Diagnosis -> Treatment ...), recovery tiles (weight, B12, Hb, ECOG, chemo cycles) and the survivorship schedule.
-8. **Ministry programme and learning loop.** As Ministry, **Follow-up** (`/programme`) shows the funnel flagged ->
-   approved -> notified -> attended -> endoscopy, adherence by channel and distance, CHW workload; **Models** shows the
-   challenger, its gates and the **Promote** button (`make retrain` trains one now).
-9. **Outlook.** `/outlook` shows the 2031 fan chart with 80/95% bands, the drivers (population, ageing, risk) and the
-   scenario simulator (for example +50% H. pylori test-and-treat: cases averted and stage shift, associational).
-10. **Video and agent.** **Create video** on the case screen (doctor) or on Overview / Outlook (ministry) renders an MP4
-    with a poster and download link. Ask the agent "Which follow-ups are overdue?", "Draft an H. pylori plan for
-    MUS-00241753" (a preview only: the doctor approves in the UI) or "How many cases do we expect in 2031?".
-
-The daily brief (`make report`) now includes care coordination KPIs and the 2031 outlook line.
-
-<!-- /v3 -->
-
-## AI agent and MCP
-
-`agent/` is a Node service (Hono + Vercel AI SDK 7) with two agents: a **clinical assistant** for doctors (facility-scoped, patient widgets) and a **ministry analyst** for health officials (aggregates only, cells under 5 suppressed). Both read the published DuckDB marts read-only, answer with chart widgets by default, can run small Python plotting scripts in a sandbox, and keep chats in SQLite (edit, rewind, regenerate).
-
-```bash
-make agent-setup        # pnpm install + sandbox venv
-make agent-dev          # http://localhost:8787/agent/health ; the dashboard chat is at /agent
-make agent-test         # unit tests
-make eval-agent         # DeepEval readiness gate (needs OpenRouter credit)
-```
-
-Model: `AGENT_MODEL` (default `deepseek/deepseek-v4.1-flash` on OpenRouter, key in `OPENROUTER_API_KEY`). For a government-hosted model set `AGENT_PROVIDER=openai-compatible` and `AGENT_BASE_URL`.
-
-Connect your own agent through MCP (no auth in the demo):
-
-```bash
-claude mcp add --transport http early-signals http://localhost:8787/mcp -H "X-Role: ministry"
-claude mcp add --transport http early-signals-doctor http://localhost:8787/mcp -H "X-Role: doctor" -H "X-Facility-Id: 1215"
-```
-
-Details: [`agent/README.md`](agent/README.md), evals: [`evals/agent/README.md`](evals/agent/README.md).
-
-## Claude Code automations
-
-Project skills live in `.claude/skills/`. Repo notes for Claude are in [`CLAUDE.md`](CLAUDE.md). Both skills need published
-data (`make dev-data` builds a small MySQL-free dataset). They identify patients by display ID only.
-
-| Command (in Claude Code) | What it does |
-|---|---|
-| `/validate-risk 5` | Fetches the 5 newest HIGH-risk patients that have not been reviewed yet (`scripts/risk_validation.py cases`). Claude checks each flag against the record (alarm features, labs, H. pylori, endoscopy status, demographics) and appends a verdict (`agree / disagree / uncertain`, confidence, evidence, per-reason checks) to `reports/risk_validation.jsonl`. It then commits and pushes `reports/` |
-| `/loop 30m /validate-risk 5` | Repeats the review every 30 minutes for as long as the session is open. Once every HIGH case is reviewed, each run does nothing |
-| `/daily-report` | Builds `reports/daily/<today>.pdf`, a one-page A4 brief with KPIs, trend, alerts by trigger, care coordination (new plans, overdue tasks, completion rate, days to endoscopy), the 2031 outlook, the top 8 high-risk patients with Claude's verdicts, data quality and provenance. Adds 3-4 observations against the previous day, then commits and pushes |
-
-The **daily Routine** (07:00 Africa/Kigali) starts a fresh cloud session, runs `/daily-report` and pushes the PDF. A fresh
-session has no generated data, so the report renders from the committed `reports/snapshots/latest.json` and the
-validation log. The snapshot is refreshed whenever validations are appended or a report is built against live data.
-
-```bash
-make validate-cases N=5                                  # what /validate-risk sees, as JSON
-uv run python scripts/risk_validation.py summary         # agreement so far
-make report                                              # PDF for today (live data, or the snapshot)
-uv run python scripts/daily_report.py --from-snapshot --check
-```
-
-See [`reports/README.md`](reports/README.md) for the file formats.
-
-## Data, privacy and licences
-
-- All people, facilities and statistics are synthetic. Facility names carry "(Synthetic)". District choices for the insights are illustrative only (SPEC §9).
-- District boundaries come from geoBoundaries (CC BY 4.0).
-- The 3D anatomy is from **Z-Anatomy** (CC BY-SA 4.0), which is derived from **BodyParts3D**, © DBCLS (CC BY-SA 2.1 JP). See [`frontend/public/models/CREDITS.md`](frontend/public/models/CREDITS.md).
-  - Z-Anatomy's licence file also lists two CC BY-NC sub-sources whose meshes it does not identify. The `brain` and kidney nodes may come from them; check before any commercial use.
-- The ministry role never receives patient-level fields. The doctor role sees only patients linked to its facility.
-- AI output is labelled as decision support. Insight cards cite the numbers they are built from.
+Code is released under the [MIT Licence](LICENSE). The 3D anatomy (Z-Anatomy / BodyParts3D, CC BY-SA) and district
+boundaries (geoBoundaries, CC BY 4.0) keep their own licences; see [Data, privacy and licences](docs/data-and-licences.md).

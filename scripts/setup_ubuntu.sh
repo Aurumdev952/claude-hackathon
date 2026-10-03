@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time machine setup for Early Signals on Ubuntu 22.04 / 24.04 (see SETUP.md).
+# One-time machine setup for Early Signals on Ubuntu 22.04 / 24.04 (see docs/setup.md).
 # Safe to re-run. Asks before every sudo step unless -y is given.
 #   bash scripts/setup_ubuntu.sh        # interactive
 #   bash scripts/setup_ubuntu.sh -y     # assume yes

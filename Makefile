@@ -1,6 +1,6 @@
 # Early Signals — developer and demo targets (SPEC §17.3).
 # Native mode (default) runs everything with uv + local MySQL; `make up-docker` uses docker-compose.yml.
-# Fresh Ubuntu machine: see SETUP.md (scripts/setup_ubuntu.sh -> cp .env.example .env -> make doctor -> make reproduce).
+# Fresh Ubuntu machine: see docs/setup.md (scripts/setup_ubuntu.sh -> cp .env.example .env -> make doctor -> make reproduce).
 SHELL := /bin/bash
 # settings from .env (MySQL credentials, SCALE, SEED, LLM provider) reach every command below
 -include .env

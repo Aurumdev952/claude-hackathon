@@ -1,4 +1,4 @@
--- OpenMRS-style schema (SPEC §6.3). Generated from SPEC.md; obs indexes live in indexes.sql.
+-- OpenMRS-style schema (SPEC §6.3). Generated from docs/spec.md; obs indexes live in indexes.sql.
 CREATE DATABASE IF NOT EXISTS openmrs CHARACTER SET utf8mb4;
 USE openmrs;
 
