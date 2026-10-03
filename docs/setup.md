@@ -8,7 +8,7 @@ This guide rebuilds everything from the repository on a fresh Ubuntu machine:
 - the MySQL live loop;
 - the dashboard.
 
-You end with the same results as the verified build. `make verify` checks them against [`docs/reference_results.json`](docs/reference_results.json).
+You end with the same results as the verified build. `make verify` checks them against [`docs/reference_results.json`](reference_results.json).
 
 > Data, models and databases are **not** stored in git: they are generated, and the generated data is about 4 GB. The generator is deterministic (`SEED=42`), so every machine builds the same data. Training gives nearly the same models.
 
@@ -47,7 +47,7 @@ bash scripts/setup_ubuntu.sh                 # asks before each sudo step; add -
 3. Installs **uv** (Python package manager). uv also downloads Python 3.11 for the project, so no system Python changes are needed.
 4. Creates `.env` from `.env.example`.
 5. Sets up MySQL:
-   - copies [`config/mysql/early-signals.cnf`](config/mysql/early-signals.cnf) into `/etc/mysql/mysql.conf.d/` and restarts MySQL;
+   - copies [`config/mysql/early-signals.cnf`](../config/mysql/early-signals.cnf) into `/etc/mysql/mysql.conf.d/` and restarts MySQL;
    - creates the MySQL user `es_admin`, using the password from `.env`.
 6. Installs the project packages:
    - Python, with `uv sync --all-extras`;

@@ -16,9 +16,9 @@ echo "Early Signals doctor (SCALE=${SCALE}, MySQL checks: $([[ $SKIP_MYSQL == 1 
 
 # --- machine
 os=$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME" || uname -s)
-[[ "$os" == *Ubuntu* ]] && pass "OS: $os" || warn "OS: $os" "SETUP.md is written for Ubuntu 22.04/24.04; other Linux distros need equivalent packages"
+[[ "$os" == *Ubuntu* ]] && pass "OS: $os" || warn "OS: $os" "docs/setup.md is written for Ubuntu 22.04/24.04; other Linux distros need equivalent packages"
 cpus=$(nproc 2>/dev/null || echo 1)
-[[ $cpus -ge 4 ]] && pass "CPU cores: $cpus" || warn "CPU cores: $cpus" "the timings in SETUP.md assume 4 cores; expect proportionally longer runs"
+[[ $cpus -ge 4 ]] && pass "CPU cores: $cpus" || warn "CPU cores: $cpus" "the timings in docs/setup.md assume 4 cores; expect proportionally longer runs"
 mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo 0)
 if   (( mem_kb >= 15 * 1048576 )); then pass "RAM: $(gb "$mem_kb") GB"
 elif (( mem_kb >= 8 * 1048576 ));  then warn "RAM: $(gb "$mem_kb") GB" "16 GB recommended; set PIPELINE_MEMORY_LIMIT=3GB and innodb_buffer_pool_size=1G (config/mysql/early-signals.cnf)"

@@ -2,7 +2,7 @@
 
 Gastric cancer surveillance for Rwanda, built on a **synthetic** OpenMRS-style EMR. Python 3.11 (uv) does the generator, the
 DuckDB pipeline, the ML models and the FastAPI API. The dashboard uses React 18 and Vite. The AI agent uses Hono on Node 22.
-The full spec is in `SPEC.md` and the agreed deviations are in `docs/decisions.md`.
+The full spec is in `docs/spec.md` and the agreed deviations are in `docs/decisions.md`.
 
 ## Data rules (always)
 
