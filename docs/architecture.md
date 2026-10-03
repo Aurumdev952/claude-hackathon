@@ -76,6 +76,19 @@ behind ⓘ icons and details open in modals, so the screens show charts, numbers
 10. **Patient app** (`/patient`): a phone frame with notifications, the care plan, the journey and weekly check-ins.
 11. **Agent** (`/agent`): chat with the clinical assistant (doctor role) or the ministry analyst (ministry role).
 
+### Screens
+
+| | |
+|---|---|
+| ![Geo explorer](media/screens/geo.jpg) | ![Trends lab](media/screens/trends.jpg) |
+| Geo Explorer | Trends Lab |
+| ![Early warning](media/screens/warning.jpg) | ![Model arena](media/screens/models.jpg) |
+| Early Warning | Model Arena |
+| ![Follow-up programme](media/screens/programme.jpg) | ![Approve and plan](media/screens/approve-modal.jpg) |
+| Follow-up programme | Approve & plan, with the patient message preview |
+
+All screens show synthetic data; patient names are placeholders.
+
 ## Key tables and endpoints
 
 - `pt_risk` (band, `ensemble_prob`, `t1_score`, `top_reasons` JSON), `pt_alerts` (`RISK_BAND_HIGH`,

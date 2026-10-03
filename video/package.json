@@ -13,7 +13,7 @@
     "assets": "node scripts/copy-assets.mjs",
     "studio": "remotion studio src/index.ts --port 3010 --browser-executable=$BROWSER_EXECUTABLE",
     "serve": "tsx src/server.ts",
-    "dev": "tsx watch --clear-screen=false src/server.ts",
+    "dev": "node init && tsx watch --clear-screen=false src/server.ts",
     "render": "tsx scripts/render.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test test/*.test.ts"
