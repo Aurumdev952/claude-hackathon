@@ -1,0 +1,848 @@
+<title>Gastric Cancer for Engineers</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Urbanist:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one 16:9 stage scaled by --u (1u = 1% of stage width), one slide visible at a time.
+   Below 760px wide the slides stack as scrolling cards. Palette follows the Early Signals dashboard (v3):
+   cool grey page, flat white slide, signal orange for attention, sky for data; A/B/C/D get one hue each. */
+:root{
+  --page:#F1F2F6; --surface:#FFFFFF; --tile:#F4F5F8; --hair:#E2E4EB; --ink:#15171C; --muted:#5E6373; --faint:#A3A8B5;
+  --brand:#4F6F51; --brand-soft:#E6F3E7; --brand-text:#3F5A41;
+  --signal:#F05A28; --signal-text:#B83A12; --signal-soft:#FDE9E1;
+  --sky:#5AB4E5; --sky-soft:#D9EEF9; --sky-text:#1C6894;
+  --a:#F05A28; --a-soft:#FDE9E1; --a-text:#B83A12; --on-a:#FFFFFF;
+  --b:#5B49B8; --b-soft:#ECE9F8; --b-text:#4A3AA7; --on-b:#FFFFFF;
+  --c:#3E9FD6; --c-soft:#DCEFFA; --c-text:#1C6894; --on-c:#FFFFFF;
+  --d:#D99A00; --d-soft:#FBF0D2; --d-text:#865B00; --on-d:#241800;
+  --shadow:0 10px 30px rgba(20,24,34,.12);
+  --font:"Urbanist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0E1014; --surface:#16191F; --tile:#1D2128; --hair:#2A2F39; --ink:#F2F3F5; --muted:#9BA0AD; --faint:#5A5F6B;
+    --brand:#98D59B; --brand-soft:#1F2E21; --brand-text:#A9DDAB;
+    --signal:#FF6D3A; --signal-text:#FF8A5C; --signal-soft:#3A2219;
+    --sky:#6CC0EC; --sky-soft:#1C3240; --sky-text:#8FD0F2;
+    --a:#FF6D3A; --a-soft:#3A2219; --a-text:#FF8A5C; --on-a:#15171C;
+    --b:#9085E9; --b-soft:#25213F; --b-text:#B9B1F4; --on-b:#15171C;
+    --c:#6CC0EC; --c-soft:#1C3240; --c-text:#8FD0F2; --on-c:#0B1F2C;
+    --d:#F0B429; --d-soft:#33280F; --d-text:#F5C75A; --on-d:#241800;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0E1014; --surface:#16191F; --tile:#1D2128; --hair:#2A2F39; --ink:#F2F3F5; --muted:#9BA0AD; --faint:#5A5F6B;
+  --brand:#98D59B; --brand-soft:#1F2E21; --brand-text:#A9DDAB;
+  --signal:#FF6D3A; --signal-text:#FF8A5C; --signal-soft:#3A2219;
+  --sky:#6CC0EC; --sky-soft:#1C3240; --sky-text:#8FD0F2;
+  --a:#FF6D3A; --a-soft:#3A2219; --a-text:#FF8A5C; --on-a:#15171C;
+  --b:#9085E9; --b-soft:#25213F; --b-text:#B9B1F4; --on-b:#15171C;
+  --c:#6CC0EC; --c-soft:#1C3240; --c-text:#8FD0F2; --on-c:#0B1F2C;
+  --d:#F0B429; --d-soft:#33280F; --d-text:#F5C75A; --on-d:#241800;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;--u:min(1vw,1.7778vh);overflow:hidden}
+
+/* ---------- stage ---------- */
+.deck{position:fixed;inset:0}
+.slide{position:absolute;left:50%;top:50%;width:calc(var(--u)*100);height:calc(var(--u)*56.25);
+  transform:translate(-50%,-50%);background:var(--surface);border-radius:calc(var(--u)*1);overflow:hidden;
+  visibility:hidden;opacity:0;transition:opacity .35s ease,visibility 0s linear .35s}
+.slide.active{visibility:visible;opacity:1;transition:opacity .35s ease}
+.frame{position:absolute;inset:0;padding:calc(var(--u)*4.2) calc(var(--u)*5.5) calc(var(--u)*5.2);
+  display:flex;flex-direction:column;gap:calc(var(--u)*1.8)}
+
+/* ---------- type ---------- */
+.eyebrow{font-family:var(--mono);font-size:calc(var(--u)*1.05);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);display:flex;align-items:center;gap:calc(var(--u)*.8);margin:0}
+.eyebrow i{display:inline-block;width:calc(var(--u)*.75);height:calc(var(--u)*.75);border-radius:50%;background:var(--signal)}
+h1,h2,h3,h4{margin:0;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:calc(var(--u)*5.8);line-height:1;font-weight:800}
+h2{font-size:calc(var(--u)*3.3);line-height:1.08;font-weight:800;max-width:calc(var(--u)*78)}
+h3{font-size:calc(var(--u)*1.8);line-height:1.15;font-weight:700}
+h4{font-size:calc(var(--u)*1.35);line-height:1.2;font-weight:700}
+p,li{font-size:calc(var(--u)*1.5);line-height:1.42;margin:0}
+.lede{font-size:calc(var(--u)*1.85);line-height:1.38;color:var(--muted);max-width:calc(var(--u)*66)}
+.small,.small p,.small li{font-size:calc(var(--u)*1.25)}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
+.src{font-family:var(--mono);font-size:calc(var(--u)*.92);color:var(--muted);margin-top:auto;line-height:1.4}
+b,strong{font-weight:700}
+.hl{color:var(--signal-text)}
+.num{font-weight:800;font-size:calc(var(--u)*4.4);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ---------- building blocks ---------- */
+.card{background:var(--tile);border-radius:calc(var(--u)*1.1);padding:calc(var(--u)*1.7) calc(var(--u)*1.9);
+  display:flex;flex-direction:column;gap:calc(var(--u)*.8);min-width:0}
+.g2,.g3,.g4,.g5{display:grid;gap:calc(var(--u)*1.6)}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:calc(var(--u)*4);align-items:center;flex:1;min-height:0}
+.split.wide-r{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
+.split.wide-l{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)}
+.stack{display:flex;flex-direction:column;gap:calc(var(--u)*1.2);min-width:0}
+.fill{flex:1;min-height:0}
+.tag{display:inline-flex;align-items:center;gap:.5em;font-family:var(--mono);font-size:calc(var(--u)*.9);letter-spacing:.08em;
+  text-transform:uppercase;padding:calc(var(--u)*.35) calc(var(--u)*.8);border-radius:999px;background:var(--tile);color:var(--muted);width:max-content;max-width:100%}
+.tag.sim{background:var(--sky-soft);color:var(--sky-text)}
+.tag.lit{background:var(--brand-soft);color:var(--brand-text)}
+.tag.warn{background:var(--signal-soft);color:var(--signal-text)}
+ul.clean{list-style:none;padding:0;margin:0;display:grid;gap:calc(var(--u)*.9)}
+ul.dots{list-style:none;padding:0;margin:0;display:grid;gap:calc(var(--u)*.8)}
+ul.dots li{position:relative;padding-left:calc(var(--u)*1.6)}
+ul.dots li::before{content:"";position:absolute;left:0;top:.55em;width:calc(var(--u)*.6);height:calc(var(--u)*.6);border-radius:50%;background:var(--dot,var(--signal))}
+.note{border-left:3px solid var(--sky);padding:calc(var(--u)*.6) 0 calc(var(--u)*.6) calc(var(--u)*1.4);color:var(--muted)}
+.note b{color:var(--ink)}
+svg{display:block;max-width:100%;overflow:visible}
+svg text{font-family:var(--font)}
+.chart{width:100%;height:auto}
+.bar-track{position:relative;height:calc(var(--u)*2.2);background:var(--tile);border-radius:calc(var(--u)*.5);overflow:hidden}
+.bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:calc(var(--u)*.5);background:var(--sky)}
+
+/* ---------- motion ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(calc(var(--u)*1.6))}}
+@keyframes pop{from{opacity:0;transform:scale(.82)}}
+@keyframes growx{from{transform:scaleX(0)}}
+@keyframes growy{from{transform:scaleY(0)}}
+@keyframes fade{from{opacity:0}}
+@keyframes draw{from{stroke-dashoffset:1}}
+@keyframes slidein{from{opacity:0;transform:translateX(calc(var(--u)*-2))}}
+.slide.active [data-a]{animation:rise .75s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 120ms + 150ms)}
+.slide.active [data-a="pop"]{animation-name:pop}
+.slide.active [data-a="fade"]{animation-name:fade}
+.slide.active [data-a="left"]{animation-name:slidein}
+.slide.active [data-a="gx"]{animation-name:growx;animation-duration:1.1s;transform-origin:left center}
+.slide.active [data-a="gy"]{animation-name:growy;animation-duration:1.1s;transform-origin:center bottom}
+.slide.active [data-a="draw"]{animation:draw 1.8s cubic-bezier(.45,.05,.3,1) both;animation-delay:calc(var(--i,0) * 220ms + 200ms)}
+svg [data-a]{transform-box:fill-box}
+[data-a="draw"]{stroke-dasharray:1}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.6);opacity:0}}
+.ring{transform-box:fill-box;transform-origin:center;animation:ring 2.4s ease-out infinite}
+.ring.r2{animation-delay:1.2s}
+
+/* ---------- chrome ---------- */
+.prog{position:fixed;left:0;top:env(safe-area-inset-top,0px);height:3px;background:var(--signal);width:0;transition:width .4s ease;z-index:11}
+.bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;align-items:center;gap:4px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:999px;padding:4px;box-shadow:var(--shadow);z-index:12;transition:opacity .3s}
+body.idle .bar{opacity:0}
+.bar button{appearance:none;border:0;background:transparent;color:var(--ink);font:600 13px/1 var(--font);height:32px;min-width:32px;padding:0 11px;border-radius:999px;cursor:pointer}
+.bar button:hover{background:var(--tile)}
+.bar button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.bar button:focus-visible,.deck:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.bar .count{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:60px;text-align:center;font-variant-numeric:tabular-nums}
+.bar .sep{width:1px;height:18px;background:var(--hair)}
+.notes{display:none}
+.notes-panel{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 60px);width:min(780px,calc(100vw - 32px));max-height:34vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:14px 18px;box-shadow:var(--shadow);z-index:12;font-size:15px;line-height:1.5}
+.notes-panel p,.notes-panel li{font-size:15px}
+.notes-panel h5{margin:0 0 6px;font:600 11px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.notes-panel ul{margin:0;padding-left:18px;display:grid;gap:4px}
+
+/* ---------- phone: stacked cards ---------- */
+@media (max-width:760px){
+  html,body{height:auto}
+  body{--u:9px;overflow:auto}
+  .deck{position:static;display:flex;flex-direction:column;gap:16px;padding-block:16px 32px;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .slide{position:relative;left:auto;top:auto;transform:none;width:auto;height:auto;visibility:visible;opacity:1;border-radius:18px;transition:none}
+  .frame{position:relative;inset:auto;padding:28px 20px;gap:16px}
+  .g2,.g3,.g4,.g5,.split,.split.wide-r,.split.wide-l{grid-template-columns:minmax(0,1fr)!important}
+  h1{font-size:38px} h2{font-size:27px}
+  .lede{font-size:17px} p,li{font-size:15px} .small,.small p,.small li{font-size:13.5px}
+  .bar,.prog,.notes-panel{display:none!important}
+  .hide-m{display:none!important}
+}
+@media (prefers-reduced-motion: reduce){
+  .slide.active [data-a],.ring{animation:none!important}
+  .slide,.prog{transition:none}
+}
+
+.cover-art{display:flex;align-items:center;justify-content:center}
+.cover-art svg{width:100%;max-width:calc(var(--u)*42)}
+
+/* cascade */
+.cascade{position:relative;display:flex;flex-direction:column;gap:calc(var(--u)*2.2);justify-content:center}
+.casc-track{position:absolute;left:8.33%;right:8.33%;top:calc(var(--u)*2.2);height:calc(var(--u)*.45);transform:translateY(-50%);background:var(--hair);border-radius:99px}
+.casc-line{position:absolute;inset:0;border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--d),var(--a),var(--signal))}
+.casc-dot{position:absolute;top:50%;width:calc(var(--u)*1.3);height:calc(var(--u)*1.3);margin:calc(var(--u)*-.65) 0 0 calc(var(--u)*-.65);border-radius:50%;
+  background:var(--surface);border:3px solid var(--ink);animation:travel 7s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes travel{0%{left:0}85%,100%{left:100%}}
+.casc-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:calc(var(--u)*1.2);position:relative}
+.casc-steps li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:calc(var(--u)*.6)}
+.cs-ico{width:calc(var(--u)*4.4);height:calc(var(--u)*4.4);border-radius:50%;border:3px solid;display:block;margin-bottom:calc(var(--u)*.4)}
+.casc-brackets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:calc(var(--u)*1) calc(var(--u)*1.2)}
+.cb{border-top:3px solid var(--cb);position:relative;padding-top:calc(var(--u)*.6);text-align:center;font-size:calc(var(--u)*1.2);font-weight:600;color:var(--ink)}
+.cb::before,.cb::after{content:"";position:absolute;top:-3px;width:3px;height:calc(var(--u)*.9);background:var(--cb)}
+.cb::before{left:0}.cb::after{right:0}
+
+/* phases */
+.phases{display:flex;gap:calc(var(--u)*.5);border-radius:calc(var(--u)*1.1);overflow:hidden}
+.ph{flex:var(--w) 1 0;padding:calc(var(--u)*1.3) calc(var(--u)*1.6);display:flex;flex-direction:column;gap:calc(var(--u)*.35);min-width:0}
+.ph-k{font-family:var(--mono);font-size:calc(var(--u)*.9);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* flow */
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(var(--u)*2.4) calc(var(--u)*2.2);align-content:center}
+.fl{position:relative;display:flex;flex-direction:column;gap:calc(var(--u)*.6)}
+.fl-n{display:block;background:var(--tile);border-radius:calc(var(--u)*.8);padding:calc(var(--u)*1.1) calc(var(--u)*1.2);font-weight:700;font-size:calc(var(--u)*1.45);text-align:center}
+.fl.last .fl-n{background:var(--brand);color:var(--surface)}
+.fl:not(.last)::after{content:"→";position:absolute;right:calc(var(--u)*-1.85);top:calc(var(--u)*1.05);font-size:calc(var(--u)*1.6);color:var(--muted)}
+.fl:nth-child(5)::after{content:"↵"}
+.delay{display:flex;align-items:center;gap:calc(var(--u)*.6);font-size:calc(var(--u)*1.15);color:var(--muted);justify-content:center;text-align:center}
+.delay::before{content:"";flex:none;width:calc(var(--u)*.9);height:calc(var(--u)*.9);border-radius:50%;background:var(--dc)}
+
+/* stages */
+.st-k{font-weight:800;font-size:calc(var(--u)*2.1);color:var(--st)}
+.stages .card{border-top:calc(var(--u)*.45) solid var(--st);border-top-left-radius:calc(var(--u)*.4);border-top-right-radius:calc(var(--u)*.4)}
+.stage-bar{height:calc(var(--u)*.7);border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--d),var(--a),var(--signal))}
+
+/* funnel */
+.funnel{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*.4)}
+.funnel div{width:var(--fw);min-width:max-content;background:var(--sky-soft);color:var(--sky-text);border-radius:calc(var(--u)*.6);padding:calc(var(--u)*.55) calc(var(--u)*1.2);text-align:center;
+  font-weight:700;font-size:calc(var(--u)*1.2);transform-origin:center}
+.slide.active .funnel [data-a="gx"]{transform-origin:center}
+
+/* glossary */
+.gloss{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:calc(var(--u)*1.2);margin:0;align-content:center}
+.gloss div{background:var(--tile);border-radius:calc(var(--u)*1);padding:calc(var(--u)*1.2) calc(var(--u)*1.4);min-width:0}
+.gloss dt{font-weight:800;font-size:calc(var(--u)*1.5)}
+.gloss dd{margin:calc(var(--u)*.3) 0 0;color:var(--muted);font-size:calc(var(--u)*1.2);line-height:1.38}
+
+/* questions */
+.qs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(var(--u)*1.4) calc(var(--u)*3);align-content:center;counter-reset:q}
+.qs li{display:flex;gap:calc(var(--u)*1.4);align-items:flex-start;counter-increment:q}
+.qs li::before{content:counter(q);flex:none;width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;background:var(--signal-soft);color:var(--signal-text);
+  font-weight:800;font-size:calc(var(--u)*1.6);display:grid;place-items:center}
+.qs p{font-size:calc(var(--u)*1.6)}
+
+@media (max-width:760px){
+  .casc-track{display:none}
+  .casc-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .casc-brackets{grid-template-columns:1fr}
+  .cb{grid-column:auto!important}
+  .phases{flex-direction:column}
+  .flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fl::after{display:none}
+  .gloss{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qs{grid-template-columns:1fr}
+  .funnel div{min-width:0;width:100%}
+}
+@media (prefers-reduced-motion: reduce){.casc-dot{animation:none;left:100%}}
+
+.three .card h3{font-size:calc(var(--u)*2.3)}
+.three .card p{font-size:calc(var(--u)*1.8)}
+.three .card{justify-content:center;gap:calc(var(--u)*1.2)}
+.late .card{padding:calc(var(--u)*1.2) calc(var(--u)*1.6)}
+.late .stack{gap:calc(var(--u)*.9)}
+</style>
+<div class="prog" aria-hidden="true"></div>
+<main class="deck" id="deck" tabindex="-1">
+
+<!-- 1 cover -->
+<section class="slide" aria-label="Cover">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Field guide · for the engineer on the team</p>
+    <div class="split wide-l">
+      <div class="stack" style="gap:calc(var(--u)*2.2)">
+        <h1>Gastric cancer, explained like a system</h1>
+        <p class="lede">What it is, what drives it, how it hides, and the words an oncologist will use. Read this before the meeting.</p>
+        <div class="row-tags" style="display:flex;gap:calc(var(--u)*.8);flex-wrap:wrap">
+          <span class="tag lit">Built from published evidence</span>
+          <span class="tag">15 slides · ~12 min</span>
+        </div>
+      </div>
+      <div class="cover-art">
+        <svg class="chart" viewBox="-10 -10 470 350" role="img" aria-label="Drawing of a stomach with a small highlighted spot near the exit">
+          <rect x="18" y="223" width="48" height="26" rx="10" style="fill:var(--tile);stroke:var(--hair);stroke-width:2"/>
+          <path class="stomach" d="M188,0 L188,78 C190,140 196,196 150,220 C126,232 100,228 80,222 L66,221 L66,251 L82,252 C122,292 192,314 252,292 C318,268 344,204 334,132 C326,74 296,40 258,44 C232,47 214,60 212,74 L212,0" style="fill:var(--a-soft);stroke:var(--ink);stroke-width:3;stroke-linejoin:round"/>
+          <g style="fill:none;stroke:var(--a);stroke-opacity:.35;stroke-width:2;stroke-linecap:round">
+            <path d="M232,96 C262,90 292,104 306,132"/><path d="M220,140 C258,132 296,150 310,190"/><path d="M200,196 C236,198 270,214 284,252"/><path d="M150,248 C182,250 214,262 230,284"/>
+          </g>
+          <circle class="ring" cx="128" cy="252" r="12" style="fill:none;stroke:var(--signal);stroke-width:3"/>
+          <circle class="ring r2" cx="128" cy="252" r="12" style="fill:none;stroke:var(--signal);stroke-width:3"/>
+          <circle cx="128" cy="252" r="9" style="fill:var(--signal)"/>
+          <text x="128" y="322" text-anchor="middle" style="font-size:15px;font-weight:600;fill:var(--muted)">a quiet signal, years in the making</text>
+        </svg>
+      </div>
+    </div>
+    <p class="src">Early Signals · Rwanda gastric cancer project · prepared October 2026 · educational summary, not clinical guidance</p>
+  </div>
+</section>
+
+<!-- 2 three lines -->
+<section class="slide three" aria-label="The whole story">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The whole story</p>
+    <h2>Three facts explain most of gastric cancer</h2>
+    <div class="g3 fill" style="align-items:stretch">
+      <div class="card" data-a style="--i:0">
+        <svg viewBox="0 0 200 60" class="chart" aria-hidden="true" style="height:calc(var(--u)*5);width:auto">
+          <line x1="6" y1="30" x2="194" y2="30" style="stroke:var(--hair);stroke-width:6;stroke-linecap:round"/>
+          <line x1="6" y1="30" x2="194" y2="30" pathLength="1" data-a="draw" style="--i:1;stroke:var(--sky);stroke-width:6;stroke-linecap:round"/>
+          <circle cx="194" cy="30" r="10" style="fill:var(--signal)"/>
+        </svg>
+        <h3>It is slow</h3>
+        <p>Usually <b>decades</b>. Long-term inflammation changes the stomach lining step by step before a cancer appears.</p>
+      </div>
+      <div class="card" data-a style="--i:1">
+        <svg viewBox="0 0 200 60" class="chart" aria-hidden="true" style="height:calc(var(--u)*5);width:auto">
+          <ellipse cx="60" cy="30" rx="34" ry="16" style="fill:var(--brand-soft);stroke:var(--brand);stroke-width:3"/>
+          <path d="M94,26 C110,14 120,44 136,30 C150,18 160,40 176,28" style="fill:none;stroke:var(--brand);stroke-width:3;stroke-linecap:round"/>
+        </svg>
+        <h3>It has one main cause</h3>
+        <p>A bacterium, <b><i>H. pylori</i></b>, drives most cases. Treat the infection early and the chain can stop.</p>
+      </div>
+      <div class="card" data-a style="--i:2">
+        <svg viewBox="0 0 200 60" class="chart" aria-hidden="true" style="height:calc(var(--u)*5);width:auto">
+          <circle cx="30" cy="30" r="10" style="fill:var(--faint)"/><circle cx="70" cy="30" r="10" style="fill:var(--faint)"/><circle cx="110" cy="30" r="10" style="fill:var(--faint)"/><circle cx="150" cy="30" r="10" style="fill:var(--faint)"/><circle cx="186" cy="30" r="12" style="fill:var(--signal)"/>
+        </svg>
+        <h3>It hides</h3>
+        <p>Early symptoms feel like <b>ordinary indigestion</b>. Most people are diagnosed after it has spread.</p>
+      </div>
+    </div>
+    <p class="note" data-a style="--i:3"><b>Why this matters for us:</b> the long, quiet build-up is the window. The trail of small, repeated clinic visits is the clue.</p>
+  </div>
+</section>
+
+<!-- 3 burden -->
+<section class="slide" aria-label="How big is the problem">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Scale of the problem</p>
+    <h2>A common cancer, and the stage at diagnosis decides survival</h2>
+    <div class="split" style="align-items:start">
+      <div class="g2" style="gap:calc(var(--u)*1.4)">
+        <div class="card" data-a style="--i:0"><span class="num" data-count="970000">970,000</span><p class="small muted">new cases worldwide in 2022</p></div>
+        <div class="card" data-a style="--i:1"><span class="num" data-count="660000">660,000</span><p class="small muted">deaths worldwide in 2022</p></div>
+        <div class="card" data-a style="--i:2"><span class="num">5th</span><p class="small muted">most common cancer, and 5th cause of cancer death</p></div>
+        <div class="card" data-a style="--i:3"><span class="num">~2×</span><p class="small muted">more common in men than in women</p></div>
+      </div>
+      <div class="stack" style="gap:calc(var(--u)*1.5)">
+        <h3>Share of people alive 5 years after diagnosis</h3>
+        <div class="stack" style="gap:calc(var(--u)*1.1)">
+          <div data-a="left" style="--i:2"><p class="small"><b>Found early</b> · still inside the stomach</p>
+            <div class="bar-track"><div class="bar-fill" data-a="gx" style="--i:3;width:75%;background:var(--brand)"></div></div><p class="small mono">≈ 75%</p></div>
+          <div data-a="left" style="--i:3"><p class="small"><b>Regional</b> · spread to nearby lymph nodes</p>
+            <div class="bar-track"><div class="bar-fill" data-a="gx" style="--i:4;width:35%;background:var(--d)"></div></div><p class="small mono">≈ 35%</p></div>
+          <div data-a="left" style="--i:4"><p class="small"><b>Distant</b> · spread to liver, lungs, abdomen lining</p>
+            <div class="bar-track"><div class="bar-fill" data-a="gx" style="--i:5;width:7%;background:var(--signal)"></div></div><p class="small mono">≈ 7%</p></div>
+        </div>
+        <p class="note small" data-a style="--i:6"><b>The lever:</b> moving a patient from the bottom bar to the top bar is worth more than most new drugs.</p>
+      </div>
+    </div>
+    <p class="src">Sources: GLOBOCAN 2022 (Bray et al., CA Cancer J Clin 2024) · 5-year relative survival by stage: US SEER registry, rounded</p>
+  </div>
+</section>
+
+<!-- 4 anatomy -->
+<section class="slide" aria-label="The stomach, part by part">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Anatomy</p>
+    <h2>The stomach, part by part</h2>
+    <div class="split wide-r">
+      <ul class="clean">
+        <li data-a="left" style="--i:1"><h4>Cardia</h4><p class="small muted">Where the food pipe joins. Cancers here behave more like oesophageal cancer (reflux, obesity).</p></li>
+        <li data-a="left" style="--i:2"><h4>Fundus, body, antrum ("non-cardia")</h4><p class="small muted">Most cases worldwide. Strongly tied to <i>H. pylori</i>. The antrum, near the exit, is a common site.</p></li>
+        <li data-a="left" style="--i:3"><h4>Pylorus</h4><p class="small muted">The exit valve. A tumour here can block it: vomiting, feeling full after a few bites.</p></li>
+        <li data-a="left" style="--i:4" class="note small"><p class="small"><b>Engineer's view:</b> two failure modes by location, with different causes, so they leave different signals in the data.</p></li>
+      </ul>
+      <svg class="chart" viewBox="-10 -10 480 360" role="img" aria-label="Labelled stomach: cardia, fundus, body, antrum, pylorus, lesser and greater curvature">
+        <rect x="18" y="223" width="48" height="26" rx="10" style="fill:var(--tile);stroke:var(--hair);stroke-width:2"/>
+        <path d="M188,0 L188,78 C190,140 196,196 150,220 C126,232 100,228 80,222 L66,221 L66,251 L82,252 C122,292 192,314 252,292 C318,268 344,204 334,132 C326,74 296,40 258,44 C232,47 214,60 212,74 L212,0" style="fill:var(--a-soft);stroke:var(--ink);stroke-width:3;stroke-linejoin:round"/>
+        <line x1="70" y1="219" x2="70" y2="253" style="stroke:var(--ink);stroke-width:7;stroke-linecap:round"/>
+        <g style="font-size:15px;font-weight:700;fill:var(--ink)">
+          <g data-a="pop" style="--i:1"><line x1="200" y1="90" x2="118" y2="74" style="stroke:var(--muted);stroke-width:1.5"/><circle cx="200" cy="90" r="5" style="fill:var(--b)"/><text x="112" y="70" text-anchor="end">Cardia</text></g>
+          <g data-a="pop" style="--i:2"><line x1="282" y1="72" x2="350" y2="22" style="stroke:var(--muted);stroke-width:1.5"/><circle cx="282" cy="72" r="5" style="fill:var(--ink)"/><text x="356" y="20">Fundus</text></g>
+          <g data-a="pop" style="--i:3"><line x1="290" y1="178" x2="368" y2="170" style="stroke:var(--muted);stroke-width:1.5"/><circle cx="290" cy="178" r="5" style="fill:var(--ink)"/><text x="374" y="175">Body</text></g>
+          <g data-a="pop" style="--i:4"><line x1="150" y1="262" x2="170" y2="332" style="stroke:var(--muted);stroke-width:1.5"/><circle cx="150" cy="262" r="5" style="fill:var(--signal)"/><text x="176" y="338">Antrum</text></g>
+          <g data-a="pop" style="--i:5"><line x1="70" y1="236" x2="40" y2="186" style="stroke:var(--muted);stroke-width:1.5"/><text x="8" y="180">Pylorus</text></g>
+          <g data-a="fade" style="--i:6;font-weight:500;font-size:13px;fill:var(--muted)"><text x="104" y="160">lesser curve</text><text x="352" y="262">greater curve</text></g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 5 wall layers -->
+<section class="slide" aria-label="Wall layers and T stage">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Depth = stage</p>
+    <h2>The stomach wall has layers. How deep the tumour goes is the "T" in staging</h2>
+    <svg class="chart fill" viewBox="0 0 720 300" role="img" aria-label="Five columns showing the tumour reaching deeper layers from T1a to T4">
+      <g style="font-size:14px;font-weight:600;fill:var(--muted)" text-anchor="end">
+        <text x="146" y="60">Mucosa (lining)</text><text x="146" y="107">Submucosa</text><text x="146" y="162">Muscle layer</text><text x="146" y="210">Subserosa</text><text x="146" y="236">Serosa (outer skin)</text>
+        <text x="146" y="20" style="font-weight:500">food side ↑</text><text x="146" y="270" style="font-weight:500">outside ↓</text>
+      </g>
+      <g id="wallCols"></g>
+    </svg>
+    <div class="g3" style="gap:calc(var(--u)*1.4)">
+      <p class="small card" data-a style="--i:6"><span><b>Early gastric cancer</b> = still in the inner two layers (T1). Often removed through the endoscope, no open surgery.</span></p>
+      <p class="small card" data-a style="--i:7"><span><b>Stage = T + N + M.</b> Depth (T), lymph nodes involved (N), spread to far organs (M). Combined into stage I to IV.</span></p>
+      <p class="small card" data-a style="--i:8"><span><b>Seen with:</b> endoscopy and biopsy for the lining, CT scan for nodes and spread, ultrasound through the endoscope for depth.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 Correa cascade -->
+<section class="slide" aria-label="Correa cascade">
+  <div class="frame">
+    <p class="eyebrow"><i></i>How it develops</p>
+    <h2>The Correa cascade: a slow pipeline of tissue states</h2>
+    <p class="lede" style="max-width:calc(var(--u)*80)">For the common (intestinal) type, the lining degrades through known states. Each one can be seen on a biopsy, like reading a system's logs.</p>
+    <div class="cascade fill">
+      <div class="casc-track"><div class="casc-line" data-a="gx" style="--i:1"></div><span class="casc-dot" aria-hidden="true"></span></div>
+      <ol class="casc-steps">
+        <li data-a style="--i:1"><span class="cs-ico" style="background:var(--brand-soft);border-color:var(--brand)"></span><h4>Normal lining</h4><p class="small muted">Healthy glands, normal acid.</p></li>
+        <li data-a style="--i:2"><span class="cs-ico" style="background:var(--d-soft);border-color:var(--d)"></span><h4>Chronic gastritis</h4><p class="small muted">Long-running inflammation, usually from <i>H. pylori</i>.</p></li>
+        <li data-a style="--i:3"><span class="cs-ico" style="background:var(--d-soft);border-color:var(--d)"></span><h4>Atrophy</h4><p class="small muted">Glands are lost; the stomach makes less acid.</p></li>
+        <li data-a style="--i:4"><span class="cs-ico" style="background:var(--a-soft);border-color:var(--a)"></span><h4>Intestinal metaplasia</h4><p class="small muted">Stomach cells replaced by intestine-like cells.</p></li>
+        <li data-a style="--i:5"><span class="cs-ico" style="background:var(--a-soft);border-color:var(--a)"></span><h4>Dysplasia</h4><p class="small muted">Abnormal cells: the last step before cancer.</p></li>
+        <li data-a style="--i:6"><span class="cs-ico" style="background:var(--signal);border-color:var(--signal)"></span><h4>Cancer</h4><p class="small muted">Invades the wall (adenocarcinoma).</p></li>
+      </ol>
+      <div class="casc-brackets">
+        <div class="cb" data-a style="--i:7;grid-column:1 / span 3;--cb:var(--brand)"><span>Treating <i>H. pylori</i> works best here</span></div>
+        <div class="cb" data-a style="--i:8;grid-column:3 / span 3;--cb:var(--d)"><span>"Pre-cancerous field": watch with endoscopy</span></div>
+        <div class="cb" data-a style="--i:9;grid-column:1 / span 6;--cb:var(--muted)"><span>Years to decades from left to right</span></div>
+      </div>
+    </div>
+    <p class="src">Source: Correa P. Human gastric carcinogenesis: a multistep and multifactorial process. Cancer Res 1992</p>
+  </div>
+</section>
+
+<!-- 7 H. pylori -->
+<section class="slide" aria-label="H. pylori">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The main driver</p>
+    <h2><i>H. pylori</i>: a common bacterium behind most cases</h2>
+    <div class="g4" style="gap:calc(var(--u)*1.4)">
+      <div class="card" data-a style="--i:0"><span class="num">~1 in 2</span><p class="small muted">people worldwide carry it; it is usually caught in childhood, at home</p></div>
+      <div class="card" data-a style="--i:1"><span class="num">Group 1</span><p class="small muted">"known to cause cancer in humans" (WHO cancer agency IARC, 1994)</p></div>
+      <div class="card" data-a style="--i:2"><span class="num" data-count="89" data-suf="%">89%</span><p class="small muted">of non-cardia gastric cancers attributed to it</p></div>
+      <div class="card" data-a style="--i:3"><span class="num">14 days</span><p class="small muted">of antibiotics + an acid blocker usually clears it; re-test 4+ weeks later</p></div>
+    </div>
+    <div class="g2 fill" style="align-items:stretch">
+      <div class="card" data-a style="--i:4;background:var(--brand-soft)">
+        <h3>Treatment prevents cancer</h3>
+        <p>Trials of clearing the infection show roughly <b>a third to a half fewer</b> gastric cancers later. The earlier in the cascade, the bigger the benefit.</p>
+      </div>
+      <div class="card" data-a style="--i:5;background:var(--d-soft)">
+        <h3>The "African enigma"</h3>
+        <p>Infection is very common in Africa, yet reported cancer rates looked lower than expected. Part of the gap is likely <b>missed diagnoses</b>: few endoscopies, few pathology labs.</p>
+      </div>
+    </div>
+    <p class="src">Sources: IARC Monographs vol. 61 (1994) · Plummer et al., Int J Cancer 2015 · Ford et al., Cochrane review of eradication trials · Hooi et al., Gastroenterology 2017 · Maastricht VI/Florence consensus 2022</p>
+  </div>
+</section>
+
+<!-- 8 risk factors -->
+<section class="slide" aria-label="Risk factors">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Risk factors</p>
+    <h2>How much each factor multiplies the risk</h2>
+    <div class="split wide-r" style="align-items:start">
+      <div class="stack">
+        <p class="small muted">"Relative risk 3" means three times the yearly chance compared with someone without that factor. Factors <b style="color:var(--ink)">multiply</b>: an older man with <i>H. pylori</i> who smokes carries many times the baseline risk.</p>
+        <p class="small muted"><b style="color:var(--ink)">Age</b> outweighs them all: risk climbs steeply after 50, and roughly doubles from 60 to 75.</p>
+        <div class="card" data-a style="--i:8">
+          <h4>Known, not yet in our model</h4>
+          <ul class="dots small" style="--dot:var(--faint)">
+            <li>Epstein–Barr virus (about 1 in 10 tumours)</li>
+            <li>Inherited <i>CDH1</i> gene change (hereditary diffuse type)</li>
+            <li>Pernicious anaemia, past stomach surgery</li>
+            <li>Obesity and reflux (cardia tumours)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="stack">
+        <svg class="chart" id="rrChart" viewBox="0 0 640 380" role="img" aria-label="Bar chart of relative risks"></svg>
+        <span class="tag sim">Values used in our simulation, rounded from the literature</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 Lauren types -->
+<section class="slide" aria-label="Two types">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Under the microscope</p>
+    <h2>Two main types, with different stories (Lauren classification)</h2>
+    <div class="g2 fill" style="align-items:stretch">
+      <div class="card" data-a style="--i:0">
+        <div style="display:flex;gap:calc(var(--u)*2);align-items:center">
+          <svg id="cellsInt" viewBox="0 0 200 140" class="chart" style="width:calc(var(--u)*16);flex:none" aria-label="Cells arranged in gland rings"></svg>
+          <div class="stack" style="gap:calc(var(--u)*.4)"><h3>Intestinal type</h3><p class="small muted">Cells still form gland-like rings.</p></div>
+        </div>
+        <ul class="dots small" style="--dot:var(--sky)">
+          <li>Older people, more often men</li>
+          <li>Follows the Correa cascade; driven by <i>H. pylori</i>, salt, smoking</li>
+          <li>Falling in countries where <i>H. pylori</i> is falling</li>
+        </ul>
+      </div>
+      <div class="card" data-a style="--i:1">
+        <div style="display:flex;gap:calc(var(--u)*2);align-items:center">
+          <svg id="cellsDif" viewBox="0 0 200 140" class="chart" style="width:calc(var(--u)*16);flex:none" aria-label="Single scattered signet-ring cells"></svg>
+          <div class="stack" style="gap:calc(var(--u)*.4)"><h3>Diffuse type</h3><p class="small muted">Single scattered cells ("signet ring").</p></div>
+        </div>
+        <ul class="dots small" style="--dot:var(--b)">
+          <li>Younger people; women as often as men</li>
+          <li>Less tied to the cascade; some cases inherited (<i>CDH1</i>)</li>
+          <li>Spreads under the lining, hard to see; can stiffen the whole stomach</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" data-a style="--i:2"><b>Why it matters for us:</b> young-onset cases are rising in several countries and are more often diffuse. A model that learns from older men's patterns can miss them.</p>
+    <p class="src">Source: Laurén P. Acta Pathol Microbiol Scand 1965 · young-onset trends: GBD 2019 analysis, Gastric Cancer 2024</p>
+  </div>
+</section>
+
+<!-- 10 why late -->
+<section class="slide" aria-label="Why it is found late">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Why it is found late</p>
+    <h2>Symptoms arrive late, and early ones look like indigestion</h2>
+    <div class="phases" data-a style="--i:0">
+      <div class="ph" style="--w:44;background:var(--tile)"><span class="ph-k">Years</span><h4>Silent</h4><p class="small muted">No symptoms. Changes only visible on biopsy.</p></div>
+      <div class="ph" style="--w:32;background:var(--d-soft)"><span class="ph-k">Months</span><h4>Vague</h4><p class="small muted">Upper-belly pain, bloating, feeling full early, nausea. Feels like everyday dyspepsia.</p></div>
+      <div class="ph" style="--w:24;background:var(--a-soft)"><span class="ph-k">Weeks–months</span><h4>Alarm</h4><p class="small muted">Signs that something structural is wrong.</p></div>
+    </div>
+    <div class="g2 fill late" style="align-items:stretch">
+      <div class="stack">
+        <div class="card" data-a style="--i:1"><p class="small"><b>Acid medicine masks it.</b> PPIs calm the pain for weeks, so everyone feels reassured.</p></div>
+        <div class="card" data-a style="--i:2"><p class="small"><b>Anaemia gets another label.</b> Slow bleeding lowers Hb; in malaria areas it is often treated as malaria or worms first.</p></div>
+        <div class="card" data-a style="--i:3"><p class="small"><b>Each visit looks normal alone.</b> The pattern across visits is what is abnormal.</p></div>
+      </div>
+      <div class="card" data-a style="--i:4;background:var(--a-soft)">
+        <h3 class="hl">Alarm features</h3>
+        <ul class="dots" style="--dot:var(--a)">
+          <li>Weight loss without trying</li>
+          <li>Trouble swallowing</li>
+          <li>Repeated vomiting</li>
+          <li>Bleeding: black stools, vomiting blood, iron-deficiency anaemia</li>
+          <li>A lump in the upper belly</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src">Guidelines refer these patients for endoscopy, often above an age cut-off (55 in UK NICE NG12; our model uses 45 for Rwanda) · ACG/CAG dyspepsia guideline 2017 · phase widths are schematic</p>
+  </div>
+</section>
+
+<!-- 11 journey -->
+<section class="slide" aria-label="Diagnostic journey">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The patient's path</p>
+    <h2>The road to a diagnosis, and where time is lost</h2>
+    <div class="flow fill">
+      <div class="fl" data-a style="--i:0"><span class="fl-n">Symptoms</span></div>
+      <div class="fl" data-a style="--i:1"><span class="fl-n">Health centre</span><span class="delay" style="--dc:var(--d)">acid medicine, sent home</span></div>
+      <div class="fl" data-a style="--i:2"><span class="fl-n">Comes back</span><span class="delay" style="--dc:var(--d)">again… and again</span></div>
+      <div class="fl" data-a style="--i:3"><span class="fl-n">District hospital</span></div>
+      <div class="fl" data-a style="--i:4"><span class="fl-n">Endoscopy referral</span><span class="delay" style="--dc:var(--a)">few units, long travel</span></div>
+      <div class="fl" data-a style="--i:5"><span class="fl-n">Endoscopy + biopsy</span></div>
+      <div class="fl" data-a style="--i:6"><span class="fl-n">Pathology result</span><span class="delay" style="--dc:var(--a)">weeks of waiting</span></div>
+      <div class="fl" data-a style="--i:7"><span class="fl-n">CT scan, staging</span></div>
+      <div class="fl" data-a style="--i:8"><span class="fl-n">Tumour board</span></div>
+      <div class="fl last" data-a style="--i:9"><span class="fl-n">Treatment</span></div>
+    </div>
+    <div class="g3">
+      <div class="card" data-a style="--i:10"><h4>Patient delay</h4><p class="small muted">Cost, distance, "it is just my stomach".</p></div>
+      <div class="card" data-a style="--i:11"><h4>Primary-care delay</h4><p class="small muted">Treated as indigestion, malaria or worms, visit after visit.</p></div>
+      <div class="card" data-a style="--i:12"><h4>System delay</h4><p class="small muted">Waiting for a scope, a pathologist, a scan.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 stage & treatment -->
+<section class="slide" aria-label="Stage and treatment">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Treatment</p>
+    <h2>Stage decides the treatment</h2>
+    <div class="g4 fill stages" style="align-items:stretch">
+      <div class="card" data-a style="--i:0;--st:var(--brand)"><span class="st-k">Stage I</span><p class="small"><b>Where:</b> lining and inner wall.</p><p class="small"><b>Treatment:</b> removal through the endoscope, or surgery.</p><p class="small muted">Most patients are cured.</p></div>
+      <div class="card" data-a style="--i:1;--st:var(--d)"><span class="st-k">Stage II</span><p class="small"><b>Where:</b> deeper wall, or a few lymph nodes.</p><p class="small"><b>Treatment:</b> removing part or all of the stomach (gastrectomy) plus chemotherapy before and after.</p></div>
+      <div class="card" data-a style="--i:2;--st:var(--a)"><span class="st-k">Stage III</span><p class="small"><b>Where:</b> through the wall, many nodes.</p><p class="small"><b>Treatment:</b> same as II, lower chance of cure.</p></div>
+      <div class="card" data-a style="--i:3;--st:var(--signal)"><span class="st-k">Stage IV</span><p class="small"><b>Where:</b> liver, lungs, abdominal lining.</p><p class="small"><b>Treatment:</b> chemotherapy, sometimes targeted (HER2) or immune therapy; symptom care, nutrition.</p><p class="small muted">Usually not curable.</p></div>
+    </div>
+    <div class="stage-bar" data-a="gx" style="--i:4" aria-hidden="true"></div>
+    <p class="note" data-a style="--i:5"><b>For Rwanda:</b> most patients still arrive at stage III–IV, where options are limited and costly. Every stage we move left saves lives and money.</p>
+  </div>
+</section>
+
+<!-- 13 prevention -->
+<section class="slide" aria-label="How other countries catch it early">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Prevention and early detection</p>
+    <h2>How other countries catch it early, and what fits Rwanda</h2>
+    <div class="g3 fill" style="align-items:stretch">
+      <div class="card" data-a style="--i:0">
+        <span class="tag lit">Prevent</span>
+        <h3>Stop the cascade</h3>
+        <ul class="dots small" style="--dot:var(--brand)"><li><i>H. pylori</i> "test and treat"</li><li>Less salt and smoked food; refrigeration</li><li>No smoking</li></ul>
+      </div>
+      <div class="card" data-a style="--i:1">
+        <span class="tag">Screen everyone</span>
+        <h3>Japan and South Korea</h3>
+        <p class="small">Regular endoscopy for adults from 40–50 years. Most cancers are now found early. It needs many endoscopists and machines.</p>
+      </div>
+      <div class="card" data-a style="--i:2;background:var(--signal-soft)">
+        <span class="tag warn">Find the few</span>
+        <h3>Risk-based triage</h3>
+        <p class="small">Scopes are scarce, so we cannot scope everyone. Use the records to find <b>the small group</b> most likely to need one, and send them first.</p>
+        <p class="small"><b>This is our project.</b></p>
+      </div>
+    </div>
+    <div class="funnel" aria-hidden="true">
+      <div data-a="gx" style="--i:3;--fw:100%"><span>everyone with stomach complaints</span></div>
+      <div data-a="gx" style="--i:4;--fw:46%"><span>higher-risk patterns</span></div>
+      <div data-a="gx" style="--i:5;--fw:16%;background:var(--signal);color:var(--on-a)"><span>scope first</span></div>
+    </div>
+    <p class="src">Sources: Maastricht VI/Florence consensus 2022 · Korean National Cancer Screening Programme · Japanese gastric cancer screening guidelines</p>
+  </div>
+</section>
+
+<!-- 14 glossary -->
+<section class="slide" aria-label="Glossary">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Cheat sheet</p>
+    <h2>Words you will hear tomorrow</h2>
+    <dl class="gloss fill">
+      <div data-a style="--i:0"><dt>Dyspepsia</dt><dd>Indigestion: upper-belly pain, bloating, early fullness.</dd></div>
+      <div data-a style="--i:1"><dt>PPI</dt><dd>Strong acid blocker, e.g. omeprazole.</dd></div>
+      <div data-a style="--i:2"><dt>Endoscopy (OGD)</dt><dd>Camera through the mouth into the stomach; takes biopsies.</dd></div>
+      <div data-a style="--i:3"><dt>Biopsy / histology</dt><dd>Tissue read under a microscope. The only proof of cancer.</dd></div>
+      <div data-a style="--i:4"><dt>Adenocarcinoma</dt><dd>Cancer of gland cells: about 9 in 10 stomach cancers.</dd></div>
+      <div data-a style="--i:5"><dt>Intestinal metaplasia</dt><dd>Lining replaced by intestine-like cells; pre-cancerous.</dd></div>
+      <div data-a style="--i:6"><dt>OLGA / OLGIM</dt><dd>Biopsy scores of how severe atrophy or metaplasia is.</dd></div>
+      <div data-a style="--i:7"><dt>TNM</dt><dd>Tumour depth, Nodes, Metastasis: becomes stage I–IV.</dd></div>
+      <div data-a style="--i:8"><dt>Gastrectomy, D2</dt><dd>Removing part or all of the stomach, with its lymph nodes.</dd></div>
+      <div data-a style="--i:9"><dt>FLOT</dt><dd>Four-drug chemotherapy given before and after surgery.</dd></div>
+      <div data-a style="--i:10"><dt>Hb</dt><dd>Haemoglobin. Falls slowly when a tumour bleeds.</dd></div>
+      <div data-a style="--i:11"><dt>ECOG</dt><dd>0–4 fitness score; decides if a patient can take treatment.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- 15 questions -->
+<section class="slide" aria-label="Questions to bring">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Bring to the meeting</p>
+    <h2>Six questions to ask the oncologist</h2>
+    <ol class="qs fill">
+      <li data-a style="--i:0"><p>Looking back at your patients' histories, <b>which early signs</b> were there before diagnosis?</p></li>
+      <li data-a style="--i:1"><p>At what <b>age</b> should a stomach complaint worry us in Rwanda? Is 45 right?</p></li>
+      <li data-a style="--i:2"><p>How often is the <b>anaemia</b> treated as malaria or worms first?</p></li>
+      <li data-a style="--i:3"><p>Which data do hospitals <b>reliably record</b>: Hb, weight, <i>H. pylori</i> tests, family history?</p></li>
+      <li data-a style="--i:4"><p>Are you seeing more <b>young, diffuse-type</b> cases?</p></li>
+      <li data-a style="--i:5"><p>How many extra <b>endoscopies a month</b> could the system absorb if we flagged patients?</p></li>
+    </ol>
+  </div>
+</section>
+
+</main>
+<nav class="bar" aria-label="Slide controls">
+  <button id="prevBtn" type="button" aria-label="Previous slide">‹</button>
+  <span class="count" id="count" aria-live="polite">1 / 15</span>
+  <button id="nextBtn" type="button" aria-label="Next slide">›</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="notesBtn" type="button" aria-pressed="false" title="Speaker notes (N)">Notes</button>
+  <button id="fullBtn" type="button" title="Full screen (F)">Full screen</button>
+</nav>
+<div class="notes-panel" id="notesPanel" hidden><h5>Speaker notes</h5><div id="notesBody"></div></div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const txt = (parent, x, y, s, attrs = {}) => { const t = el("text", { x, y, ...attrs }, parent); t.textContent = s; return t; };
+
+  // Stomach wall: five columns, tumour reaching one layer deeper each time (T1a ... T4).
+  const cols = document.getElementById("wallCols");
+  if (cols) {
+    const layers = [[30, 80, "--a-soft"], [80, 125, "--d-soft"], [125, 190, "--b-soft"], [190, 222, "--tile"], [222, 240, "--sky-soft"]];
+    const depth = [72, 118, 184, 218, 266], names = ["T1a", "T1b", "T2", "T3", "T4"];
+    names.forEach((nm, k) => {
+      const x = 160 + k * 112, cx = x + 50;
+      const g = el("g", { "data-a": "pop", style: `--i:${k + 1}` }, cols);
+      layers.forEach(([y0, y1, c]) => el("rect", { x, y: y0, width: 100, height: y1 - y0, style: `fill:var(${c});stroke:var(--surface);stroke-width:1.5` }, g));
+      el("rect", { x: cx - 17, y: 22, width: 34, height: depth[k] - 22, rx: 14, style: "fill:var(--signal)" }, g);
+      txt(g, cx, 290, nm, { "text-anchor": "middle", style: "font-size:17px;font-weight:800;fill:var(--ink)" });
+    });
+    const br = (x0, x1, label, color) => {
+      el("path", { d: `M${x0},14 L${x0},8 L${x1},8 L${x1},14`, style: `fill:none;stroke:var(${color});stroke-width:2.5` }, cols);
+      txt(cols, (x0 + x1) / 2, 2, label, { "text-anchor": "middle", style: `font-size:14px;font-weight:700;fill:var(${color})` });
+    };
+    br(160, 372, "Early (often curable by endoscope)", "--brand-text");
+    br(384, 708, "Advanced", "--signal-text");
+  }
+
+  // Relative-risk bars, axis 0..4 at 100 px per unit.
+  const rr = document.getElementById("rrChart");
+  if (rr) {
+    const rows = [["Atrophy / metaplasia", 3.5, "--signal"], ["H. pylori infection", 3.0, "--signal"], ["Family history", 2.5, "--sky"], ["Male sex", 1.9, "--sky"],
+      ["Current smoker", 1.6, "--sky"], ["High-salt diet", 1.5, "--sky"], ["Smoked / preserved food", 1.4, "--sky"], ["Heavy alcohol", 1.3, "--sky"], ["HIV (no effect: a check)", 1.0, "--faint"]];
+    const x0 = 210, sx = 100, y0 = 16, step = 36, bh = 22, yEnd = y0 + rows.length * step;
+    for (let t = 0; t <= 4; t++) {
+      el("line", { x1: x0 + t * sx, x2: x0 + t * sx, y1: y0 - 6, y2: yEnd, style: "stroke:var(--hair);stroke-width:1" }, rr);
+      txt(rr, x0 + t * sx, yEnd + 20, "×" + t, { "text-anchor": "middle", style: "font-size:14px;fill:var(--muted);font-variant-numeric:tabular-nums" });
+    }
+    rows.forEach(([lab, v, c], k) => {
+      const y = y0 + k * step;
+      txt(rr, x0 - 12, y + bh / 2 + 5, lab, { "text-anchor": "end", style: "font-size:15px;font-weight:600;fill:var(--ink)" });
+      el("rect", { x: x0, y, width: v * sx, height: bh, rx: 5, "data-a": "gx", style: `--i:${k * 0.6 + 1};fill:var(${c})` }, rr);
+      txt(rr, x0 + v * sx + 8, y + bh / 2 + 5, "×" + v.toFixed(1), { "data-a": "fade", style: `--i:${k * 0.6 + 3};font-size:15px;font-weight:700;fill:var(--ink);font-variant-numeric:tabular-nums` });
+    });
+    el("line", { x1: x0 + sx, x2: x0 + sx, y1: y0 - 6, y2: yEnd, style: "stroke:var(--ink);stroke-width:1.5;stroke-dasharray:4 4" }, rr);
+    txt(rr, x0 + sx, yEnd + 40, "×1 = no extra risk", { "text-anchor": "middle", style: "font-size:13px;font-weight:600;fill:var(--muted)" });
+  }
+
+  // Lauren types: glands in rings vs scattered signet-ring cells.
+  const ci = document.getElementById("cellsInt");
+  if (ci) {
+    [[52, 72], [140, 52], [128, 112]].forEach(([gx, gy], gi) => {
+      const n = 10, R = 25;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2, x = gx + R * Math.cos(a), y = gy + R * Math.sin(a);
+        const g = el("g", { "data-a": "pop", style: `--i:${gi * 2 + k * 0.15}` }, ci);
+        el("circle", { cx: x.toFixed(1), cy: y.toFixed(1), r: 8, style: "fill:var(--sky-soft);stroke:var(--sky);stroke-width:1.5" }, g);
+        el("circle", { cx: (gx + (R + 3.5) * Math.cos(a)).toFixed(1), cy: (gy + (R + 3.5) * Math.sin(a)).toFixed(1), r: 2.6, style: "fill:var(--sky-text)" }, g);
+      }
+    });
+  }
+  const cd = document.getElementById("cellsDif");
+  if (cd) {
+    let s = 7;
+    const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    const pts = [];
+    while (pts.length < 20) {
+      const x = 14 + rnd() * 172, y = 14 + rnd() * 112;
+      if (pts.every(([a, b]) => (a - x) ** 2 + (b - y) ** 2 > 400)) pts.push([x, y]);
+    }
+    pts.forEach(([x, y], k) => {
+      const g = el("g", { "data-a": "pop", style: `--i:${k * 0.25}` }, cd);
+      el("circle", { cx: x.toFixed(1), cy: y.toFixed(1), r: 8.5, style: "fill:var(--b-soft);stroke:var(--b);stroke-width:1.5" }, g);
+      el("path", { d: `M${(x - 6).toFixed(1)},${(y - 4).toFixed(1)} A8,8 0 0 0 ${(x - 6).toFixed(1)},${(y + 4).toFixed(1)} A5,6 0 0 1 ${(x - 6).toFixed(1)},${(y - 4).toFixed(1)}`, style: "fill:var(--b)" }, g);
+    });
+  }
+})();
+
+</script>
+<script>
+(() => {
+  const deck = document.getElementById("deck");
+  const slides = [...deck.querySelectorAll(".slide")];
+  const mq = matchMedia("(max-width: 760px)");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const countEl = document.getElementById("count");
+  const prog = document.querySelector(".prog");
+  const notesPanel = document.getElementById("notesPanel");
+  const notesBody = document.getElementById("notesBody");
+  const notesBtn = document.getElementById("notesBtn");
+  let cur = 0;
+  if (!deck.querySelector(".notes")) notesBtn.hidden = true;
+
+  const fmt = (el, v) => {
+    const dec = +(el.dataset.dec || 0);
+    return (el.dataset.pre || "") + v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (el.dataset.suf || "");
+  };
+  function countUp(slide) {
+    slide.querySelectorAll("[data-count]").forEach((el) => {
+      const to = parseFloat(el.dataset.count);
+      if (reduce.matches) { el.textContent = fmt(el, to); return; }
+      const t0 = performance.now(), dur = 1500, delay = +(el.dataset.delay || 250);
+      const step = (t) => {
+        const k = Math.max(0, Math.min(1, (t - t0 - delay) / dur));
+        el.textContent = fmt(el, to * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  function ui() {
+    countEl.textContent = cur + 1 + " / " + slides.length;
+    prog.style.width = ((cur + 1) / slides.length) * 100 + "%";
+    const n = slides[cur].querySelector(".notes");
+    notesBody.innerHTML = n ? n.innerHTML : "<p>No notes for this slide.</p>";
+  }
+  function go(i) {
+    if (mq.matches) return;
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === cur) return;
+    slides[cur].classList.remove("active");
+    cur = i;
+    void slides[cur].offsetWidth;
+    slides[cur].classList.add("active");
+    countUp(slides[cur]);
+    ui();
+    try { history.replaceState(null, "", "#" + (cur + 1)); } catch (e) {}
+  }
+  function layout() {
+    if (mq.matches) { slides.forEach((s) => { s.classList.add("active"); }); slides.forEach(countUp); }
+    else { slides.forEach((s, k) => s.classList.toggle("active", k === cur)); countUp(slides[cur]); ui(); }
+  }
+  const h = parseInt((location.hash || "").slice(1), 10);
+  if (Number.isFinite(h)) cur = Math.max(0, Math.min(slides.length - 1, h - 1));
+  layout();
+  mq.addEventListener ? mq.addEventListener("change", layout) : mq.addListener(layout);
+
+  const toggleNotes = () => {
+    notesPanel.hidden = !notesPanel.hidden;
+    notesBtn.setAttribute("aria-pressed", String(!notesPanel.hidden));
+  };
+  const toggleFull = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});
+    } catch (e) {}
+  };
+  document.getElementById("prevBtn").addEventListener("click", () => go(cur - 1));
+  document.getElementById("nextBtn").addEventListener("click", () => go(cur + 1));
+  notesBtn.addEventListener("click", toggleNotes);
+  document.getElementById("fullBtn").addEventListener("click", toggleFull);
+
+  document.addEventListener("keydown", (e) => {
+    if (mq.matches || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest && e.target.closest("input,textarea,select")) return;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " " || k === "ArrowDown") { e.preventDefault(); go(cur + 1); }
+    else if (k === "ArrowLeft" || k === "PageUp" || k === "ArrowUp") { e.preventDefault(); go(cur - 1); }
+    else if (k === "Home") go(0);
+    else if (k === "End") go(slides.length - 1);
+    else if (k === "n" || k === "N") toggleNotes();
+    else if (k === "f" || k === "F") toggleFull();
+    wake();
+  });
+  deck.addEventListener("click", (e) => {
+    if (mq.matches || e.target.closest("a,button,input,select,textarea")) return;
+    if (String(getSelection && getSelection()).length) return;
+    go(e.clientX < innerWidth * 0.22 ? cur - 1 : cur + 1);
+  });
+  let tx = null, ty = null;
+  deck.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  deck.addEventListener("touchend", (e) => {
+    if (mq.matches || tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? cur + 1 : cur - 1);
+    tx = null;
+  }, { passive: true });
+
+  let idleT;
+  function wake() {
+    document.body.classList.remove("idle");
+    clearTimeout(idleT);
+    idleT = setTimeout(() => { if (!document.querySelector(".bar:hover") && notesPanel.hidden) document.body.classList.add("idle"); }, 2800);
+  }
+  document.addEventListener("mousemove", wake);
+  wake();
+})();
+</script>
