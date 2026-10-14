@@ -3,6 +3,10 @@
  * live at the top of that file. HeroUI's own palette (primary = brand green, danger = signal, default = greys, success/warning/danger,
  * background, content1-4, divider, focus) is configured below with the same hex values. */
 import { heroui } from "@heroui/theme";
+import { createRequire } from 'module';
+
+var require = createRequire(import.meta.url);
+var module = { exports: {} };
 
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
