@@ -1,0 +1,1083 @@
+<title>Early Signals Methodology</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Urbanist:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one 16:9 stage scaled by --u (1u = 1% of stage width), one slide visible at a time.
+   Below 760px wide the slides stack as scrolling cards. Palette follows the Early Signals dashboard (v3):
+   cool grey page, flat white slide, signal orange for attention, sky for data; A/B/C/D get one hue each. */
+:root{
+  --page:#F1F2F6; --surface:#FFFFFF; --tile:#F4F5F8; --hair:#E2E4EB; --ink:#15171C; --muted:#5E6373; --faint:#A3A8B5;
+  --brand:#4F6F51; --brand-soft:#E6F3E7; --brand-text:#3F5A41;
+  --signal:#F05A28; --signal-text:#B83A12; --signal-soft:#FDE9E1;
+  --sky:#5AB4E5; --sky-soft:#D9EEF9; --sky-text:#1C6894;
+  --a:#F05A28; --a-soft:#FDE9E1; --a-text:#B83A12; --on-a:#FFFFFF;
+  --b:#5B49B8; --b-soft:#ECE9F8; --b-text:#4A3AA7; --on-b:#FFFFFF;
+  --c:#3E9FD6; --c-soft:#DCEFFA; --c-text:#1C6894; --on-c:#FFFFFF;
+  --d:#D99A00; --d-soft:#FBF0D2; --d-text:#865B00; --on-d:#241800;
+  --shadow:0 10px 30px rgba(20,24,34,.12);
+  --font:"Urbanist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0E1014; --surface:#16191F; --tile:#1D2128; --hair:#2A2F39; --ink:#F2F3F5; --muted:#9BA0AD; --faint:#5A5F6B;
+    --brand:#98D59B; --brand-soft:#1F2E21; --brand-text:#A9DDAB;
+    --signal:#FF6D3A; --signal-text:#FF8A5C; --signal-soft:#3A2219;
+    --sky:#6CC0EC; --sky-soft:#1C3240; --sky-text:#8FD0F2;
+    --a:#FF6D3A; --a-soft:#3A2219; --a-text:#FF8A5C; --on-a:#15171C;
+    --b:#9085E9; --b-soft:#25213F; --b-text:#B9B1F4; --on-b:#15171C;
+    --c:#6CC0EC; --c-soft:#1C3240; --c-text:#8FD0F2; --on-c:#0B1F2C;
+    --d:#F0B429; --d-soft:#33280F; --d-text:#F5C75A; --on-d:#241800;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0E1014; --surface:#16191F; --tile:#1D2128; --hair:#2A2F39; --ink:#F2F3F5; --muted:#9BA0AD; --faint:#5A5F6B;
+  --brand:#98D59B; --brand-soft:#1F2E21; --brand-text:#A9DDAB;
+  --signal:#FF6D3A; --signal-text:#FF8A5C; --signal-soft:#3A2219;
+  --sky:#6CC0EC; --sky-soft:#1C3240; --sky-text:#8FD0F2;
+  --a:#FF6D3A; --a-soft:#3A2219; --a-text:#FF8A5C; --on-a:#15171C;
+  --b:#9085E9; --b-soft:#25213F; --b-text:#B9B1F4; --on-b:#15171C;
+  --c:#6CC0EC; --c-soft:#1C3240; --c-text:#8FD0F2; --on-c:#0B1F2C;
+  --d:#F0B429; --d-soft:#33280F; --d-text:#F5C75A; --on-d:#241800;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;--u:min(1vw,1.7778vh);overflow:hidden}
+
+/* ---------- stage ---------- */
+.deck{position:fixed;inset:0}
+.slide{position:absolute;left:50%;top:50%;width:calc(var(--u)*100);height:calc(var(--u)*56.25);
+  transform:translate(-50%,-50%);background:var(--surface);border-radius:calc(var(--u)*1);overflow:hidden;
+  visibility:hidden;opacity:0;transition:opacity .35s ease,visibility 0s linear .35s}
+.slide.active{visibility:visible;opacity:1;transition:opacity .35s ease}
+.frame{position:absolute;inset:0;padding:calc(var(--u)*4.2) calc(var(--u)*5.5) calc(var(--u)*5.2);
+  display:flex;flex-direction:column;gap:calc(var(--u)*1.8)}
+
+/* ---------- type ---------- */
+.eyebrow{font-family:var(--mono);font-size:calc(var(--u)*1.05);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);display:flex;align-items:center;gap:calc(var(--u)*.8);margin:0}
+.eyebrow i{display:inline-block;width:calc(var(--u)*.75);height:calc(var(--u)*.75);border-radius:50%;background:var(--signal)}
+h1,h2,h3,h4{margin:0;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:calc(var(--u)*5.8);line-height:1;font-weight:800}
+h2{font-size:calc(var(--u)*3.3);line-height:1.08;font-weight:800;max-width:calc(var(--u)*78)}
+h3{font-size:calc(var(--u)*1.8);line-height:1.15;font-weight:700}
+h4{font-size:calc(var(--u)*1.35);line-height:1.2;font-weight:700}
+p,li{font-size:calc(var(--u)*1.5);line-height:1.42;margin:0}
+.lede{font-size:calc(var(--u)*1.85);line-height:1.38;color:var(--muted);max-width:calc(var(--u)*66)}
+.small,.small p,.small li{font-size:calc(var(--u)*1.25)}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
+.src{font-family:var(--mono);font-size:calc(var(--u)*.92);color:var(--muted);margin-top:auto;line-height:1.4}
+b,strong{font-weight:700}
+.hl{color:var(--signal-text)}
+.num{font-weight:800;font-size:calc(var(--u)*4.4);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ---------- building blocks ---------- */
+.card{background:var(--tile);border-radius:calc(var(--u)*1.1);padding:calc(var(--u)*1.7) calc(var(--u)*1.9);
+  display:flex;flex-direction:column;gap:calc(var(--u)*.8);min-width:0}
+.g2,.g3,.g4,.g5{display:grid;gap:calc(var(--u)*1.6)}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:calc(var(--u)*4);align-items:center;flex:1;min-height:0}
+.split.wide-r{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
+.split.wide-l{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)}
+.stack{display:flex;flex-direction:column;gap:calc(var(--u)*1.2);min-width:0}
+.fill{flex:1;min-height:0}
+.tag{display:inline-flex;align-items:center;gap:.5em;font-family:var(--mono);font-size:calc(var(--u)*.9);letter-spacing:.08em;
+  text-transform:uppercase;padding:calc(var(--u)*.35) calc(var(--u)*.8);border-radius:999px;background:var(--tile);color:var(--muted);width:max-content;max-width:100%}
+.tag.sim{background:var(--sky-soft);color:var(--sky-text)}
+.tag.lit{background:var(--brand-soft);color:var(--brand-text)}
+.tag.warn{background:var(--signal-soft);color:var(--signal-text)}
+ul.clean{list-style:none;padding:0;margin:0;display:grid;gap:calc(var(--u)*.9)}
+ul.dots{list-style:none;padding:0;margin:0;display:grid;gap:calc(var(--u)*.8)}
+ul.dots li{position:relative;padding-left:calc(var(--u)*1.6)}
+ul.dots li::before{content:"";position:absolute;left:0;top:.55em;width:calc(var(--u)*.6);height:calc(var(--u)*.6);border-radius:50%;background:var(--dot,var(--signal))}
+.note{border-left:3px solid var(--sky);padding:calc(var(--u)*.6) 0 calc(var(--u)*.6) calc(var(--u)*1.4);color:var(--muted)}
+.note b{color:var(--ink)}
+svg{display:block;max-width:100%;overflow:visible}
+svg text{font-family:var(--font)}
+.chart{width:100%;height:auto}
+.bar-track{position:relative;height:calc(var(--u)*2.2);background:var(--tile);border-radius:calc(var(--u)*.5);overflow:hidden}
+.bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:calc(var(--u)*.5);background:var(--sky)}
+
+/* ---------- motion ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(calc(var(--u)*1.6))}}
+@keyframes pop{from{opacity:0;transform:scale(.82)}}
+@keyframes growx{from{transform:scaleX(0)}}
+@keyframes growy{from{transform:scaleY(0)}}
+@keyframes fade{from{opacity:0}}
+@keyframes draw{from{stroke-dashoffset:1}}
+@keyframes slidein{from{opacity:0;transform:translateX(calc(var(--u)*-2))}}
+.slide.active [data-a]{animation:rise .75s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 120ms + 150ms)}
+.slide.active [data-a="pop"]{animation-name:pop}
+.slide.active [data-a="fade"]{animation-name:fade}
+.slide.active [data-a="left"]{animation-name:slidein}
+.slide.active [data-a="gx"]{animation-name:growx;animation-duration:1.1s;transform-origin:left center}
+.slide.active [data-a="gy"]{animation-name:growy;animation-duration:1.1s;transform-origin:center bottom}
+.slide.active [data-a="draw"]{animation:draw 1.8s cubic-bezier(.45,.05,.3,1) both;animation-delay:calc(var(--i,0) * 220ms + 200ms)}
+svg [data-a]{transform-box:fill-box}
+[data-a="draw"]{stroke-dasharray:1}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.6);opacity:0}}
+.ring{transform-box:fill-box;transform-origin:center;animation:ring 2.4s ease-out infinite}
+.ring.r2{animation-delay:1.2s}
+
+/* ---------- chrome ---------- */
+.prog{position:fixed;left:0;top:env(safe-area-inset-top,0px);height:3px;background:var(--signal);width:0;transition:width .4s ease;z-index:11}
+.bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;align-items:center;gap:4px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:999px;padding:4px;box-shadow:var(--shadow);z-index:12;transition:opacity .3s}
+body.idle .bar{opacity:0}
+.bar button{appearance:none;border:0;background:transparent;color:var(--ink);font:600 13px/1 var(--font);height:32px;min-width:32px;padding:0 11px;border-radius:999px;cursor:pointer}
+.bar button:hover{background:var(--tile)}
+.bar button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.bar button:focus-visible,.deck:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.bar .count{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:60px;text-align:center;font-variant-numeric:tabular-nums}
+.bar .sep{width:1px;height:18px;background:var(--hair)}
+.notes{display:none}
+.notes-panel{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 60px);width:min(780px,calc(100vw - 32px));max-height:34vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:14px 18px;box-shadow:var(--shadow);z-index:12;font-size:15px;line-height:1.5}
+.notes-panel p,.notes-panel li{font-size:15px}
+.notes-panel h5{margin:0 0 6px;font:600 11px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.notes-panel ul{margin:0;padding-left:18px;display:grid;gap:4px}
+
+/* ---------- phone: stacked cards ---------- */
+@media (max-width:760px){
+  html,body{height:auto}
+  body{--u:9px;overflow:auto}
+  .deck{position:static;display:flex;flex-direction:column;gap:16px;padding-block:16px 32px;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .slide{position:relative;left:auto;top:auto;transform:none;width:auto;height:auto;visibility:visible;opacity:1;border-radius:18px;transition:none}
+  .frame{position:relative;inset:auto;padding:28px 20px;gap:16px}
+  .g2,.g3,.g4,.g5,.split,.split.wide-r,.split.wide-l{grid-template-columns:minmax(0,1fr)!important}
+  h1{font-size:38px} h2{font-size:27px}
+  .lede{font-size:17px} p,li{font-size:15px} .small,.small p,.small li{font-size:13.5px}
+  .bar,.prog,.notes-panel{display:none!important}
+  .hide-m{display:none!important}
+}
+@media (prefers-reduced-motion: reduce){
+  .slide.active [data-a],.ring{animation:none!important}
+  .slide,.prog{transition:none}
+}
+
+/* letters */
+.lt,.big-lt,.lt-s{display:inline-grid;place-items:center;border-radius:50%;background:var(--lc);color:var(--on);font-weight:800;flex:none}
+.lt{width:calc(var(--u)*5);height:calc(var(--u)*5);font-size:calc(var(--u)*2.6)}
+.big-lt{width:calc(var(--u)*6);height:calc(var(--u)*6);font-size:calc(var(--u)*3.4)}
+.lt-s{width:calc(var(--u)*2.2);height:calc(var(--u)*2.2);font-size:calc(var(--u)*1.1);margin-right:calc(var(--u)*.8);vertical-align:middle}
+
+/* cover strip */
+.abcd-strip{position:relative;min-height:calc(var(--u)*9)}
+.abcd-line{position:absolute;left:0;right:6%;top:50%;height:calc(var(--u)*.45);border-radius:99px;transform-origin:left center;
+  background:linear-gradient(90deg,var(--hair),var(--d) 10%,var(--c) 40%,var(--b) 64%,var(--a) 84%,var(--signal))}
+.slide.active .abcd-line{animation:growx 1.8s cubic-bezier(.45,.05,.3,1) both}
+.abcd-strip .lt{position:absolute;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 calc(var(--u)*.6) var(--surface)}
+.slide.active .abcd-strip .lt{animation:liftin2 .7s cubic-bezier(.2,.7,.2,1) both}
+.slide.active .abcd-strip .lt:nth-of-type(2){animation-delay:.35s}
+.slide.active .abcd-strip .lt:nth-of-type(3){animation-delay:.65s}
+.slide.active .abcd-strip .lt:nth-of-type(4){animation-delay:.95s}
+.slide.active .abcd-strip .lt:nth-of-type(5){animation-delay:1.25s}
+@keyframes liftin2{from{transform:translate(-50%,-30%) scale(.7)}to{transform:translate(-50%,-50%)}}
+.dx{position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:calc(var(--u)*1);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--signal-text);background:var(--signal-soft);padding:calc(var(--u)*.4) calc(var(--u)*.8);border-radius:99px}
+
+.legend{display:flex;gap:calc(var(--u)*2);flex-wrap:wrap;font-size:calc(var(--u)*1.2);color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:calc(var(--u)*.6)}
+.legend i{width:calc(var(--u)*1.1);height:calc(var(--u)*1.1);border-radius:50%;display:inline-block}
+
+.step-n{width:calc(var(--u)*3.6);height:calc(var(--u)*3.6);border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--surface);font-weight:800;font-size:calc(var(--u)*1.7)}
+
+/* funnel */
+.funnel2{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*.7)}
+.funnel2 > div{width:var(--fw);background:var(--sky-soft);color:var(--ink);border-radius:calc(var(--u)*.8);padding:calc(var(--u)*1) calc(var(--u)*1.4);
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:calc(var(--u)*.2)}
+.funnel2 > div b{font-size:calc(var(--u)*2.3);font-weight:800;font-variant-numeric:tabular-nums}
+.funnel2 > div span{font-size:calc(var(--u)*1.2);opacity:.85}
+
+/* ABCD cards */
+.abcd .card{background:var(--ls);gap:calc(var(--u)*1)}
+.abcd .when{margin-top:auto;font-family:var(--mono);font-size:calc(var(--u)*1);letter-spacing:.04em;color:var(--ink);opacity:.75}
+
+/* points rule */
+.rule{display:flex;align-items:center;gap:calc(var(--u)*1.2);background:var(--tile);border-radius:calc(var(--u)*.9);padding:calc(var(--u)*.9) calc(var(--u)*1.2);min-width:0}
+.pts{flex:none;min-width:calc(var(--u)*4.2);text-align:center;font-weight:800;font-size:calc(var(--u)*1.6);color:var(--lc);font-variant-numeric:tabular-nums}
+.pts-list{display:grid;gap:calc(var(--u)*.6)}
+.pts-list .rule{padding:calc(var(--u)*.6) calc(var(--u)*1.2)}
+
+/* recording-rate ranges */
+.miss{display:grid;gap:calc(var(--u)*1.3)}
+.miss .mr{display:grid;gap:calc(var(--u)*.45)}
+.miss .mr-h{display:flex;justify-content:space-between;gap:1em;font-size:calc(var(--u)*1.25)}
+.miss .mr-h b{font-variant-numeric:tabular-nums}
+.miss .mr-t{position:relative;height:calc(var(--u)*1.6);background:var(--tile);border-radius:99px;overflow:hidden}
+.miss .mr-r{position:absolute;top:0;bottom:0;border-radius:99px;background:var(--d)}
+.miss .mr-axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:calc(var(--u)*.9);color:var(--muted)}
+
+/* bands */
+.bands .card{border-top:calc(var(--u)*.45) solid var(--bc);border-top-left-radius:calc(var(--u)*.4);border-top-right-radius:calc(var(--u)*.4);gap:calc(var(--u)*.5)}
+.band{font-weight:800;font-size:calc(var(--u)*2);color:var(--bc);letter-spacing:.02em}
+.trig{display:flex;flex-direction:column;gap:calc(var(--u)*.4);border-left:calc(var(--u)*.45) solid var(--lc);padding:calc(var(--u)*.4) 0 calc(var(--u)*.4) calc(var(--u)*1.2)}
+.trig b{font-size:calc(var(--u)*1.4)}
+.trig span{font-size:calc(var(--u)*1.2);color:var(--muted)}
+
+.tier-ico{width:calc(var(--u)*11);height:auto}
+
+/* tally */
+.tally{list-style:none;margin:0;padding:0;display:grid;gap:calc(var(--u)*.6)}
+.tally li{display:flex;justify-content:space-between;align-items:center;gap:1em;background:var(--tile);border-radius:calc(var(--u)*.8);
+  padding:calc(var(--u)*.8) calc(var(--u)*1.3);border-left:calc(var(--u)*.45) solid var(--lc);font-size:calc(var(--u)*1.45)}
+.tally li b{font-variant-numeric:tabular-nums;font-size:calc(var(--u)*1.6)}
+.tally li.off{opacity:.55}
+.score-box{display:flex;align-items:baseline;gap:calc(var(--u)*1.4)}
+.score{font-size:calc(var(--u)*8)}
+.band-pill{display:inline-flex;align-items:center;background:var(--signal);color:var(--on-a);font-weight:800;border-radius:99px;
+  padding:calc(var(--u)*.45) calc(var(--u)*1.2);font-size:calc(var(--u)*1.3);letter-spacing:.06em;align-self:center}
+.gauge{position:relative;display:flex;height:calc(var(--u)*4.2);border-radius:calc(var(--u)*.8);overflow:visible}
+.gz{flex:var(--w) 1 0;display:flex;align-items:flex-end;padding:calc(var(--u)*.6) calc(var(--u)*.8);font-family:var(--mono);font-size:calc(var(--u)*.95);color:var(--ink)}
+.gz:first-child{border-radius:calc(var(--u)*.8) 0 0 calc(var(--u)*.8)}
+.gz:nth-child(3){border-radius:0 calc(var(--u)*.8) calc(var(--u)*.8) 0}
+@keyframes slidepos{from{left:0}}
+.gauge-mark{position:absolute;top:calc(var(--u)*-.8);bottom:calc(var(--u)*-.8);left:var(--pos);width:calc(var(--u)*.45);margin-left:calc(var(--u)*-.22);background:var(--ink);border-radius:99px}
+.slide.active .gauge-mark{animation:slidepos 1.6s cubic-bezier(.3,.7,.2,1) .9s both}
+
+/* doctor flag */
+.flag{background:var(--surface);border:1px solid var(--hair);border-radius:calc(var(--u)*1.2);padding:calc(var(--u)*2);display:flex;flex-direction:column;gap:calc(var(--u)*.9);box-shadow:var(--shadow)}
+.flag-h{display:flex;justify-content:space-between;align-items:flex-start;gap:1em}
+.flag-h h3{color:var(--signal-text)}
+.reasons{list-style:none;margin:0;padding:0;display:grid;gap:calc(var(--u)*.5)}
+.reasons li{font-size:calc(var(--u)*1.3);background:var(--tile);border-radius:calc(var(--u)*.6);padding:calc(var(--u)*.6) calc(var(--u)*1);border-left:calc(var(--u)*.4) solid var(--lc)}
+.flag-act{display:flex;justify-content:space-between;align-items:center;gap:1em;font-size:calc(var(--u)*1.25);color:var(--muted)}
+.btnlike{background:var(--ink);color:var(--surface);font-weight:700;border-radius:99px;padding:calc(var(--u)*.55) calc(var(--u)*1.3)}
+
+/* AUROC */
+.auroc{display:grid;gap:calc(var(--u)*1)}
+.ar{display:grid;grid-template-columns:calc(var(--u)*13) minmax(0,1fr) calc(var(--u)*5);align-items:center;gap:calc(var(--u)*1)}
+.ar span{font-size:calc(var(--u)*1.3);font-weight:600}
+.ar b{font-variant-numeric:tabular-nums;font-size:calc(var(--u)*1.4);text-align:right}
+.ar-axis{display:grid;grid-template-columns:calc(var(--u)*13) minmax(0,1fr) calc(var(--u)*5);gap:calc(var(--u)*1);font-family:var(--mono);font-size:calc(var(--u)*.9);color:var(--muted)}
+.ar-axis div{display:flex;justify-content:space-between}
+
+/* table */
+.tbl-wrap{overflow-x:auto;min-width:0}
+.tbl{width:100%;border-collapse:collapse;font-size:calc(var(--u)*1.35)}
+.tbl th{text-align:left;font-family:var(--mono);font-weight:500;font-size:calc(var(--u)*.95);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 calc(var(--u)*1) calc(var(--u)*.8)}
+.tbl td{padding:calc(var(--u)*.85) calc(var(--u)*1);border-top:1px solid var(--hair);vertical-align:middle}
+.tbl td:first-child{font-weight:700;white-space:nowrap}
+.tbl td:nth-child(2){color:var(--muted)}
+.q{display:inline-block;font-weight:700;font-size:calc(var(--u)*1.05);border-radius:99px;padding:calc(var(--u)*.2) calc(var(--u)*.8);margin-right:calc(var(--u)*.6)}
+.q.good{background:var(--brand-soft);color:var(--brand-text)}
+.q.mid{background:var(--d-soft);color:var(--d-text)}
+.q.low{background:var(--signal-soft);color:var(--signal-text)}
+
+/* study */
+.study{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(var(--u)*1.4);counter-reset:s;align-content:center}
+.study li{counter-increment:s;position:relative;display:flex;flex-direction:column;gap:calc(var(--u)*.6);padding-top:calc(var(--u)*5)}
+.study li::before{content:counter(s);position:absolute;top:0;left:0;width:calc(var(--u)*3.6);height:calc(var(--u)*3.6);border-radius:50%;background:var(--sky-soft);color:var(--sky-text);
+  display:grid;place-items:center;font-weight:800;font-size:calc(var(--u)*1.6)}
+.study li:not(:last-child)::after{content:"";position:absolute;top:calc(var(--u)*1.8);left:calc(var(--u)*4.4);right:calc(var(--u)*-.8);height:2px;background:var(--hair)}
+
+/* refs */
+.refs li{display:flex;flex-direction:column;gap:calc(var(--u)*.15);padding-bottom:calc(var(--u)*.7);border-bottom:1px solid var(--hair)}
+.refs li b{font-size:calc(var(--u)*1.3)}
+.refs li span{color:var(--muted);font-size:calc(var(--u)*1.15)}
+
+.close{justify-content:center}
+.close .src{margin-top:calc(var(--u)*4)}
+.abcd-row{display:flex;align-items:center;gap:calc(var(--u)*1.2);flex-wrap:wrap}
+
+@media (max-width:760px){
+  .abcd-strip{min-height:70px}
+  .study{grid-template-columns:1fr}
+  .study li::after{display:none}
+  .ar,.ar-axis{grid-template-columns:90px minmax(0,1fr) 44px}
+  .tbl td:first-child{white-space:normal}
+  .gz span{font-size:10px}
+}
+
+.qs2 .card{justify-content:flex-start;padding:calc(var(--u)*2.2)}
+.qs2 h4{font-size:calc(var(--u)*1.9)}
+.qs2 p{font-size:calc(var(--u)*1.5)!important}
+.steps3 .card{justify-content:center;gap:calc(var(--u)*1.2)}
+.steps3 h3{font-size:calc(var(--u)*2.4)}
+.steps3 p{font-size:calc(var(--u)*1.7)}
+.steps3 p.small{font-size:calc(var(--u)*1.35)}
+@media (prefers-reduced-motion: reduce){.slide.active .gauge-mark,.slide.active .abcd-line,.slide.active .abcd-strip .lt{animation:none!important}}
+</style>
+<div class="prog" aria-hidden="true"></div>
+<main class="deck" id="deck" tabindex="-1">
+
+<!-- 1 cover -->
+<section class="slide" aria-label="Cover">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Early Signals · approach and method</p>
+    <h1 style="max-width:calc(var(--u)*72)">Can routine records point us to gastric cancer sooner?</h1>
+    <p class="lede">A way to read the clinic visits, blood counts and prescriptions we already collect, and find the few patients who most need an endoscopy.</p>
+    <div class="abcd-strip fill" aria-hidden="true">
+      <div class="abcd-line"></div>
+      <span class="lt" style="--lc:var(--d);--on:var(--on-d);left:8%">D</span>
+      <span class="lt" style="--lc:var(--c);--on:var(--on-c);left:38%">C</span>
+      <span class="lt" style="--lc:var(--b);--on:var(--on-b);left:62%">B</span>
+      <span class="lt" style="--lc:var(--a);--on:var(--on-a);left:82%">A</span>
+      <span class="dx">diagnosis</span>
+    </div>
+    <div style="display:flex;gap:calc(var(--u)*.8);flex-wrap:wrap">
+      <span class="tag sim">Proof of concept on synthetic data</span><span class="tag lit">Signals and thresholds taken from published evidence</span>
+    </div>
+    <aside class="notes"><ul><li>Thank them; say up front: everything shown runs on a <b>synthetic</b> Rwandan EMR, no real patients.</li><li>The question for today: if we pulled the same data from real hospitals, would the same signals appear?</li><li>The four letters on the timeline are the four signal groups; we will go through them one by one.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 2 problem story -->
+<section class="slide" aria-label="The problem">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The problem</p>
+    <h2>The clues were in the record. Nobody connected them.</h2>
+    <p class="lede">An example journey (synthetic patient, 58-year-old man). Each visit made sense on its own.</p>
+    <svg class="chart fill" id="journey" viewBox="0 0 1000 300" role="img" aria-label="Timeline of ten visits over 24 months before a stage IV diagnosis"></svg>
+    <div class="legend" data-a style="--i:12">
+      <span><i style="background:var(--a)"></i>Alarm</span><span><i style="background:var(--b)"></i>Blood</span><span><i style="background:var(--c)"></i>Coming back</span><span><i style="background:var(--d)"></i>Drivers</span>
+    </div>
+    <aside class="notes"><ul><li>Nine contacts with the health system in two years before the endoscopy.</li><li>Antacids, PPIs, a malaria label for the anaemia, a positive H. pylori test that was never treated.</li><li>Ask: is this a familiar story in your clinic?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 3 idea -->
+<section class="slide" aria-label="Our idea">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The idea</p>
+    <h2>Watch, score, act. The doctor always decides.</h2>
+    <div class="g3 fill steps3" style="align-items:stretch">
+      <div class="card" data-a style="--i:0"><span class="step-n">1</span><h3>Watch</h3><p>Follow everyone who has come to a clinic with a <b>stomach complaint</b>.</p><p class="small muted">Visits, symptoms, blood counts, weight, prescriptions, <i>H. pylori</i> tests.</p></div>
+      <div class="card" data-a style="--i:1"><span class="step-n">2</span><h3>Score</h3><p>Every month, estimate each patient's chance of a gastric cancer diagnosis <b>in the next year</b>.</p><p class="small muted">Each score comes with its reasons in plain words.</p></div>
+      <div class="card" data-a style="--i:2;background:var(--signal-soft)"><span class="step-n" style="background:var(--signal);color:var(--on-a)">3</span><h3>Act</h3><p>Put the highest-risk patients on the <b>endoscopy list</b>; test and treat <i>H. pylori</i>; recheck falling Hb.</p><p class="small muted">A doctor reviews every flag. Nothing reaches a patient without a doctor's approval.</p></div>
+    </div>
+    <aside class="notes"><ul><li>This is decision support, a smarter referral list. It does not diagnose.</li><li>Scopes are scarce: the goal is to use each one on the patient most likely to benefit.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 4 who we watch -->
+<section class="slide" aria-label="Who we watch">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Who we watch</p>
+    <h2>From a whole population to a short endoscopy list</h2>
+    <div class="split wide-l">
+      <div class="funnel2">
+        <div data-a style="--i:0;--fw:100%"><b class="mono" data-count="1500000">1,500,000</b><span>people in the synthetic EMR</span></div>
+        <div data-a style="--i:1;--fw:78%"><b class="mono" data-count="49000" data-pre="≈ ">≈ 49,000</b><span>"GI cohort": anyone with stomach-related care</span></div>
+        <div data-a style="--i:2;--fw:56%"><b>top 10%</b><span>watch list (medium + high)</span></div>
+        <div data-a style="--i:3;--fw:36%;background:var(--signal);color:var(--on-a)"><b>top 2%</b><span>endoscopy list</span></div>
+        <p class="small muted" data-a style="--i:4">Widths are not to scale.</p>
+      </div>
+      <div class="card" data-a style="--i:2">
+        <h4>A patient joins the GI cohort at the first of</h4>
+        <ul class="dots small" style="--dot:var(--c)">
+          <li>a diagnosis of gastritis, ulcer, dyspepsia, reflux, GI bleed or <i>H. pylori</i></li>
+          <li>2 or more visits in 12 months with a stomach complaint</li>
+          <li>any <i>H. pylori</i> test, or any endoscopy</li>
+          <li>iron-deficiency anaemia at age 40 or over</li>
+        </ul>
+        <p class="small"><b>Why top 2%?</b> The cut-off is set by <b>endoscopy capacity</b>: the list should fit next month's scope slots.</p>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>We do not score the whole population: only people already touching the system for stomach problems.</li><li>The 2% is a capacity choice. We would set it with you, from the real number of scopes per month.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 5 the question -->
+<section class="slide" aria-label="The prediction question">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The exact question</p>
+    <h2>"Using only what is recorded up to today, how likely is a gastric cancer diagnosis in the next 1–12 months?"</h2>
+    <svg class="chart" id="landmark" viewBox="0 0 1000 190" role="img" aria-label="Timeline: 36 months of history before today, a 30-day gap, then a prediction window up to 12 months"></svg>
+    <div class="g2" style="align-items:stretch">
+      <div class="card" data-a style="--i:5"><h4>The 30-day gap</h4><p class="small muted">Stops the model from "predicting" cancers whose work-up has already started.</p></div>
+      <div class="card" data-a style="--i:6;background:var(--signal-soft)"><h4>Never used as inputs</h4><p class="small muted">Endoscopy, biopsy, pathology, staging, CT abdomen, CEA, or a "suspected gastric malignancy" code. These are the diagnosis itself; the model must work <b>before</b> them.</p></div>
+    </div>
+    <aside class="notes"><ul><li>Same logic as a "landmark" analysis in survival studies: a reference date, only the past is visible.</li><li>We test this automatically: removing all post-landmark data never changes a score.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 6 ABCD overview -->
+<section class="slide" aria-label="The ABCD of early signals">
+  <div class="frame">
+    <p class="eyebrow"><i></i>What we look for</p>
+    <h2>The ABCD of early signals</h2>
+    <div class="g4 fill abcd" style="align-items:stretch">
+      <div class="card" data-a style="--i:0;--lc:var(--a);--ls:var(--a-soft);--on:var(--on-a)"><span class="big-lt">A</span><h3>Alarm symptoms</h3><p class="small">Weight loss, trouble swallowing, vomiting, bleeding, a mass.</p><p class="small muted when">Appears late: last 3–6 months</p></div>
+      <div class="card" data-a style="--i:1;--lc:var(--b);--ls:var(--b-soft);--on:var(--on-b)"><span class="big-lt">B</span><h3>Blood</h3><p class="small">Haemoglobin sliding down, or anaemia with no other cause.</p><p class="small muted when">Builds over 6–12 months</p></div>
+      <div class="card" data-a style="--i:2;--lc:var(--c);--ls:var(--c-soft);--on:var(--on-c)"><span class="big-lt">C</span><h3>Coming back</h3><p class="small">Stomach-complaint visits getting more frequent; acid medicine that does not fix it.</p><p class="small muted when">Builds over 6–24 months</p></div>
+      <div class="card" data-a style="--i:3;--lc:var(--d);--ls:var(--d-soft);--on:var(--on-d)"><span class="big-lt">D</span><h3>Drivers</h3><p class="small">Background risk: age, male sex, untreated <i>H. pylori</i>, family history, smoking, high-rate district.</p><p class="small muted when">Present for years</p></div>
+    </div>
+    <p class="note" data-a style="--i:4"><b>D</b> tells us who is at risk. <b>C, B and A</b> tell us that something is changing now. We read them in that order, as a story.</p>
+    <aside class="notes"><ul><li>Mnemonic for the meeting: A for Alarm, B for Blood, C for Coming back, D for Drivers.</li><li>D is the soil; C, B, A are the weather changing. Ask which group they think matters most locally.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 7 A -->
+<section class="slide" aria-label="A: Alarm symptoms">
+  <div class="frame">
+    <p class="eyebrow"><i style="background:var(--a)"></i>A · Alarm symptoms</p>
+    <h2>Late but loud: symptoms that point to something structural</h2>
+    <div class="split" style="align-items:stretch">
+      <div class="stack">
+        <div class="card"><h4>What we read from the record</h4>
+          <ul class="dots small" style="--dot:var(--a)">
+            <li>Difficulty swallowing, repeated vomiting, GI bleeding, abdominal mass (counts in 12 months)</li>
+            <li>Weight change over 6 and 12 months, from recorded weights</li>
+          </ul></div>
+        <div class="g2">
+          <div class="rule" style="--lc:var(--a)"><span class="pts">+3</span><p class="small">any alarm feature in 12 months</p></div>
+          <div class="rule" style="--lc:var(--a)"><span class="pts">+2</span><p class="small">weight loss ≥ 5% in 6 months</p></div>
+        </div>
+        <div class="card" style="background:var(--a-soft)"><p class="small"><b>Safety alert:</b> alarm feature + age ≥ 45 + no endoscopy within 90 days → endoscopy within 14 days.</p></div>
+      </div>
+      <div class="stack">
+        <h4>Weight over the 2 years before diagnosis</h4>
+        <svg class="chart" id="chartA" viewBox="0 0 560 300" role="img" aria-label="Line chart: weight flat, then falling 6 percent in the last 6 months for cases; flat for comparison patients"></svg>
+        <span class="tag sim">Illustrative, from the simulation design · about half of cases show late alarm features</span>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>Guidelines already say: alarm features → scope. The gap is that they are recorded in passing and not acted on.</li><li>In the simulation, more than half of alarm patients aged 45+ waited over 90 days for a scope; that gap is planted from the literature on missed opportunities.</li><li>Ask: what age threshold do they use here? Is 45 right?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 8 B -->
+<section class="slide" aria-label="B: Blood">
+  <div class="frame">
+    <p class="eyebrow"><i style="background:var(--b)"></i>B · Blood</p>
+    <h2>A slow bleed shows up as haemoglobin sliding against the patient's own baseline</h2>
+    <div class="split" style="align-items:stretch">
+      <div class="stack">
+        <h4>Haemoglobin (g/dL) before diagnosis</h4>
+        <svg class="chart" id="chartB" viewBox="0 0 560 300" role="img" aria-label="Line chart: haemoglobin flat near 13.4, then sliding to about 11.4 over the last 14 months; dots show when a blood count was actually done"></svg>
+        <span class="tag sim">Illustrative · in the simulation ~60% of cases have a falling Hb, visible only if a blood count was done</span>
+      </div>
+      <div class="stack">
+        <div class="card"><h4>What we read from the record</h4>
+          <ul class="dots small" style="--dot:var(--b)">
+            <li>Last Hb, lowest Hb, and the <b>trend</b> (g/dL per month) over 12 months</li>
+            <li><b>Drop from the patient's own best</b> value in 12 months</li>
+            <li>Anaemia by sex-specific cut-off; iron prescribed</li>
+          </ul></div>
+        <div class="rule" style="--lc:var(--b)"><span class="pts">+3</span><p class="small">Hb fell ≥ 1.5 g/dL in 12 months, <b>or</b> anaemia with no other cause recorded</p></div>
+        <div class="card" style="background:var(--b-soft)"><p class="small"><b>Rwanda-specific trap:</b> anaemia labelled as malaria or worms in the last 12 months. We record it as its own signal, because it can delay the work-up by months.</p></div>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>Personal baseline matters more than a fixed threshold: 12.5 can be normal for one patient and a 2-point drop for another.</li><li>Follow-up action: iron, recheck Hb at 4 weeks, scope if still low or falling.</li><li>Ask: how often is a full blood count done at health-centre level?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 9 C -->
+<section class="slide" aria-label="C: Coming back">
+  <div class="frame">
+    <p class="eyebrow"><i style="background:var(--c)"></i>C · Coming back</p>
+    <h2>The pattern across visits: more frequent, and the medicine is not working</h2>
+    <div class="split" style="align-items:stretch">
+      <div class="stack">
+        <div class="card"><h4>What we read from the record</h4>
+          <ul class="dots small" style="--dot:var(--c)">
+            <li>Stomach-complaint visits in the last 6, 12 and 24 months</li>
+            <li><b>Speeding up:</b> visits in the last 6 months minus the 6 before</li>
+            <li>Days since the last stomach-complaint visit</li>
+            <li>PPI and antacid courses; "<b>no resolution</b>" = 2+ PPI courses and the patient came back again</li>
+          </ul></div>
+        <div class="g2">
+          <div class="rule" style="--lc:var(--c)"><span class="pts">+2</span><p class="small">3 or more stomach visits in 12 months</p></div>
+          <div class="rule" style="--lc:var(--c)"><span class="pts">+2</span><p class="small">2+ PPI courses without resolution</p></div>
+        </div>
+      </div>
+      <div class="stack">
+        <h4>Stomach-complaint visits per month</h4>
+        <svg class="chart" id="chartC" viewBox="0 0 560 300" role="img" aria-label="Bar chart: visit rate rising from about 0.1 to 1 per month in the 18 months before diagnosis, versus a flat 0.08 per month for comparison patients"></svg>
+        <span class="tag sim">Illustrative · in the simulation 60–70% of cases had 3+ stomach visits in 2 years, vs 5–12% of matched patients</span>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>This is the strongest group in the simulation, and the most available: every visit and prescription is already recorded.</li><li>Honest caveat: in synthetic data the "came back recently" signal is very clean. Real data will be noisier.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 10 D -->
+<section class="slide" aria-label="D: Drivers">
+  <div class="frame">
+    <p class="eyebrow"><i style="background:var(--d)"></i>D · Drivers</p>
+    <h2>Background risk: who is more likely to be in the cascade at all</h2>
+    <div class="split" style="align-items:stretch">
+      <div class="stack">
+        <div class="pts-list">
+          <div class="rule" style="--lc:var(--d)"><span class="pts">+1/2/3</span><p class="small">Age 40–49 / 50–59 / 60+</p></div>
+          <div class="rule" style="--lc:var(--d)"><span class="pts">+2</span><p class="small"><i>H. pylori</i> positive and not treated</p></div>
+          <div class="rule" style="--lc:var(--d)"><span class="pts">+2</span><p class="small">Family history of gastric cancer</p></div>
+          <div class="rule" style="--lc:var(--d)"><span class="pts">+1</span><p class="small">Male sex</p></div>
+          <div class="rule" style="--lc:var(--d)"><span class="pts">+1</span><p class="small">Current smoker</p></div>
+        </div>
+        <p class="small muted">The learning models also use the district's past cancer rate, the facility's testing level and access to endoscopy.</p>
+        <div class="card" style="background:var(--brand-soft)"><p class="small"><b>Built-in check:</b> HIV status is included on purpose as a factor with <b>no</b> effect. If the model ever relies on it, something is wrong.</p></div>
+      </div>
+      <div class="stack">
+        <h4>The catch: how often these are recorded today</h4>
+        <div id="missChart" class="miss"></div>
+        <p class="small muted">"Unknown" is kept as its own answer: whether a doctor asked is itself information.</p>
+        <span class="tag sim">Recording rates are our assumptions per visit, by facility level. To be checked with real data.</span>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>Untreated H. pylori also triggers its own action: test and treat, then a test of cure at least 4 weeks after.</li><li>Ask: in practice, is smoking or family history ever written down?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 11 evolution -->
+<section class="slide" aria-label="How the signals evolve">
+  <div class="frame">
+    <p class="eyebrow"><i></i>How the signals evolve</p>
+    <h2>Signals switch on in order. That order is the window to act.</h2>
+    <svg class="chart fill" id="evolve" viewBox="0 0 1000 400" role="img" aria-label="Share of future cases showing each signal, from 24 months before diagnosis to diagnosis"></svg>
+    <span class="tag sim">Illustrative curves from the simulation's design: share of future cases with each signal in the trailing 12 months</span>
+    <aside class="notes"><ul><li>Drivers are flat: they were there all along. "Coming back" rises first, then blood, then alarm symptoms in the last months.</li><li>Grey dashed line: matched patients who did not develop cancer. The gap between them is what the model uses.</li><li>In the simulation the median time from the first stomach complaint to diagnosis is 7–10 months. Ask: does this match what they see?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 12 per stage action -->
+<section class="slide" aria-label="What we do at each stage">
+  <div class="frame">
+    <p class="eyebrow"><i></i>From score to care</p>
+    <h2>What happens to each patient, at each level of risk</h2>
+    <div class="g3 bands" style="align-items:stretch">
+      <div class="card" data-a style="--i:0;--bc:var(--brand)"><span class="band">LOW</span><p class="small muted">most of the cohort</p><p class="small">Routine care. Re-scored every month as new visits come in.</p></div>
+      <div class="card" data-a style="--i:1;--bc:var(--d)"><span class="band">MEDIUM</span><p class="small muted">next 8%</p><p class="small">Watch list. The doctor sees the reasons and can open a care plan early.</p></div>
+      <div class="card" data-a style="--i:2;--bc:var(--signal)"><span class="band">HIGH</span><p class="small muted">top 2%</p><p class="small">Doctor review → <b>endoscopy referral within 30 days</b>, biopsy review, results visit.</p></div>
+    </div>
+    <h4 data-a style="--i:3">Specific signals trigger their own pathway, at any risk level</h4>
+    <div class="g3">
+      <div class="trig" data-a style="--i:4;--lc:var(--a)"><b>Alarm, no scope in 90 days</b><span>Endoscopy within 14 days</span></div>
+      <div class="trig" data-a style="--i:5;--lc:var(--b)"><b>Haemoglobin drop</b><span>Iron → recheck Hb at 4 weeks → scope if still low or falling</span></div>
+      <div class="trig" data-a style="--i:6;--lc:var(--d)"><b><i>H. pylori</i> untreated</b><span>14-day eradication → test of cure ≥ 4 weeks later</span></div>
+    </div>
+    <p class="note small" data-a style="--i:7"><b>Follow-through:</b> app reminder → SMS on the due date → community health worker visit after 7 days → back to the doctor after 14. Patient messages advise a visit only and never name a diagnosis.</p>
+    <aside class="notes"><ul><li>The score is not the end product; the care plan is. Every plan is approved by a doctor in the app.</li><li>Pathway timings follow Maastricht VI (test of cure) and common anaemia practice; they are demo defaults to tune with clinicians.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 13 three scorers -->
+<section class="slide" aria-label="Three ways to score">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The models</p>
+    <h2>Three ways to score, from simple to sophisticated</h2>
+    <div class="g3 fill" style="align-items:stretch">
+      <div class="card" data-a style="--i:0">
+        <svg viewBox="0 0 120 60" class="tier-ico" aria-hidden="true"><rect x="8" y="6" width="14" height="14" rx="3" style="fill:var(--brand)"/><rect x="30" y="10" width="80" height="6" rx="3" style="fill:var(--hair)"/><rect x="8" y="26" width="14" height="14" rx="3" style="fill:var(--brand)"/><rect x="30" y="30" width="64" height="6" rx="3" style="fill:var(--hair)"/><rect x="8" y="46" width="14" height="14" rx="3" style="fill:none;stroke:var(--faint);stroke-width:2"/><rect x="30" y="50" width="72" height="6" rx="3" style="fill:var(--hair)"/></svg>
+        <span class="tag">Tier 1</span><h3>The checklist</h3>
+        <p class="small">10 rules, points added up. Like a clinical score you could do on paper.</p>
+        <p class="small muted">Written by hand from the evidence, <b>not</b> fitted to the data. Fully transparent.</p>
+      </div>
+      <div class="card" data-a style="--i:1">
+        <svg viewBox="0 0 120 60" class="tier-ico" aria-hidden="true"><g style="stroke:var(--sky);stroke-width:2.5;fill:none"><path d="M20,8 L10,30 M20,8 L30,30 M10,30 L5,52 M10,30 L15,52 M30,30 L25,52 M30,30 L35,52"/><path d="M60,8 L50,30 M60,8 L70,30 M50,30 L45,52 M70,30 L75,52 M70,30 L65,52"/><path d="M100,8 L90,30 M100,8 L110,30 M90,30 L85,52 M90,30 L95,52 M110,30 L115,52"/></g></svg>
+        <span class="tag">Tier 2</span><h3>The pattern learner</h3>
+        <p class="small">Hundreds of small decision trees (XGBoost), each correcting the last. Learns combinations, e.g. falling Hb <b>and</b> repeat visits.</p>
+        <p class="small muted">Explains every flag with its top 5 reasons (SHAP).</p>
+      </div>
+      <div class="card" data-a style="--i:2">
+        <svg viewBox="0 0 120 60" class="tier-ico" aria-hidden="true"><line x1="4" y1="30" x2="116" y2="30" style="stroke:var(--hair);stroke-width:3"/><circle cx="14" cy="30" r="5" style="fill:var(--d)"/><circle cx="40" cy="30" r="5" style="fill:var(--c)"/><circle cx="60" cy="30" r="5" style="fill:var(--c)"/><circle cx="76" cy="30" r="5" style="fill:var(--b)"/><circle cx="90" cy="30" r="5" style="fill:var(--c)"/><circle cx="102" cy="30" r="5" style="fill:var(--a)"/><circle cx="112" cy="30" r="5" style="fill:var(--a)"/></svg>
+        <span class="tag">Tier 3</span><h3>The timeline reader</h3>
+        <p class="small">A sequence model reads the last 36 months of events <b>in order</b>, with their timing, like a clinician reading the chart.</p>
+        <p class="small muted">Highlights the timeline events that mattered most.</p>
+      </div>
+    </div>
+    <p class="note small" data-a style="--i:3"><b>Final score</b> = average of the pattern learner and the timeline reader, calibrated so that "20%" means about 1 in 5. The checklist stays visible as a sanity check.</p>
+    <aside class="notes"><ul><li>Why three: the checklist is easy to trust and teach; the learners catch combinations and timing the checklist cannot.</li><li>If the learners disagree with the checklist on a patient, that is worth a look.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 14 checklist worked example -->
+<section class="slide" aria-label="The checklist on one patient">
+  <div class="frame">
+    <p class="eyebrow"><i></i>The checklist, on one patient</p>
+    <h2>Adding up the points for the patient from slide 2</h2>
+    <div class="split" style="align-items:start">
+      <ul class="tally">
+        <li data-a="left" style="--i:0;--lc:var(--d)"><span>Age 58</span><b>+2</b></li>
+        <li data-a="left" style="--i:1;--lc:var(--d)"><span>Male</span><b>+1</b></li>
+        <li data-a="left" style="--i:2;--lc:var(--c)"><span>4 stomach visits in 12 months</span><b>+2</b></li>
+        <li data-a="left" style="--i:3;--lc:var(--c)"><span>2 PPI courses, came back again</span><b>+2</b></li>
+        <li data-a="left" style="--i:4;--lc:var(--b)"><span>Hb 13.1 → 11.4 (fell 1.7 g/dL)</span><b>+3</b></li>
+        <li data-a="left" style="--i:5;--lc:var(--d)"><span><i>H. pylori</i> positive, untreated</span><b>+2</b></li>
+        <li class="off" data-a="left" style="--i:6;--lc:var(--a)"><span>Alarm symptoms (not yet, at this date)</span><b>+0</b></li>
+      </ul>
+      <div class="stack" style="gap:calc(var(--u)*2)">
+        <div class="score-box"><span class="small muted">Total</span><span class="num score" data-count="12" data-delay="900">12</span><span class="band-pill">HIGH</span></div>
+        <div class="gauge" aria-hidden="true">
+          <div class="gz" style="--w:5;background:var(--brand-soft)"><span>LOW 0–4</span></div>
+          <div class="gz" style="--w:4;background:var(--d-soft)"><span>MEDIUM 5–8</span></div>
+          <div class="gz" style="--w:13;background:var(--signal-soft)"><span>HIGH 9+</span></div>
+          <span class="gauge-mark" style="--pos:calc(12 / 21 * 100%)"></span>
+        </div>
+        <p class="small muted">Scored 8 months before diagnosis, before any alarm symptom: <b style="color:var(--ink)">already HIGH</b>. Scale runs to 21 points.</p>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>This is the same synthetic patient as on slide 2, at the date of the "malaria" visit.</li><li>Without alarm features, the checklist already says HIGH. That is the lead time we want.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 15 what the doctor sees -->
+<section class="slide" aria-label="What the doctor sees">
+  <div class="frame">
+    <p class="eyebrow"><i></i>What the doctor sees</p>
+    <h2>Every flag explains itself in plain words</h2>
+    <div class="split wide-r">
+      <div class="stack">
+        <p class="lede">The doctor sees <b style="color:var(--ink)">why</b>, not only a number. Reasons come from the model's top contributions and use clinical language.</p>
+        <ul class="dots small" style="--dot:var(--sky)">
+          <li>Only patients linked to the doctor's own facility</li>
+          <li>Labelled as decision support, not a diagnosis</li>
+          <li>The doctor approves, edits or declines the care plan</li>
+        </ul>
+      </div>
+      <div class="flag" data-a="pop" style="--i:1">
+        <div class="flag-h"><div><p class="mono small muted">Patient (synthetic) · 58 · M</p><h3>Risk: HIGH</h3></div><span class="band-pill">Top 2%</span></div>
+        <p class="small muted">Chance of diagnosis in the next 12 months</p>
+        <div class="bar-track"><div class="bar-fill" data-a="gx" style="--i:2;width:41%;background:var(--signal)"></div></div>
+        <p class="mono small"><b data-count="41" data-suf="%">41%</b> <span class="muted">vs about 0.5% for a typical cohort patient</span></p>
+        <ol class="reasons">
+          <li data-a style="--i:3;--lc:var(--b)">Haemoglobin fell 1.7 g/dL in the last 12 months</li>
+          <li data-a style="--i:4;--lc:var(--c)">4 visits with stomach complaints in 12 months</li>
+          <li data-a style="--i:5;--lc:var(--c)">Repeated PPI courses without resolution</li>
+          <li data-a style="--i:6;--lc:var(--d)">H. pylori positive, no eradication therapy recorded</li>
+          <li data-a style="--i:7;--lc:var(--b)">Anaemia treated as malaria in the last 12 months</li>
+        </ol>
+        <div class="flag-act" data-a style="--i:8"><span>Suggested: endoscopy referral</span><span class="btnlike">Review plan</span></div>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>Reason sentences come from a fixed dictionary (ml/reasons.yaml), so the wording is reviewable by clinicians.</li><li>The probabilities shown here are illustrative for the example patient.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 16 honesty -->
+<section class="slide" aria-label="How we keep it honest">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Checks and results</p>
+    <h2>How we keep it honest, and what it scored on synthetic data</h2>
+    <div class="split" style="align-items:start">
+      <div class="g2" style="gap:calc(var(--u)*1.2)">
+        <div class="card" data-a style="--i:0"><h4>Tested on the future</h4><p class="small muted">Trained on 2016–mid 2023; tested on mid 2023–2025, on patients it never saw.</p></div>
+        <div class="card" data-a style="--i:1"><h4>No peeking</h4><p class="small muted">Automatic leakage tests. With labels shuffled, the score falls to chance (0.50).</p></div>
+        <div class="card" data-a style="--i:2"><h4>Negative control</h4><p class="small muted">HIV has no effect by design, and the analysis finds none.</p></div>
+        <div class="card" data-a style="--i:3"><h4>Real-world framing</h4><p class="small muted">Calibration, lead time, and number of scopes needed per cancer found.</p></div>
+      </div>
+      <div class="stack">
+        <h4>Ranking accuracy (AUROC) on the test period</h4>
+        <div id="aurocChart" class="auroc"></div>
+        <div class="card" data-a style="--i:6;background:var(--signal-soft)"><p class="small"><b>Read with care:</b> synthetic patients are cleaner than real ones. Published models on real records score lower, and we expect that here too. Real data is the true test.</p></div>
+      </div>
+    </div>
+    <aside class="notes"><ul><li>AUROC: 0.5 is a coin flip, 1.0 is perfect ranking.</li><li>Why so high: in synthetic data, future cases come back monthly while most cohort members have not been seen for years. That makes ranking easy. We report it as measured and flag it.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 17 sim to real -->
+<section class="slide" aria-label="From simulation to real data">
+  <div class="frame">
+    <p class="eyebrow"><i></i>From simulation to real data</p>
+    <h2>What we would need from real hospital records</h2>
+    <div class="tbl-wrap fill">
+      <table class="tbl">
+        <thead><tr><th>Signal</th><th>Where it lives in a real record</th><th>Likely quality today</th></tr></thead>
+        <tbody>
+          <tr data-a style="--i:0"><td><span class="lt-s" style="--lc:var(--c);--on:var(--on-c)">C</span>Stomach visits, PPI courses</td><td>Visit diagnoses, chief complaint, pharmacy</td><td><span class="q good">Good</span> mostly coded</td></tr>
+          <tr data-a style="--i:1"><td><span class="lt-s" style="--lc:var(--b);--on:var(--on-b)">B</span>Haemoglobin values</td><td>Lab results (full blood count)</td><td><span class="q mid">Patchy</span> only when ordered; some on paper</td></tr>
+          <tr data-a style="--i:2"><td><span class="lt-s" style="--lc:var(--a);--on:var(--on-a)">A</span>Weight</td><td>Vitals at each visit</td><td><span class="q mid">Patchy</span> not always weighed</td></tr>
+          <tr data-a style="--i:3"><td><span class="lt-s" style="--lc:var(--a);--on:var(--on-a)">A</span>Alarm symptoms</td><td>Complaint codes, free-text notes</td><td><span class="q low">Hard</span> often only in free text</td></tr>
+          <tr data-a style="--i:4"><td><span class="lt-s" style="--lc:var(--d);--on:var(--on-d)">D</span><i>H. pylori</i> test and treatment</td><td>Lab orders and results, prescriptions</td><td><span class="q low">Rare</span> few facilities test</td></tr>
+          <tr data-a style="--i:5"><td><span class="lt-s" style="--lc:var(--d);--on:var(--on-d)">D</span>Smoking, family history</td><td>History forms</td><td><span class="q low">Rare</span> seldom asked or written</td></tr>
+          <tr data-a style="--i:6"><td><span class="lt-s" style="--lc:var(--signal);--on:var(--on-a)">✓</span>Outcome: confirmed cancer</td><td>Pathology, oncology clinic, cancer registry</td><td><span class="q mid">Needs linking</span> across systems</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <aside class="notes"><ul><li>The quality column is our assumption; this is where their experience is most valuable.</li><li>The outcome link is the critical piece: without confirmed diagnoses we cannot measure anything.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 18 validation study -->
+<section class="slide" aria-label="Proposed validation study">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Next step</p>
+    <h2>A first real-data check: look back from confirmed cases</h2>
+    <ol class="study fill">
+      <li data-a style="--i:0"><h4>List the cases</h4><p class="small muted">Confirmed gastric cancers diagnosed in recent years, from pathology and oncology records.</p></li>
+      <li data-a style="--i:1"><h4>Pick matched patients</h4><p class="small muted">About 5 per case: same sex, age ± 5 years, province and period, with stomach complaints but no cancer.</p></li>
+      <li data-a style="--i:2"><h4>Look back 24 months</h4><p class="small muted">Pull visits, labs, weights and prescriptions from before each diagnosis date.</p></li>
+      <li data-a style="--i:3"><h4>Compare A, B, C, D</h4><p class="small muted">How often each signal appears in cases vs matched patients, and how early.</p></li>
+      <li data-a style="--i:4"><h4>Score and compare</h4><p class="small muted">Run the checklist, then retrain the learners. Compare to the simulation.</p></li>
+    </ol>
+    <div class="g3">
+      <div class="card" data-a style="--i:5"><h4>Success looks like</h4><p class="small muted">Signals clearly more common in cases; flags 3+ months before diagnosis.</p></div>
+      <div class="card" data-a style="--i:6"><h4>Safeguards</h4><p class="small muted">Ethics approval, de-identified extracts, no patient contact.</p></div>
+      <div class="card" data-a style="--i:7"><h4>What we need</h4><p class="small muted">A clinical lead, one or two hospitals with EMR and pathology data.</p></div>
+    </div>
+    <aside class="notes"><ul><li>This is a nested case–control design; we already run it on the synthetic data, so the code is ready.</li><li>Ask: which hospitals would be realistic, and who should be the clinical lead?</li></ul></aside>
+  </div>
+</section>
+
+<!-- 19 research -->
+<section class="slide" aria-label="Research we built on">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Foundations</p>
+    <h2>The research we built on</h2>
+    <div class="g2 fill refs" style="align-items:start">
+      <div class="stack">
+        <h4>Clinical evidence behind the signals</h4>
+        <ul class="clean small">
+          <li data-a style="--i:0"><b>Correa, Cancer Research 1992</b><span>the multistep cascade</span></li>
+          <li data-a style="--i:1"><b>IARC Monograph 61, 1994 · Plummer et al., Int J Cancer 2015</b><span><i>H. pylori</i> as a cause; share of cases attributable</span></li>
+          <li data-a style="--i:2"><b>Maastricht VI / Florence consensus, Gut 2022</b><span>test and treat, test of cure</span></li>
+          <li data-a style="--i:3"><b>NICE NG12 · ACG/CAG dyspepsia guideline 2017</b><span>alarm features and endoscopy referral</span></li>
+          <li data-a style="--i:4"><b>GLOBOCAN 2022 (Bray et al., 2024)</b><span>global burden</span></li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h4>Studies whose methods we copied</h4>
+        <ul class="clean small">
+          <li data-a style="--i:2"><b>US Veterans <i>H. pylori</i> cohort, Gastroenterology 2020</b><span>EHR cohort, eradication and cancer risk</span></li>
+          <li data-a style="--i:3"><b>Korean national health check-up cohort, PLOS One 2025</b><span>routine labs, including low Hb, as risk factors</span></li>
+          <li data-a style="--i:4"><b>US tertiary EHR model, Gastro Hep Advances 2024</b><span>EHR case–control risk model</span></li>
+          <li data-a style="--i:5"><b>K-ECAN, US Veterans, Gastroenterology</b><span>large-scale EHR machine learning</span></li>
+          <li data-a style="--i:6"><b>GBD 2019 young-onset (Gastric Cancer 2024) · CI5plus trends · joinpoint studies</b><span>trend methods for the population view</span></li>
+        </ul>
+      </div>
+    </div>
+    <p class="src">Care follow-through modelled on Rwanda's community health worker accompaniment (PIH, Butaro) and NCCN/ESMO follow-up schedules</p>
+    <aside class="notes"><ul><li>Offer to share the full reference list and the technical spec after the meeting.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 20 questions -->
+<section class="slide" aria-label="Questions for you">
+  <div class="frame">
+    <p class="eyebrow"><i></i>Your view</p>
+    <h2>Where your experience would change the model</h2>
+    <div class="g3 fill qs2" style="align-content:center">
+      <div class="card" data-a style="--i:0"><h4>Missing signals?</h4><p class="small muted">What do you see in histories that is not on our ABCD list?</p></div>
+      <div class="card" data-a style="--i:1"><h4>Right thresholds?</h4><p class="small muted">Age 45 for alarm symptoms? Hb drop of 1.5 g/dL? 5% weight loss?</p></div>
+      <div class="card" data-a style="--i:2"><h4>Where is time lost?</h4><p class="small muted">Patient, health centre, referral, endoscopy, pathology?</p></div>
+      <div class="card" data-a style="--i:3"><h4>Which data can we trust?</h4><p class="small muted">Which hospitals record Hb, weight and <i>H. pylori</i> well?</p></div>
+      <div class="card" data-a style="--i:4"><h4>Young patients</h4><p class="small muted">Are you seeing more young, diffuse-type cases?</p></div>
+      <div class="card" data-a style="--i:5"><h4>Capacity</h4><p class="small muted">How many extra endoscopies a month could the system absorb?</p></div>
+    </div>
+    <aside class="notes"><ul><li>Let them talk. Write down every threshold they mention; each one maps to a config value we can change.</li></ul></aside>
+  </div>
+</section>
+
+<!-- 21 close -->
+<section class="slide" aria-label="Close">
+  <div class="frame close">
+    <p class="eyebrow"><i></i>In one sentence</p>
+    <h1 style="max-width:calc(var(--u)*80)">The clues are already in the record. Let's test it on real data.</h1>
+    <div class="abcd-row">
+      <span class="lt" style="--lc:var(--a);--on:var(--on-a)">A</span><span class="lt" style="--lc:var(--b);--on:var(--on-b)">B</span><span class="lt" style="--lc:var(--c);--on:var(--on-c)">C</span><span class="lt" style="--lc:var(--d);--on:var(--on-d)">D</span>
+      <p class="small muted">Alarm · Blood · Coming back · Drivers</p>
+    </div>
+    <p class="src">All data shown is synthetic. The models are a proof of concept, not clinically validated, and must not be used for clinical decisions.</p>
+    <aside class="notes"><ul><li>Close with the ask: a clinical lead and access to one or two hospitals' records for a look-back study.</li></ul></aside>
+  </div>
+</section>
+
+</main>
+<nav class="bar" aria-label="Slide controls">
+  <button id="prevBtn" type="button" aria-label="Previous slide">‹</button>
+  <span class="count" id="count" aria-live="polite">1 / 21</span>
+  <button id="nextBtn" type="button" aria-label="Next slide">›</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button id="notesBtn" type="button" aria-pressed="false" title="Speaker notes (N)">Notes</button>
+  <button id="fullBtn" type="button" title="Full screen (F)">Full screen</button>
+</nav>
+<div class="notes-panel" id="notesPanel" hidden><h5>Speaker notes</h5><div id="notesBody"></div></div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const txt = (parent, x, y, s, attrs = {}) => { const t = el("text", { x, y, ...attrs }, parent); t.textContent = s; return t; };
+  const col = { a: "--a", b: "--b", c: "--c", d: "--d", sig: "--signal" };
+  // Catmull-Rom to cubic Bezier through the points
+  const smooth = (p) => {
+    let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[i - 1] || p[i], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
+  const line = (p) => "M" + p.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
+  const S = (k) => `fill:var(${k})`;
+
+  // ---- 2. example journey: months -24..0 -> x 60..940
+  const jr = document.getElementById("journey");
+  if (jr) {
+    const X = (m) => 60 + ((m + 24) / 24) * 880, Y = 150;
+    el("line", { x1: 40, x2: 960, y1: Y, y2: Y, pathLength: 1, "data-a": "draw", style: "--i:0;stroke:var(--hair);stroke-width:4;stroke-linecap:round" }, jr);
+    [-24, -18, -12, -6, 0].forEach((m) => {
+      el("line", { x1: X(m), x2: X(m), y1: Y - 5, y2: Y + 5, style: "stroke:var(--faint);stroke-width:2" }, jr);
+      txt(jr, X(m), 294, m === 0 ? "diagnosis" : `${-m} months before`, { "text-anchor": m === 0 ? "end" : "middle", style: "font-size:13px;fill:var(--muted)" });
+    });
+    const ev = [
+      [-22, "c", "Stomach pain", "→ antacid", "up", 1], [-17, "c", "Pain again", "→ PPI course", "down", 1], [-13, "b", "Pain, tired", "Hb 13.1", "up", 1],
+      [-11, "c", "Pain again", "→ 2nd PPI", "down", 2], [-10, "d", "H. pylori positive", "not treated", "up", 2], [-8, "b", "Hb 11.4, tired", "→ treated as malaria", "down", 1],
+      [-5, "c", "Pain, bloating", "→ PPI again", "up", 1], [-3, "a", "Weight −6%", "in 6 months", "down", 2], [-2, "a", "Vomiting, full", "after a few bites", "up", 2],
+      [0, "sig", "Endoscopy", "stage IV cancer", "down", 1],
+    ];
+    ev.forEach(([m, k, t1, t2, side, lvl], i) => {
+      const x = X(m), g = el("g", { "data-a": "pop", style: `--i:${i * 0.9 + 1}` }, jr);
+      const ty = side === "up" ? (lvl === 1 ? 92 : 40) : lvl === 1 ? 196 : 246;
+      const sy = side === "up" ? ty + 26 : ty - 20;
+      el("line", { x1: x, x2: x, y1: side === "up" ? Y - 12 : Y + 12, y2: sy, style: "stroke:var(--faint);stroke-width:1.5" }, g);
+      el("circle", { cx: x, cy: Y, r: k === "sig" ? 13 : 10, style: S(col[k]) }, g);
+      const anchor = m === 0 ? "end" : "middle", tx = m === 0 ? x + 12 : x;
+      txt(g, tx, ty, t1, { "text-anchor": anchor, style: "font-size:15px;font-weight:700;fill:var(--ink)" });
+      txt(g, tx, ty + 18, t2, { "text-anchor": anchor, style: `font-size:14px;fill:var(${k === "sig" ? "--signal-text" : "--muted"});font-weight:${k === "sig" ? 700 : 500}` });
+    });
+  }
+
+  // ---- 5. landmark timeline: months -36..+12 -> x 40..960
+  const lm = document.getElementById("landmark");
+  if (lm) {
+    const X = (m) => 40 + ((m + 36) / 48) * 920;
+    const r = (x0, x1, fill, i) => el("rect", { x: x0, y: 62, width: x1 - x0, height: 56, rx: 8, "data-a": "gx", style: `--i:${i};fill:var(${fill})` }, lm);
+    r(X(-36), X(0), "--sky-soft", 0);
+    el("rect", { x: X(0) + 2, y: 62, width: X(1) - X(0) - 4, height: 56, style: "fill:var(--tile);stroke:var(--faint);stroke-width:1.5;stroke-dasharray:3 3" }, lm);
+    r(X(1), X(12), "--signal-soft", 2);
+    txt(lm, (X(-36) + X(0)) / 2, 96, "Last 36 months of records: the only data the model may read", { "text-anchor": "middle", "data-a": "fade", style: "--i:1;font-size:16px;font-weight:700;fill:var(--sky-text)" });
+    txt(lm, (X(1) + X(12)) / 2, 96, "Diagnosed in this window?", { "text-anchor": "middle", "data-a": "fade", style: "--i:3;font-size:16px;font-weight:700;fill:var(--signal-text)" });
+    el("line", { x1: X(0), x2: X(0), y1: 34, y2: 132, style: "stroke:var(--ink);stroke-width:3" }, lm);
+    txt(lm, X(0), 24, "Today (landmark date)", { "text-anchor": "middle", style: "font-size:15px;font-weight:700;fill:var(--ink)" });
+    [[-36, "36 months ago"], [-24, "24"], [-12, "12"], [12, "+12 months"]].forEach(([m, s]) => txt(lm, X(m), 150, s, { "text-anchor": m === -36 ? "start" : m === 12 ? "end" : "middle", style: "font-size:13px;fill:var(--muted)" }));
+    txt(lm, X(0.5), 170, "30-day gap", { "text-anchor": "middle", style: "font-size:13px;font-weight:600;fill:var(--muted)" });
+  }
+
+  // ---- shared axes for the 560x300 mini charts: months -24..0 -> x 64..532
+  const mini = (svg, yv, ymin, ymax, ticks, fmtTick) => {
+    const X = (m) => 64 + ((m + 24) / 24) * 468, Y = (v) => 30 + ((ymax - v) / (ymax - ymin)) * 220;
+    ticks.forEach((t) => {
+      el("line", { x1: 64, x2: 532, y1: Y(t), y2: Y(t), style: "stroke:var(--hair);stroke-width:1" }, svg);
+      txt(svg, 56, Y(t) + 5, fmtTick(t), { "text-anchor": "end", style: "font-size:13px;fill:var(--muted);font-variant-numeric:tabular-nums" });
+    });
+    [-24, -18, -12, -6, 0].forEach((m) => txt(svg, X(m), 274, m === 0 ? "diagnosis" : `−${-m} mo`, { "text-anchor": m === 0 ? "end" : m === -24 ? "start" : "middle", style: "font-size:13px;fill:var(--muted)" }));
+    return { X, Y };
+  };
+  const months = Array.from({ length: 25 }, (_, k) => k - 24);
+
+  // A: weight change %
+  const ca = document.getElementById("chartA");
+  if (ca) {
+    const { X, Y } = mini(ca, null, -8, 2, [2, 0, -2, -4, -6, -8], (t) => (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t) + "%");
+    el("line", { x1: 64, x2: 532, y1: Y(-5), y2: Y(-5), style: "stroke:var(--a);stroke-width:1.5;stroke-dasharray:5 5" }, ca);
+    txt(ca, 72, Y(-5) - 8, "−5% in 6 months → +2 points", { style: "font-size:13px;font-weight:700;fill:var(--a-text)" });
+    const ctl = months.map((m) => [X(m), Y(0.25 * Math.sin(m / 2.3))]);
+    const cas = months.map((m) => [X(m), Y(m <= -6 ? 0.2 * Math.sin(m / 1.7) : -(m + 6))]);
+    el("path", { d: smooth(ctl), pathLength: 1, "data-a": "draw", style: "--i:0;fill:none;stroke:var(--faint);stroke-width:3;stroke-dasharray:1" }, ca);
+    el("path", { d: smooth(cas), pathLength: 1, "data-a": "draw", style: "--i:1;fill:none;stroke:var(--a);stroke-width:4;stroke-linecap:round" }, ca);
+    txt(ca, 526, Y(0.25) - 10, "comparison patients", { "text-anchor": "end", style: "font-size:13px;font-weight:600;fill:var(--muted)" });
+    txt(ca, 520, Y(-6) + 22, "future case", { "text-anchor": "end", style: "font-size:13px;font-weight:700;fill:var(--a-text)" });
+    [-2.5, -1.5, -0.6].forEach((m, i) => el("path", { d: `M${X(m) - 7},${22} L${X(m) + 7},${22} L${X(m)},${10} Z`, "data-a": "pop", style: `--i:${i + 6};fill:var(--a)` }, ca));
+    txt(ca, X(-2.5) - 14, 21, "alarm symptoms recorded", { "text-anchor": "end", "data-a": "fade", style: "--i:6;font-size:13px;font-weight:600;fill:var(--a-text)" });
+  }
+
+  // B: haemoglobin g/dL
+  const cb = document.getElementById("chartB");
+  if (cb) {
+    const { X, Y } = mini(cb, null, 10.5, 14.5, [11, 12, 13, 14], (t) => t.toFixed(0));
+    el("line", { x1: 64, x2: 532, y1: Y(13), y2: Y(13), style: "stroke:var(--b);stroke-width:1.5;stroke-dasharray:5 5" }, cb);
+    txt(cb, 72, Y(13) + 18, "anaemia threshold (men, 13 g/dL)", { style: "font-size:13px;font-weight:600;fill:var(--b-text)" });
+    const hb = (m) => (m <= -14 ? 13.4 : 13.4 - 0.13 * (m + 14));
+    const ctl = months.map((m) => [X(m), Y(13.55 + 0.08 * Math.sin(m / 2))]);
+    el("path", { d: smooth(ctl), pathLength: 1, "data-a": "draw", style: "--i:0;fill:none;stroke:var(--faint);stroke-width:3" }, cb);
+    el("path", { d: line(months.map((m) => [X(m), Y(hb(m))])), pathLength: 1, "data-a": "draw", style: "--i:1;fill:none;stroke:var(--b);stroke-width:4;stroke-linecap:round;stroke-linejoin:round" }, cb);
+    [-21, -13, -7, -2].forEach((m, i) => el("circle", { cx: X(m), cy: Y(hb(m)), r: 7, "data-a": "pop", style: `--i:${i + 4};fill:var(--surface);stroke:var(--b);stroke-width:3` }, cb));
+    txt(cb, 526, Y(13.6) - 10, "comparison patients", { "text-anchor": "end", style: "font-size:13px;font-weight:600;fill:var(--muted)" });
+    txt(cb, 72, Y(11.25), "Fell 1.6 g/dL in 12 months → +3 points,", { "data-a": "fade", style: "--i:7;font-size:13px;font-weight:700;fill:var(--b-text)" });
+    txt(cb, 72, Y(11.25) + 18, "measured from the patient's own best value", { "data-a": "fade", style: "--i:7;font-size:13px;font-weight:700;fill:var(--b-text)" });
+    txt(cb, 72, Y(11.25) + 36, "○ = a blood count was actually done", { "data-a": "fade", style: "--i:8;font-size:13px;fill:var(--muted)" });
+  }
+
+  // C: stomach-complaint visits per month
+  const cc = document.getElementById("chartC");
+  if (cc) {
+    const { X, Y } = mini(cc, null, 0, 1.2, [0, 0.25, 0.5, 0.75, 1], (t) => (t === 1 ? "1 / mo" : t.toString()));
+    const rate = (m) => (m < -18 ? 0.1 : 0.1 + 0.9 * ((m + 18) / 18));
+    months.forEach((m, i) => {
+      const w = 13, x = X(m) - w / 2, y = Y(rate(m));
+      el("rect", { x: Math.max(64, x), y, width: m === -24 || m === 0 ? w / 2 + 0.5 : w, height: Y(0) - y, rx: 2, "data-a": "gy", style: `--i:${i * 0.12};fill:var(--c)` }, cc);
+    });
+    el("line", { x1: 64, x2: 532, y1: Y(0.08), y2: Y(0.08), style: "stroke:var(--ink);stroke-width:2;stroke-dasharray:5 5" }, cc);
+    txt(cc, 72, Y(0.66), "dashed: comparison patients,", { "data-a": "fade", style: "--i:3;font-size:13px;font-weight:600;fill:var(--muted)" });
+    txt(cc, 72, Y(0.66) + 17, "about 1 visit a year", { "data-a": "fade", style: "--i:3;font-size:13px;font-weight:600;fill:var(--muted)" });
+    txt(cc, 72, Y(1.05), "Visits speed up to about one a month,", { "data-a": "fade", style: "--i:4;font-size:13px;font-weight:700;fill:var(--c-text)" });
+    txt(cc, 72, Y(1.05) + 18, "often with a new PPI course each time", { "data-a": "fade", style: "--i:4;font-size:13px;font-weight:700;fill:var(--c-text)" });
+  }
+
+  // D: how often drivers are recorded (assumed ranges by facility level)
+  const mc = document.getElementById("missChart");
+  if (mc) {
+    const rows = [["H. pylori test ordered at a dyspepsia visit", 5, 50], ["Smoking status recorded", 25, 50], ["Family history recorded", 8, 25]];
+    mc.innerHTML = rows.map(([lab, lo, hi], i) =>
+      `<div class="mr" data-a style="--i:${i + 1}"><div class="mr-h"><span>${lab}</span><b>${lo}–${hi}%</b></div>` +
+      `<div class="mr-t"><div class="mr-r" data-a="gx" style="--i:${i + 2};left:${lo}%;width:${hi - lo}%"></div></div></div>`).join("") +
+      `<div class="mr-axis" aria-hidden="true"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100% of visits</span></div>`;
+  }
+
+  // ---- 11. evolution chart: months -24..0 -> x 70..820, 0..80% -> y 350..30
+  const evo = document.getElementById("evolve");
+  if (evo) {
+    const X = (m) => 70 + ((m + 24) / 24) * 750, Y = (v) => 350 - (v / 80) * 320;
+    el("rect", { x: X(-12), y: 30, width: X(-3) - X(-12), height: 320, "data-a": "fade", style: "--i:5;fill:var(--brand-soft)" }, evo);
+    txt(evo, (X(-12) + X(-3)) / 2, 52, "window to act: before alarm symptoms", { "text-anchor": "middle", "data-a": "fade", style: "--i:5;font-size:15px;font-weight:700;fill:var(--brand-text)" });
+    [0, 20, 40, 60, 80].forEach((t) => {
+      el("line", { x1: 70, x2: 820, y1: Y(t), y2: Y(t), style: "stroke:var(--hair);stroke-width:1" }, evo);
+      txt(evo, 60, Y(t) + 5, t + "%", { "text-anchor": "end", style: "font-size:14px;fill:var(--muted);font-variant-numeric:tabular-nums" });
+    });
+    [-24, -18, -12, -6, 0].forEach((m) => txt(evo, X(m), 378, m === 0 ? "diagnosis" : `${-m} months before`, { "text-anchor": "middle", style: "font-size:14px;fill:var(--muted)" }));
+    const ser = [
+      ["d", "D Drivers", [[-24, 36], [-12, 38], [0, 40]]],
+      ["c", "C Coming back", [[-24, 8], [-18, 14], [-12, 26], [-9, 36], [-6, 47], [-3, 58], [0, 68]]],
+      ["b", "B Blood", [[-24, 3], [-18, 5], [-12, 10], [-9, 17], [-6, 28], [-3, 42], [0, 55]]],
+      ["a", "A Alarm", [[-24, 2], [-18, 2], [-12, 4], [-9, 6], [-6, 10], [-3, 24], [0, 50]]],
+    ];
+    const ctl = [[-24, 6], [-12, 7], [0, 8]];
+    el("path", { d: smooth(ctl.map(([m, v]) => [X(m), Y(v)])), pathLength: 1, "data-a": "draw", style: "--i:0;fill:none;stroke:var(--faint);stroke-width:3;stroke-dasharray:1" }, evo);
+    txt(evo, 832, Y(8) + 5, "matched, no cancer", { "data-a": "fade", style: "--i:1;font-size:14px;font-weight:600;fill:var(--muted)" });
+    ser.forEach(([k, lab, pts], i) => {
+      el("path", { d: smooth(pts.map(([m, v]) => [X(m), Y(v)])), pathLength: 1, "data-a": "draw", style: `--i:${i + 1};fill:none;stroke:var(${col[k]});stroke-width:4.5;stroke-linecap:round` }, evo);
+      const [, v] = pts[pts.length - 1];
+      el("circle", { cx: X(0), cy: Y(v), r: 6, "data-a": "pop", style: `--i:${i + 6};fill:var(${col[k]})` }, evo);
+      txt(evo, 832, Y(v) + 5, `${lab} ${v}%`, { "data-a": "fade", style: `--i:${i + 6};font-size:15px;font-weight:700;fill:var(${col[k]}-text)` });
+    });
+  }
+
+  // ---- 16. AUROC bars, axis 0.5..1.0
+  const au = document.getElementById("aurocChart");
+  if (au) {
+    const rows = [["Checklist", 0.883, "--faint"], ["Pattern learner", 0.964, "--sky"], ["Timeline reader", 0.963, "--sky"], ["Combined", 0.970, "--brand"]];
+    au.innerHTML = rows.map(([lab, v, c], i) =>
+      `<div class="ar" data-a style="--i:${i + 1}"><span>${lab}</span><div class="bar-track"><div class="bar-fill" data-a="gx" style="--i:${i + 2};width:${((v - 0.5) / 0.5) * 100}%;background:var(${c})"></div></div><b>${v.toFixed(2)}</b></div>`).join("") +
+      `<div class="ar-axis" aria-hidden="true"><span></span><div><span>0.5 coin flip</span><span>0.75</span><span>1.0 perfect</span></div><span></span></div>`;
+  }
+})();
+
+</script>
+<script>
+(() => {
+  const deck = document.getElementById("deck");
+  const slides = [...deck.querySelectorAll(".slide")];
+  const mq = matchMedia("(max-width: 760px)");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const countEl = document.getElementById("count");
+  const prog = document.querySelector(".prog");
+  const notesPanel = document.getElementById("notesPanel");
+  const notesBody = document.getElementById("notesBody");
+  const notesBtn = document.getElementById("notesBtn");
+  let cur = 0;
+  if (!deck.querySelector(".notes")) notesBtn.hidden = true;
+
+  const fmt = (el, v) => {
+    const dec = +(el.dataset.dec || 0);
+    return (el.dataset.pre || "") + v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + (el.dataset.suf || "");
+  };
+  function countUp(slide) {
+    slide.querySelectorAll("[data-count]").forEach((el) => {
+      const to = parseFloat(el.dataset.count);
+      if (reduce.matches) { el.textContent = fmt(el, to); return; }
+      const t0 = performance.now(), dur = 1500, delay = +(el.dataset.delay || 250);
+      const step = (t) => {
+        const k = Math.max(0, Math.min(1, (t - t0 - delay) / dur));
+        el.textContent = fmt(el, to * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  function ui() {
+    countEl.textContent = cur + 1 + " / " + slides.length;
+    prog.style.width = ((cur + 1) / slides.length) * 100 + "%";
+    const n = slides[cur].querySelector(".notes");
+    notesBody.innerHTML = n ? n.innerHTML : "<p>No notes for this slide.</p>";
+  }
+  function go(i) {
+    if (mq.matches) return;
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === cur) return;
+    slides[cur].classList.remove("active");
+    cur = i;
+    void slides[cur].offsetWidth;
+    slides[cur].classList.add("active");
+    countUp(slides[cur]);
+    ui();
+    try { history.replaceState(null, "", "#" + (cur + 1)); } catch (e) {}
+  }
+  function layout() {
+    if (mq.matches) { slides.forEach((s) => { s.classList.add("active"); }); slides.forEach(countUp); }
+    else { slides.forEach((s, k) => s.classList.toggle("active", k === cur)); countUp(slides[cur]); ui(); }
+  }
+  const h = parseInt((location.hash || "").slice(1), 10);
+  if (Number.isFinite(h)) cur = Math.max(0, Math.min(slides.length - 1, h - 1));
+  layout();
+  mq.addEventListener ? mq.addEventListener("change", layout) : mq.addListener(layout);
+
+  const toggleNotes = () => {
+    notesPanel.hidden = !notesPanel.hidden;
+    notesBtn.setAttribute("aria-pressed", String(!notesPanel.hidden));
+  };
+  const toggleFull = () => {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});
+    } catch (e) {}
+  };
+  document.getElementById("prevBtn").addEventListener("click", () => go(cur - 1));
+  document.getElementById("nextBtn").addEventListener("click", () => go(cur + 1));
+  notesBtn.addEventListener("click", toggleNotes);
+  document.getElementById("fullBtn").addEventListener("click", toggleFull);
+
+  document.addEventListener("keydown", (e) => {
+    if (mq.matches || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest && e.target.closest("input,textarea,select")) return;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " " || k === "ArrowDown") { e.preventDefault(); go(cur + 1); }
+    else if (k === "ArrowLeft" || k === "PageUp" || k === "ArrowUp") { e.preventDefault(); go(cur - 1); }
+    else if (k === "Home") go(0);
+    else if (k === "End") go(slides.length - 1);
+    else if (k === "n" || k === "N") toggleNotes();
+    else if (k === "f" || k === "F") toggleFull();
+    wake();
+  });
+  deck.addEventListener("click", (e) => {
+    if (mq.matches || e.target.closest("a,button,input,select,textarea")) return;
+    if (String(getSelection && getSelection()).length) return;
+    go(e.clientX < innerWidth * 0.22 ? cur - 1 : cur + 1);
+  });
+  let tx = null, ty = null;
+  deck.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  deck.addEventListener("touchend", (e) => {
+    if (mq.matches || tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? cur + 1 : cur - 1);
+    tx = null;
+  }, { passive: true });
+
+  let idleT;
+  function wake() {
+    document.body.classList.remove("idle");
+    clearTimeout(idleT);
+    idleT = setTimeout(() => { if (!document.querySelector(".bar:hover") && notesPanel.hidden) document.body.classList.add("idle"); }, 2800);
+  }
+  document.addEventListener("mousemove", wake);
+  wake();
+})();
+</script>
