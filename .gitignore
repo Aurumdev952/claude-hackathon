@@ -16,7 +16,6 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 # env
-.env
 *.log
 frontend/public/models/body.glb
 data/analytics/tmp/
@@ -46,3 +45,4 @@ video/public/models/
 data/v3*/
 # /brag output (local reports)
 brag-output*/
+config.bat
