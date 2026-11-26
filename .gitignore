@@ -45,3 +45,4 @@ video/public/models/
 data/v3*/
 # /brag output (local reports)
 brag-output*/
+.env
